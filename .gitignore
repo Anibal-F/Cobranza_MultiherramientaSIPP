@@ -1,0 +1,9 @@
+.env
+o365_token.txt
+sipp_credenciales.json
+url.txt
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store

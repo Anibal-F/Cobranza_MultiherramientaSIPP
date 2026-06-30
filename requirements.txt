@@ -1,0 +1,13 @@
+flet[desktop]==0.85.3
+flet-datatable2==0.85.3
+python-dotenv==1.2.2
+O365==2.1.9
+
+# RPA (automatización de SIPP)
+playwright==1.60.0
+
+# Extracción de texto de comprobantes (PDF / OCR de imágenes)
+pdfplumber==0.11.10
+pypdfium2==5.11.0
+pytesseract==0.3.13
+Pillow==12.2.0
