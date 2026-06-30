@@ -13,10 +13,10 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas_cuentas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
-from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta
+from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from rpa.automation import es_modo_test
 from .sucursales import cargar_sucursales
-from .cuentas_bancarias import CUENTAS_BANCARIAS
+from .empresas import EMPRESAS, EMPRESA_DEFAULT, EMPRESA_POR_CLAVE
 from .matcher import extraer_cuenta, match_movimientos, match_movimientos_por_nombre
 from .models import ClienteCuenta, Movimiento
 from .ingresos_diversos import cargar_ingresos_diversos_en_sipp, cargar_pagos_contado_en_sipp
@@ -203,11 +203,12 @@ def main(page: ft.Page) -> None:
             columna("Abono", numeric=True, fixed_width=110),
             columna("Cliente identificado", size=DataColumnSize.L),
             columna("Cuenta", fixed_width=110),
+            columna("Sucursal sugerida", fixed_width=180),
             columna("Estado", fixed_width=150),
             columna("Acciones", fixed_width=90),
         ],
         rows=[],
-        min_width=900,
+        min_width=1050,
         fixed_top_rows=1,
         column_spacing=16,
         expand=True,
@@ -387,6 +388,84 @@ def main(page: ft.Page) -> None:
     def celda(texto: str) -> ft.DataCell:
         return ft.DataCell(ft.Text(texto, color=ft.Colors.ON_SURFACE))
 
+    # Cache de la sugerencia por (movimiento, cliente, abono): refrescar_tabla se
+    # llama en cada tecla de los filtros y no queremos recalcular el subset-sum.
+    sucursal_cache: dict = {}
+
+    def _boton_editar_sucursal(m: Movimiento) -> ft.Control:
+        return ft.IconButton(
+            icon=ft.Icons.EDIT,
+            tooltip="Declarar/cambiar sucursal",
+            icon_color=NAVY,
+            icon_size=16,
+            on_click=lambda _e, mov=m: abrir_dialogo_sucursal(mov),
+        )
+
+    def celda_sucursal_sugerida(m: Movimiento) -> ft.DataCell:
+        """Celda de sucursal: declarada por el usuario (override) o sugerida por
+        el estado de cuenta. Vacía si no se ha cargado el estado de cuenta o el
+        movimiento no está identificado."""
+        estado = estado_cuenta_ref[0]
+        if estado is None or not m.identificado:
+            return ft.DataCell(ft.Text("", color=ft.Colors.ON_SURFACE_VARIANT))
+
+        # 1) Override declarado por el usuario tiene prioridad.
+        if m.sucursal_declarada:
+            texto = m.sucursal_declarada
+            return ft.DataCell(
+                ft.Row(
+                    [
+                        ft.Text(texto, color=ft.Colors.BLUE_700, weight=ft.FontWeight.BOLD,
+                                tooltip="Declarada por el usuario"),
+                        _boton_editar_sucursal(m),
+                    ],
+                    spacing=0,
+                    tight=True,
+                )
+            )
+
+        # 2) Sugerida por el estado de cuenta (cacheada), filtrada por empresa.
+        empresa = empresa_ref[0]
+        clave = (id(m), m.cliente_match, m.abono, empresa.clave)
+        if clave in sucursal_cache:
+            detalle = sucursal_cache[clave]
+        else:
+            detalle = sugerir_sucursal_detalle(estado, m.cliente_match, m.abono, empresa.nombre_reporte)
+            sucursal_cache[clave] = detalle
+        if detalle is None:
+            # Cliente sin facturas de esta empresa en el estado de cuenta.
+            return ft.DataCell(
+                ft.Row(
+                    [
+                        ft.Text("— (no en edo. cuenta)", italic=True,
+                                color=ft.Colors.ON_SURFACE_VARIANT),
+                        _boton_editar_sucursal(m),
+                    ],
+                    spacing=0,
+                    tight=True,
+                )
+            )
+        sucursal, motivo, todas = detalle
+        if sucursal is None:
+            texto = "?"
+        elif motivo == "única":
+            texto = sucursal
+        else:
+            texto = f"{sucursal} ({motivo})"
+        tooltip = None
+        color = ft.Colors.ON_SURFACE
+        if len(todas) > 1:
+            tooltip = "Sucursales del cliente: " + ", ".join(todas)
+            if motivo in ("aproximado", None):
+                color = ft.Colors.ORANGE_700  # match débil: revisar
+        return ft.DataCell(
+            ft.Row(
+                [ft.Text(texto, color=color, tooltip=tooltip), _boton_editar_sucursal(m)],
+                spacing=0,
+                tight=True,
+            )
+        )
+
     def refrescar_tabla() -> None:
         filas = aplicar_filtros()
         tabla.rows = [
@@ -400,6 +479,7 @@ def main(page: ft.Page) -> None:
                     celda(f"${m.abono:,.2f}" if m.abono else ""),
                     celda(m.cliente_match or "-"),
                     celda(m.cuenta_match or "-"),
+                    celda_sucursal_sugerida(m),
                     ft.DataCell(estado_badge(m)),
                     ft.DataCell(ft.Row([boton_identificar_manual(m), boton_declarar_folio(m)], spacing=0)),
                 ],
@@ -469,6 +549,8 @@ def main(page: ft.Page) -> None:
             estado_text.value = f"Error al procesar el archivo: {ex}"
             movimientos = []
 
+        # El estado de cuenta solo tiene sentido con un CSV ya cargado.
+        boton_cargar_estado_cuenta.disabled = not movimientos
         refrescar_resumen()
         refrescar_tabla()
 
@@ -534,11 +616,15 @@ def main(page: ft.Page) -> None:
             estado = await asyncio.to_thread(cargar_estado_cuenta, ruta_xlsx)
             os.unlink(ruta_xlsx)
             estado_cuenta_ref[0] = estado
+            sucursal_cache.clear()
+            identificados = sum(1 for m in movimientos if m.identificado)
             estado_cuenta_text.value = (
-                f"Estado de cuenta cargado: {estado.num_clientes} cliente(s) ({archivo.name})"
+                f"Estado de cuenta cargado: {estado.num_clientes} cliente(s). "
+                f"Sucursal sugerida para {identificados} movimiento(s) identificado(s)."
             )
             estado_cuenta_text.italic = False
             estado_cuenta_text.color = ft.Colors.ON_SURFACE
+            refrescar_tabla()  # puebla la columna "Sucursal sugerida"
         except Exception as ex:
             estado_cuenta_ref[0] = None
             estado_cuenta_text.value = f"Error al cargar estado de cuenta: {ex}"
@@ -551,7 +637,71 @@ def main(page: ft.Page) -> None:
         on_click=lambda e: page.run_task(on_click_cargar_estado_cuenta, e),
         bgcolor=NAVY,
         color=ft.Colors.WHITE,
+        disabled=True,  # se habilita al cargar un archivo bancario (.csv)
     )
+
+    # --- Declaración manual de sucursal (override de la sugerida) ---
+    movimiento_sucursal_edit: list[Movimiento | None] = [None]
+    sucursal_edit_info = ft.Text("")
+    sucursal_edit_dropdown = ft.Dropdown(
+        label="Sucursal",
+        editable=True,
+        enable_filter=True,
+        menu_height=300,
+        width=360,
+    )
+
+    def on_confirmar_sucursal(_e) -> None:
+        mov = movimiento_sucursal_edit[0]
+        if mov is not None:
+            mov.sucursal_declarada = sucursal_edit_dropdown.value or None
+        page.pop_dialog()
+        refrescar_tabla()
+
+    def on_limpiar_sucursal(_e) -> None:
+        mov = movimiento_sucursal_edit[0]
+        if mov is not None:
+            mov.sucursal_declarada = None
+        page.pop_dialog()
+        refrescar_tabla()
+
+    dialogo_sucursal = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Declarar sucursal"),
+        content=ft.Column(
+            [sucursal_edit_info, sucursal_edit_dropdown],
+            tight=True,
+            spacing=12,
+            width=400,
+        ),
+        actions=[
+            ft.TextButton("Usar sugerida", on_click=on_limpiar_sucursal),
+            ft.TextButton("Cancelar", on_click=lambda _e: page.pop_dialog()),
+            ft.Button("Aplicar", on_click=on_confirmar_sucursal, bgcolor=NAVY, color=ft.Colors.WHITE),
+        ],
+    )
+
+    def abrir_dialogo_sucursal(mov: Movimiento) -> None:
+        estado = estado_cuenta_ref[0]
+        if estado is None:
+            return
+        empresa = empresa_ref[0]
+        # Opciones: las sucursales del cliente en la empresa; si no está, todas
+        # las de la empresa.
+        opciones = estado.sucursales_de_cliente(mov.cliente_match or "", empresa.nombre_reporte)
+        if not opciones:
+            opciones = estado.sucursales(empresa.nombre_reporte)
+        sucursal_edit_dropdown.options = [ft.dropdown.Option(s) for s in opciones]
+        # Valor inicial: la declarada, o la sugerida.
+        detalle = sugerir_sucursal_detalle(estado, mov.cliente_match, mov.abono, empresa.nombre_reporte)
+        sugerida = detalle[0] if detalle else None
+        sucursal_edit_dropdown.value = mov.sucursal_declarada or sugerida
+        sucursal_edit_info.value = (
+            f"{(mov.cliente_match or '')} · Abono ${mov.abono:,.2f}\n"
+            f"Sugerida: {sugerida or '—'}"
+        )
+        movimiento_sucursal_edit[0] = mov
+        mostrar_dialogo(dialogo_sucursal)
 
     # --- Búsqueda de folios pendientes en SIPP (RPA) ---
     sipp_usuario_field = ft.TextField(label="Usuario SIPP", autofocus=True)
@@ -585,7 +735,9 @@ def main(page: ft.Page) -> None:
 
         try:
             candidatos = extraer_folios_pendientes(movimientos)
-            propuestas = await buscar_y_aplicar_folios(candidatos, usuario, password, headless=False, log_fn=log_fn)
+            propuestas = await buscar_y_aplicar_folios(
+                candidatos, usuario, password, empresa=empresa_ref[0], headless=False, log_fn=log_fn
+            )
             agregadas = guardar_nuevas_cuentas(CATALOGO_PATH, catalogo, propuestas)
             catalogo.extend(agregadas)
             catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
@@ -661,6 +813,16 @@ def main(page: ft.Page) -> None:
         width=160,
         color=ft.Colors.ON_SURFACE,
     )
+    # Empresa seleccionada: define el login de SIPP, el catálogo de cuentas y
+    # las sucursales (estado de cuenta). Es global a toda la app.
+    empresa_ref = [EMPRESA_DEFAULT]
+
+    def _opciones_cuenta() -> list:
+        return [ft.dropdown.Option(key=c.id_sipp, text=c.nombre) for c in empresa_ref[0].cuentas]
+
+    def nombre_cuenta_bancaria(id_sipp: str) -> str:
+        return {c.id_sipp: c.nombre for c in empresa_ref[0].cuentas}.get(id_sipp or "", "")
+
     cuenta_bancaria_dropdown = ft.Dropdown(
         label="Cuenta Bancaria (SIPP)",
         width=420,
@@ -668,11 +830,62 @@ def main(page: ft.Page) -> None:
         editable=True,        # campo escribible
         enable_filter=True,   # filtra la lista mientras escribes
         menu_height=300,      # tope de altura: el resto hace scroll
-        options=[
-            ft.dropdown.Option(key=c.id_sipp, text=c.nombre) for c in CUENTAS_BANCARIAS
-        ],
+        options=_opciones_cuenta(),
     )
-    nombre_cuenta_bancaria_por_id = {c.id_sipp: c.nombre for c in CUENTAS_BANCARIAS}
+
+    def on_cambiar_empresa(e) -> None:
+        empresa_ref[0] = EMPRESA_POR_CLAVE.get(e.control.value, EMPRESA_DEFAULT)
+        # Las cuentas y sucursales del flujo CSV cambian con la empresa.
+        cuenta_bancaria_dropdown.options = _opciones_cuenta()
+        cuenta_bancaria_dropdown.value = None
+        sucursal_cache.clear()
+        refrescar_tabla()
+        page.update()
+
+    empresa_dropdown = ft.Dropdown(
+        label="Empresa (SIPP)",
+        width=220,
+        color=ft.Colors.ON_SURFACE,
+        value=EMPRESA_DEFAULT.clave,
+        options=[ft.dropdown.Option(key=e.clave, text=e.nombre) for e in EMPRESAS],
+        on_select=on_cambiar_empresa,
+    )
+
+    # Empresa y cuenta para el flujo de Contado, INDEPENDIENTES del CSV (puedes
+    # trabajar el CSV con una empresa y Contado con otra sin regresar a cambiar).
+    empresa_contado_ref = [EMPRESA_DEFAULT]
+
+    def _opciones_cuenta_contado() -> list:
+        return [ft.dropdown.Option(key=c.id_sipp, text=c.nombre) for c in empresa_contado_ref[0].cuentas]
+
+    cuenta_contado_dropdown = ft.Dropdown(
+        label="Cuenta Bancaria por default (SIPP)",
+        width=420,
+        color=ft.Colors.ON_SURFACE,
+        editable=True,
+        enable_filter=True,
+        menu_height=300,
+        options=_opciones_cuenta_contado(),
+    )
+
+    def on_cambiar_empresa_contado(e) -> None:
+        empresa_contado_ref[0] = EMPRESA_POR_CLAVE.get(e.control.value, EMPRESA_DEFAULT)
+        cuenta_contado_dropdown.options = _opciones_cuenta_contado()
+        cuenta_contado_dropdown.value = None
+        # Los ids de cuenta cambian por empresa: limpiamos la asignación previa.
+        for p in pagos_contado:
+            p.cuenta_bancaria = ""
+        refrescar_tabla_pagos_contado()
+        page.update()
+
+    empresa_contado_dropdown = ft.Dropdown(
+        label="Empresa (SIPP)",
+        width=220,
+        color=ft.Colors.ON_SURFACE,
+        value=EMPRESA_DEFAULT.clave,
+        options=[ft.dropdown.Option(key=e.clave, text=e.nombre) for e in EMPRESAS],
+        on_select=on_cambiar_empresa_contado,
+    )
 
     ingresos_div_usuario_field = ft.TextField(label="Usuario SIPP", autofocus=True)
     ingresos_div_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
@@ -703,7 +916,7 @@ def main(page: ft.Page) -> None:
             ingresos_div_progreso_text.value = mensaje
             page.update()
 
-        cuenta_nombre = nombre_cuenta_bancaria_por_id.get(cuenta_bancaria_dropdown.value or "", "")
+        cuenta_nombre = nombre_cuenta_bancaria(cuenta_bancaria_dropdown.value or "")
         try:
             enviados = await cargar_ingresos_diversos_en_sipp(
                 movimientos,
@@ -713,6 +926,7 @@ def main(page: ft.Page) -> None:
                 usuario,
                 password,
                 estado_cuenta=estado_cuenta_ref[0],
+                empresa=empresa_ref[0],
                 headless=False,
                 log_fn=log_fn,
             )
@@ -801,19 +1015,27 @@ def main(page: ft.Page) -> None:
     correos_o365: list[CorreoResumen] = []
     estado_o365_text = ft.Text("")
 
-    def columna_o365(texto: str) -> DataColumn2:
-        return DataColumn2(ft.Text(texto, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE))
+    def columna_o365(
+        texto: str,
+        fixed_width: Optional[float] = None,
+        size: Optional[DataColumnSize] = None,
+    ) -> DataColumn2:
+        return DataColumn2(
+            ft.Text(texto, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE),
+            fixed_width=fixed_width,
+            size=size,
+        )
 
     tabla_o365 = DataTable2(
         columns=[
-            columna_o365("Fecha"),
-            columna_o365("Remitente"),
-            columna_o365("Asunto"),
-            columna_o365("Adjuntos"),
-            columna_o365("Acciones"),
+            columna_o365("Fecha", fixed_width=150),
+            columna_o365("Remitente", fixed_width=280),
+            columna_o365("Asunto", size=DataColumnSize.L),
+            columna_o365("Adjuntos", fixed_width=90),
+            columna_o365("Acciones", fixed_width=110),
         ],
         rows=[],
-        min_width=700,
+        min_width=1100,
         fixed_top_rows=1,
         column_spacing=16,
         expand=True,
@@ -1205,8 +1427,8 @@ def main(page: ft.Page) -> None:
 
             # Hereda la cuenta del encabezado (Conciliación Bancaria) si la fila
             # aún no tiene una; el usuario puede sobrescribirla por fila.
-            if not pago.cuenta_bancaria and cuenta_bancaria_dropdown.value:
-                pago.cuenta_bancaria = cuenta_bancaria_dropdown.value
+            if not pago.cuenta_bancaria and cuenta_contado_dropdown.value:
+                pago.cuenta_bancaria = cuenta_contado_dropdown.value
 
             cuenta_dropdown = ft.DataCell(
                 ft.Dropdown(
@@ -1217,7 +1439,7 @@ def main(page: ft.Page) -> None:
                     menu_height=300,      # tope de altura: el resto hace scroll
                     options=[
                         ft.dropdown.Option(key=c.id_sipp, text=c.nombre)
-                        for c in CUENTAS_BANCARIAS
+                        for c in empresa_contado_ref[0].cuentas
                     ],
                     on_select=on_change_cuenta,
                 )
@@ -1358,6 +1580,7 @@ def main(page: ft.Page) -> None:
                 fecha_operacion_field.value or "",
                 usuario,
                 password,
+                empresa=empresa_contado_ref[0],
                 headless=False,
                 log_fn=log_fn,
                 enviar_automaticamente=enviar_automaticamente_switch.value,
@@ -1451,6 +1674,11 @@ def main(page: ft.Page) -> None:
                 ft.Container(content=tabla_o365, expand=True),
                 ft.Divider(),
                 ft.Text("Pagos de Contado (revisar antes de cargar a SIPP)", weight=ft.FontWeight.BOLD, size=16),
+                ft.Row(
+                    [empresa_contado_dropdown, cuenta_contado_dropdown],
+                    spacing=16,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
                 ft.Row([boton_extraer_pagos_contado], spacing=16),
                 pagos_progreso_text,
                 ft.Container(content=tabla_pagos_contado, expand=True),
@@ -1709,20 +1937,88 @@ def main(page: ft.Page) -> None:
         border=ft.Border(bottom=ft.BorderSide(4, GOLD)),
     )
 
+    def paso_badge(n: int) -> ft.Control:
+        return ft.Container(
+            content=ft.Text(str(n), color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=14),
+            width=26,
+            height=26,
+            bgcolor=NAVY,
+            border_radius=13,
+            alignment=ft.Alignment.CENTER,
+        )
+
+    _pasos_ayuda = [
+        (1, "Carga el archivo bancario (.csv) del banco (Santander / BanRegio)."),
+        (2, "Opcional: si quedan movimientos sin cliente, usa 'Buscar folios en SIPP' para identificarlos."),
+        (3, "Carga el Estado de Cuenta (.xlsx): sugiere la sucursal de cada movimiento."),
+        (4, "Elige Empresa, Cuenta Bancaria (SIPP) y Fecha de Operación."),
+        (5, "Presiona 'Cargar a SIPP (Ingresos Diversos)' para enviarlo al RPA."),
+    ]
+    dialogo_ayuda_csv = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("¿Cómo funciona la Conciliación Bancaria?"),
+        content=ft.Column(
+            [
+                ft.Row(
+                    [paso_badge(n), ft.Text(txt, expand=True)],
+                    spacing=12,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                )
+                for n, txt in _pasos_ayuda
+            ],
+            tight=True,
+            spacing=14,
+            width=540,
+        ),
+        actions=[ft.TextButton("Entendido", on_click=lambda _e: page.pop_dialog())],
+    )
+    boton_ayuda_csv = ft.OutlinedButton(
+        "¿Cómo funciona?",
+        icon=ft.Icons.HELP_OUTLINE,
+        on_click=lambda _e: mostrar_dialogo(dialogo_ayuda_csv),
+    )
+
+    def fila_paso(n: int, fila: ft.Control) -> ft.Control:
+        return ft.Row(
+            [paso_badge(n), fila],
+            spacing=12,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
     contenido_conciliacion = ft.Container(
         content=ft.Column(
             [
                 ft.Row(
-                    [boton_cargar, boton_buscar_sipp, archivo_nombre_text, banco_detectado_text],
+                    [
+                        paso_badge(1),
+                        boton_cargar,
+                        boton_buscar_sipp,
+                        archivo_nombre_text,
+                        banco_detectado_text,
+                        ft.Container(expand=True),
+                        boton_ayuda_csv,
+                    ],
                     spacing=16,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                fila_paso(
+                    2,
+                    ft.Row(
+                        [boton_cargar_estado_cuenta, estado_cuenta_text],
+                        spacing=16,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                ),
+                ft.Divider(),
+                fila_paso(
+                    3,
+                    ft.Row(
+                        [fecha_operacion_field, empresa_dropdown, cuenta_bancaria_dropdown, boton_cargar_ingresos_div],
+                        spacing=16,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
                 ),
                 estado_text,
-                ft.Divider(),
-                ft.Row([boton_cargar_estado_cuenta, estado_cuenta_text], spacing=16),
-                ft.Row(
-                    [fecha_operacion_field, cuenta_bancaria_dropdown, boton_cargar_ingresos_div],
-                    spacing=16,
-                ),
                 ft.Divider(),
                 resumen_row,
                 ft.Divider(),

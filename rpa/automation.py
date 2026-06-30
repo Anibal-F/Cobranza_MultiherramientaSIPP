@@ -154,12 +154,17 @@ class RPAAutomation:
         log_fn: Callable = print,
         cancel_fn: Callable = lambda: False,
         base_url: Optional[str] = None,
+        empresa_sipp: str = "ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
+        sucursal_sipp: str = "CORPORATIVO",
     ):
         self.username = username
         self.password = password
         self.headless = headless
         self._log_fn = log_fn
         self.should_cancel = cancel_fn
+        # Empresa/sucursal a configurar en el login de SIPP (combos chosen).
+        self.empresa_sipp = empresa_sipp
+        self.sucursal_sipp = sucursal_sipp
         # Si no se pasa explícita, se resuelve de SIPP_ENV (prod por default).
         self.base_url = base_url or resolver_base_url()
         self._base_navegacion = ""  # origen SIPP para navegar pestañas nuevas
@@ -304,8 +309,9 @@ class RPAAutomation:
 
         # ── Empresa: use Chosen UI so Angular sees a real user interaction ──
         # The Empresa chosen-container is the one whose underlying select has ng-model='id_Empresa'
-        await self._chosen_select(page, "id_Empresa", "ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO -")
-        self.log("Empresa seleccionada: PETROPLAZAS", "ok")
+        self.log(f"Seleccionando empresa: {self.empresa_sipp}...", "info")
+        await self._chosen_select(page, "id_Empresa", self.empresa_sipp)
+        self.log(f"Empresa seleccionada: {self.empresa_sipp}", "ok")
         await page.wait_for_timeout(1_500)
 
         # Wait for Sucursal options to load (server round-trip after empresa change)
@@ -314,8 +320,8 @@ class RPAAutomation:
         await page.wait_for_timeout(500)
 
         # ── Sucursal ──
-        await self._chosen_select(page, "id_Sucursal", "CORPORATIVO")
-        self.log("Sucursal seleccionada: Corporativo", "ok")
+        await self._chosen_select(page, "id_Sucursal", self.sucursal_sipp)
+        self.log(f"Sucursal seleccionada: {self.sucursal_sipp}", "ok")
         await page.wait_for_timeout(600)
 
         # Save session
@@ -617,6 +623,7 @@ class RPAAutomation:
 
             cliente = mov[2]
             sucursal_sugerida = mov[3] if len(mov) > 3 else None
+            forzar_sucursal = mov[4] if len(mov) > 4 else False
             pendientes.remove(mov)
 
             self.log(
@@ -699,16 +706,17 @@ class RPAAutomation:
                 etiqueta_suc = await _texto_sucursal()
                 origen_suc = "auto-sugerida (SIPP)"
                 vacia = etiqueta_suc.strip().lower() in ("", "seleccionar", "(?)")
-                if vacia and sucursal_sugerida:
+                # La declarada se fuerza siempre; la sugerida solo rellena vacías.
+                if sucursal_sugerida and (vacia or forzar_sucursal):
                     valor = await self._valor_opcion_en_select(sucursal_select, sucursal_sugerida)
                     if valor:
                         await sucursal_select.select_option(value=valor)
                         await page.wait_for_timeout(150)
                         etiqueta_suc = await _texto_sucursal()
-                        origen_suc = "sugerida (estado de cuenta)"
+                        origen_suc = "declarada (usuario)" if forzar_sucursal else "sugerida (estado de cuenta)"
                     else:
                         self.log(
-                            f"    sucursal sugerida '{sucursal_sugerida}' no existe en el combo de SIPP.",
+                            f"    sucursal '{sucursal_sugerida}' no existe en el combo de SIPP.",
                             "warn",
                         )
 
@@ -728,33 +736,38 @@ class RPAAutomation:
             "info",
         )
 
-        # Commit de la previsualización: el botón "Guardar" del modal dispara el
-        # aviso "¿Agregar los movimientos al estado de cuenta?", que aceptamos.
+        # Guardado: secuencia de SIPP (cada "Guardar" dispara un confirm que
+        # aceptamos). Al final, el modal de Subir Estado de Cuenta se CANCELA
+        # para que el usuario adjunte el soporte y envíe a mano.
         try:
-            self.log("  [paso] clic en 'Guardar' del modal de previsualización...", "info")
+            self.log("  [paso] Guardar movimientos del archivo bancario...", "info")
             await page.click("button[ng-click='AgregarMovimientosArchivoBancario()']")
-            for intento in range(3):
-                try:
-                    await page.wait_for_selector("#divBloqueoAlert", state="visible", timeout=10_000)
-                except Exception:
-                    break
-                await page.wait_for_timeout(400)
-                self.log(f"  [paso] aceptando '¿Agregar los movimientos...?' ({intento + 1})...", "info")
-                await page.click("#__btn_aceptarConfirm__")
-                try:
-                    await page.wait_for_selector("#divBloqueoAlert", state="hidden", timeout=10_000)
-                except Exception:
-                    pass
-                await page.wait_for_timeout(500)
+            await self._aceptar_confirms(page, "'¿Agregar los movimientos al estado de cuenta?'")
+
+            self.log("  [paso] Guardar conciliación...", "info")
+            await page.wait_for_selector(
+                "button[ng-click='guardar()']", state="visible", timeout=15_000
+            )
+            await page.click("button[ng-click='guardar()']")
+            await self._aceptar_confirms(page, "'¿Seguro que desea Guardar la conciliación?'")
+
+            self.log("  [paso] esperando modal 'Subir Estado de Cuenta' para Cancelar...", "info")
+            await page.wait_for_selector(
+                "#divBloqueo_modalSubirEdoCuenta", state="visible", timeout=15_000
+            )
+            await page.wait_for_timeout(400)
+            await page.locator("#divBloqueo_modalSubirEdoCuenta").locator(
+                "button", has_text="Cancelar"
+            ).first.click()
             self.log(
-                "Movimientos agregados al estado de cuenta. Revisa la conciliación en SIPP y "
-                "presiona Guardar / Guardar y Enviar manualmente cuando estés conforme.",
+                "Conciliación guardada. Se canceló el envío: adjunta el archivo soporte y presiona "
+                "Guardar y Enviar manualmente en SIPP cuando estés conforme.",
                 "ok",
             )
         except Exception as exc:
-            self.log(f"  No se pudo agregar los movimientos al estado de cuenta: {exc}", "error")
+            self.log(f"  No se pudo completar el guardado de la conciliación: {exc}", "error")
             await self._volcar_html(page, "ingdiv_guardar")
-        # Browser deliberadamente abierto para revisión/guardado manual.
+        # Browser deliberadamente abierto para que el usuario adjunte soporte y envíe.
 
     async def _navigate_to_ingresos_diversos_agregar(self, page: Page):
         self.log("Navegando a Ingresos Diversos - Agregar...", "info")
@@ -1055,6 +1068,31 @@ class RPAAutomation:
             [select_selector, nombre],
         )
 
+    async def _aceptar_confirms(self, page: Page, etiqueta: str, intentos: int = 3) -> None:
+        """Acepta los confirms encadenados de SIPP (overlay #divBloqueoAlert,
+        botón Aceptar #__btn_aceptarConfirm__) hasta que no quede ninguno.
+
+        El clic es tolerante: tras el último confirm, SIPP recarga (envía la
+        conciliación), y un clic más se colgaría esperando un botón que ya no es
+        accionable. En ese caso rompemos en silencio: el envío ya se completó."""
+        for i in range(intentos):
+            try:
+                await page.wait_for_selector("#divBloqueoAlert", state="visible", timeout=8_000)
+            except Exception:
+                break
+            await page.wait_for_timeout(400)
+            self.log(f"  [paso] aceptando confirmación {etiqueta} ({i + 1})...", "info")
+            try:
+                await page.click("#__btn_aceptarConfirm__", timeout=8_000)
+            except Exception:
+                self.log("    (sin más confirmaciones accionables; el paso ya se completó)", "info")
+                break
+            try:
+                await page.wait_for_selector("#divBloqueoAlert", state="hidden", timeout=8_000)
+            except Exception:
+                pass
+            await page.wait_for_timeout(500)
+
     async def _volcar_html(self, page: Page, etiqueta: str) -> None:
         """Guarda el HTML actual de la página en /tmp para inspeccionar los
         selectores reales del modal cuando un paso falla."""
@@ -1124,20 +1162,10 @@ class RPAAutomation:
 
             # Confirm final: "¿Desea guardar el documento y enviar a conciliación?"
             # (mismo overlay #divBloqueoAlert / botón #__btn_aceptarConfirm__).
+            # Tras el último, SIPP recarga (envío completado); _aceptar_confirms
+            # es tolerante a que el botón ya no sea accionable.
             paso = "confirmar envío final"
-            for intento in range(3):
-                try:
-                    await page.wait_for_selector("#divBloqueoAlert", state="visible", timeout=10_000)
-                except Exception:
-                    break  # no hay (más) confirm pendiente
-                await page.wait_for_timeout(400)
-                self.log(f"  [paso] aceptando envío final ({intento + 1})...", "info")
-                await page.click("#__btn_aceptarConfirm__")
-                try:
-                    await page.wait_for_selector("#divBloqueoAlert", state="hidden", timeout=10_000)
-                except Exception:
-                    pass
-                await page.wait_for_timeout(500)
+            await self._aceptar_confirms(page, "'¿Desea guardar el documento y enviar a conciliación?'")
 
             self.log(
                 "Conciliación enviada con los comprobantes adjuntos. Revisa el resultado en SIPP.",

@@ -29,6 +29,8 @@ class Movimiento:
     identificado_por_folio: bool = False
     identificado_manual: bool = False
     folio_manual: Optional[str] = None
+    # Sucursal declarada por el usuario (override de la sugerida del estado de cuenta).
+    sucursal_declarada: Optional[str] = None
 
     @property
     def identificado(self) -> bool:

@@ -3,6 +3,7 @@ from typing import Callable
 
 from rpa.automation import RPAAutomation
 
+from .empresas import EMPRESA_DEFAULT, Empresa
 from .matcher import extraer_cuenta
 from .models import ClienteCuenta, Movimiento
 
@@ -31,6 +32,7 @@ async def buscar_y_aplicar_folios(
     candidatos: list[tuple[Movimiento, str]],
     usuario: str,
     password: str,
+    empresa: Empresa = EMPRESA_DEFAULT,
     headless: bool = False,
     log_fn: Callable = print,
 ) -> list[ClienteCuenta]:
@@ -42,7 +44,14 @@ async def buscar_y_aplicar_folios(
         return []
 
     pares_unicos = sorted({(folio, mov.abono) for mov, folio in candidatos})
-    automatizacion = RPAAutomation(usuario, password, headless=headless, log_fn=log_fn)
+    automatizacion = RPAAutomation(
+        usuario,
+        password,
+        headless=headless,
+        log_fn=log_fn,
+        empresa_sipp=empresa.sipp_empresa,
+        sucursal_sipp=empresa.sipp_sucursal,
+    )
     resultados = await automatizacion.buscar_clientes_por_folio(pares_unicos)
 
     nuevas_cuentas: list[ClienteCuenta] = []

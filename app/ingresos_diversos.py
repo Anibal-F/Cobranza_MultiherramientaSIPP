@@ -1,11 +1,22 @@
-from typing import Callable
+from typing import Callable, Optional
 
 from rpa.automation import RPAAutomation
 
-from .cuentas_bancarias import CUENTAS_BANCARIAS
+from .empresas import EMPRESA_DEFAULT, Empresa
 from .estado_cuenta import sugerir_sucursal
 from .models import Movimiento
 from .pagos_contado import PagoContadoExtraido
+
+
+def _rpa(usuario, password, empresa: Empresa, headless, log_fn) -> RPAAutomation:
+    return RPAAutomation(
+        usuario,
+        password,
+        headless=headless,
+        log_fn=log_fn,
+        empresa_sipp=empresa.sipp_empresa,
+        sucursal_sipp=empresa.sipp_sucursal,
+    )
 
 
 async def cargar_ingresos_diversos_en_sipp(
@@ -16,6 +27,7 @@ async def cargar_ingresos_diversos_en_sipp(
     usuario: str,
     password: str,
     estado_cuenta=None,
+    empresa: Empresa = EMPRESA_DEFAULT,
     headless: bool = False,
     log_fn: Callable = print,
 ) -> int:
@@ -29,21 +41,22 @@ async def cargar_ingresos_diversos_en_sipp(
     for m in movimientos:
         if not m.identificado:
             continue
-        sucursal_sug = None
-        if estado_cuenta is not None:
-            res = sugerir_sucursal(estado_cuenta, m.cliente_match, m.abono)
+        # La sucursal declarada por el usuario (override) se FUERZA (gana incluso
+        # sobre la auto-sugerida de SIPP). La sugerida del estado de cuenta solo
+        # rellena las que SIPP deja vacías.
+        sucursal = getattr(m, "sucursal_declarada", None)
+        es_declarada = bool(sucursal)
+        if not sucursal and estado_cuenta is not None:
+            res = sugerir_sucursal(estado_cuenta, m.cliente_match, m.abono, empresa.nombre_reporte)
             if res:
-                sucursal_sug = res[0]
-        candidatos.append((m.referencia, m.abono, m.cliente_match, sucursal_sug))
+                sucursal = res[0]
+        candidatos.append((m.referencia, m.abono, m.cliente_match, sucursal, es_declarada))
 
-    automatizacion = RPAAutomation(usuario, password, headless=headless, log_fn=log_fn)
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
     await automatizacion.cargar_ingresos_diversos(
         candidatos, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, ruta_csv
     )
     return len(candidatos)
-
-
-_NOMBRE_CUENTA_POR_ID = {c.id_sipp: c.nombre for c in CUENTAS_BANCARIAS}
 
 
 async def cargar_pagos_contado_en_sipp(
@@ -51,6 +64,7 @@ async def cargar_pagos_contado_en_sipp(
     fecha_operacion_ddmmyyyy: str,
     usuario: str,
     password: str,
+    empresa: Empresa = EMPRESA_DEFAULT,
     headless: bool = False,
     log_fn: Callable = print,
     enviar_automaticamente: bool = False,
@@ -58,12 +72,13 @@ async def cargar_pagos_contado_en_sipp(
     """Agrega, vía el modal "Agregar Movimientos" de SIPP, cada pago de
     contado ya confirmado (con cliente, plaza y monto) en `pagos`. Agrupa los
     pagos por su cuenta bancaria destino (cada `pago.cuenta_bancaria` es un
-    id_sipp) y deja que el RPA arme una conciliación por cuenta. Regresa
-    cuántos se enviaron a intentar agregar."""
+    id_sipp de la empresa) y deja que el RPA arme una conciliación por cuenta.
+    Regresa cuántos se enviaron a intentar agregar."""
+    nombre_cuenta_por_id = {c.id_sipp: c.nombre for c in empresa.cuentas}
     # Agrupar por cuenta destino, preservando el orden de aparición.
     grupos: dict[str, list[tuple]] = {}
     for pago in pagos:
-        nombre_cuenta = _NOMBRE_CUENTA_POR_ID.get(pago.cuenta_bancaria, "")
+        nombre_cuenta = nombre_cuenta_por_id.get(pago.cuenta_bancaria, "")
         grupos.setdefault(nombre_cuenta, []).append(
             (
                 pago.concepto,
@@ -79,7 +94,7 @@ async def cargar_pagos_contado_en_sipp(
     grupos_lista = [(nombre, datos) for nombre, datos in grupos.items()]
     total = sum(len(datos) for _, datos in grupos_lista)
 
-    automatizacion = RPAAutomation(usuario, password, headless=headless, log_fn=log_fn)
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
     await automatizacion.cargar_pagos_contado(
         grupos_lista, fecha_operacion_ddmmyyyy, enviar_automaticamente
     )
