@@ -7,3 +7,8 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+html_pages/
+
+# Reportes/estados de cuenta (data financiera, no subir)
+*.xlsx
+Reporte_Estado_de_Cuenta.xlsx

@@ -13,6 +13,7 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas_cuentas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
+from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta
 from rpa.automation import es_modo_test
 from .sucursales import cargar_sucursales
 from .cuentas_bancarias import CUENTAS_BANCARIAS
@@ -507,6 +508,51 @@ def main(page: ft.Page) -> None:
         color=ft.Colors.WHITE,
     )
 
+    # --- Estado de cuenta (.xlsx): índice cliente→sucursal para sugerir sucursal ---
+    estado_cuenta_ref: list[Optional[EstadoCuenta]] = [None]
+    estado_cuenta_text = ft.Text(
+        "Estado de cuenta: no cargado", italic=True, color=ft.Colors.ON_SURFACE_VARIANT
+    )
+
+    async def on_click_cargar_estado_cuenta(_e) -> None:
+        archivos = await file_picker.pick_files(
+            file_type=ft.FilePickerFileType.CUSTOM,
+            allowed_extensions=["xlsx"],
+            allow_multiple=False,
+            with_data=True,
+        )
+        if not archivos:
+            return
+        archivo = archivos[0]
+        estado_cuenta_text.value = f"Cargando estado de cuenta '{archivo.name}'..."
+        estado_cuenta_text.italic = True
+        page.update()
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+                tmp.write(archivo.bytes or b"")
+                ruta_xlsx = tmp.name
+            estado = await asyncio.to_thread(cargar_estado_cuenta, ruta_xlsx)
+            os.unlink(ruta_xlsx)
+            estado_cuenta_ref[0] = estado
+            estado_cuenta_text.value = (
+                f"Estado de cuenta cargado: {estado.num_clientes} cliente(s) ({archivo.name})"
+            )
+            estado_cuenta_text.italic = False
+            estado_cuenta_text.color = ft.Colors.ON_SURFACE
+        except Exception as ex:
+            estado_cuenta_ref[0] = None
+            estado_cuenta_text.value = f"Error al cargar estado de cuenta: {ex}"
+            estado_cuenta_text.color = ft.Colors.RED_600
+        page.update()
+
+    boton_cargar_estado_cuenta = ft.Button(
+        "Cargar estado de cuenta (.xlsx)",
+        icon=ft.Icons.TABLE_VIEW,
+        on_click=lambda e: page.run_task(on_click_cargar_estado_cuenta, e),
+        bgcolor=NAVY,
+        color=ft.Colors.WHITE,
+    )
+
     # --- Búsqueda de folios pendientes en SIPP (RPA) ---
     sipp_usuario_field = ft.TextField(label="Usuario SIPP", autofocus=True)
     sipp_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
@@ -666,6 +712,7 @@ def main(page: ft.Page) -> None:
                 ultima_ruta_csv[0],
                 usuario,
                 password,
+                estado_cuenta=estado_cuenta_ref[0],
                 headless=False,
                 log_fn=log_fn,
             )
@@ -719,6 +766,12 @@ def main(page: ft.Page) -> None:
             return
         if not (fecha_operacion_field.value or "").strip():
             estado_text.value = "Indica la Fecha de Operación antes de continuar."
+            page.update()
+            return
+        if estado_cuenta_ref[0] is None:
+            estado_text.value = (
+                "Carga primero el Estado de Cuenta (.xlsx) — se usa para sugerir la sucursal de cada movimiento."
+            )
             page.update()
             return
         identificados = sum(1 for m in movimientos if m.identificado)
@@ -1665,6 +1718,7 @@ def main(page: ft.Page) -> None:
                 ),
                 estado_text,
                 ft.Divider(),
+                ft.Row([boton_cargar_estado_cuenta, estado_cuenta_text], spacing=16),
                 ft.Row(
                     [fecha_operacion_field, cuenta_bancaria_dropdown, boton_cargar_ingresos_div],
                     spacing=16,

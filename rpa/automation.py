@@ -125,7 +125,7 @@ def _emparejar_movimiento(
 
     candidatos = []
     for mov in pendientes:
-        referencia, abono, _cliente = mov
+        referencia, abono = mov[0], mov[1]
         if importe_modal is not None and abs(abono - importe_modal) > 0.01:
             continue
         ref_mov_norm = _normalizar_referencia(referencia)
@@ -615,7 +615,8 @@ class RPAAutomation:
                 )
                 continue
 
-            _referencia, _abono, cliente = mov
+            cliente = mov[2]
+            sucursal_sugerida = mov[3] if len(mov) > 3 else None
             pendientes.remove(mov)
 
             self.log(
@@ -681,20 +682,40 @@ class RPAAutomation:
                 await elegido.click()
                 await page.wait_for_timeout(200)
 
-                # No tocamos la sucursal: al seleccionar el cliente, SIPP la
-                # auto-sugiere. Solo registramos qué quedó para verificar.
+                # Al seleccionar el cliente, SIPP auto-sugiere la sucursal. Si la
+                # dejó vacía ("Seleccionar") y el estado de cuenta nos dio una
+                # sugerencia, la aplicamos (solo rellenamos vacías; respetamos lo
+                # que SIPP ya puso). El usuario puede corregirla en SIPP.
                 sucursal_select = fila.locator("select:visible").first
-                try:
-                    etiqueta_suc = await sucursal_select.evaluate(
-                        "el => el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : ''"
-                    )
-                except Exception:
-                    etiqueta_suc = "(?)"
+
+                async def _texto_sucursal():
+                    try:
+                        return await sucursal_select.evaluate(
+                            "el => el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : ''"
+                        )
+                    except Exception:
+                        return "(?)"
+
+                etiqueta_suc = await _texto_sucursal()
+                origen_suc = "auto-sugerida (SIPP)"
+                vacia = etiqueta_suc.strip().lower() in ("", "seleccionar", "(?)")
+                if vacia and sucursal_sugerida:
+                    valor = await self._valor_opcion_en_select(sucursal_select, sucursal_sugerida)
+                    if valor:
+                        await sucursal_select.select_option(value=valor)
+                        await page.wait_for_timeout(150)
+                        etiqueta_suc = await _texto_sucursal()
+                        origen_suc = "sugerida (estado de cuenta)"
+                    else:
+                        self.log(
+                            f"    sucursal sugerida '{sucursal_sugerida}' no existe en el combo de SIPP.",
+                            "warn",
+                        )
 
                 asignados += 1
                 self.log(
                     f"  Fila {i + 1} ({referencia_modal}): cliente '{cliente_asignado}', "
-                    f"sucursal auto-sugerida '{etiqueta_suc}'.",
+                    f"sucursal '{etiqueta_suc}' [{origen_suc}].",
                     "ok",
                 )
             except Exception as exc:
@@ -975,6 +996,29 @@ class RPAAutomation:
                 await self._volcar_html(page, f"modal_mov_{i + 1}")
 
         return agregados, comprobantes
+
+    async def _valor_opcion_en_select(self, select_locator, nombre: str):
+        """Dado un <select> (locator) con opciones tipo 'MZO - Manzanillo',
+        regresa el value de la opción que corresponde a `nombre` (match exacto
+        contra la parte tras ' - ', luego texto exacto, luego substring), o None."""
+        try:
+            return await select_locator.evaluate(
+                """(s, nombre) => {
+                    const norm = (t) => (t || '').trim().toLowerCase();
+                    const obj = norm(nombre);
+                    const opts = Array.from(s.options);
+                    for (const o of opts) {
+                        const p = o.text.split(' - ');
+                        if (norm(p[p.length - 1]) === obj) return o.value;
+                    }
+                    for (const o of opts) { if (norm(o.text) === obj) return o.value; }
+                    for (const o of opts) { if (norm(o.text).includes(obj)) return o.value; }
+                    return null;
+                }""",
+                nombre,
+            )
+        except Exception:
+            return None
 
     async def _opcion_plaza_por_nombre(self, page: Page, select_selector: str, nombre: str):
         """Encuentra, en el <select> de plaza (opciones tipo 'TIJ - Tijuana'),

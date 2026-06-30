@@ -3,6 +3,7 @@ from typing import Callable
 from rpa.automation import RPAAutomation
 
 from .cuentas_bancarias import CUENTAS_BANCARIAS
+from .estado_cuenta import sugerir_sucursal
 from .models import Movimiento
 from .pagos_contado import PagoContadoExtraido
 
@@ -14,15 +15,26 @@ async def cargar_ingresos_diversos_en_sipp(
     ruta_csv: str,
     usuario: str,
     password: str,
+    estado_cuenta=None,
     headless: bool = False,
     log_fn: Callable = print,
 ) -> int:
     """Sube ruta_csv a "Ingresos Diversos - Agregar" en SIPP y asigna, en el
     modal de previsualización, el cliente ya identificado en la app a cada
-    movimiento. Regresa cuántos movimientos identificados se enviaron a
-    intentar emparejar. No guarda: deja el browser abierto para revisión
-    manual del usuario."""
-    candidatos = [(m.referencia, m.abono, m.cliente_match) for m in movimientos if m.identificado]
+    movimiento. Si se da `estado_cuenta` (reporte de SIPP parseado), sugiere
+    además la sucursal por cada movimiento (cliente + monto). Regresa cuántos
+    movimientos identificados se enviaron a intentar emparejar. No guarda: deja
+    el browser abierto para revisión manual del usuario."""
+    candidatos = []
+    for m in movimientos:
+        if not m.identificado:
+            continue
+        sucursal_sug = None
+        if estado_cuenta is not None:
+            res = sugerir_sucursal(estado_cuenta, m.cliente_match, m.abono)
+            if res:
+                sucursal_sug = res[0]
+        candidatos.append((m.referencia, m.abono, m.cliente_match, sucursal_sug))
 
     automatizacion = RPAAutomation(usuario, password, headless=headless, log_fn=log_fn)
     await automatizacion.cargar_ingresos_diversos(
