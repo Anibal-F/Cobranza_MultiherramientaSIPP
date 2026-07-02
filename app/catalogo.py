@@ -12,9 +12,15 @@ def cargar_catalogo(path: str) -> list[ClienteCuenta]:
             cliente = (row.get("CLIENTE") or "").strip()
             banco = (row.get("BANCO") or "").strip()
             plaza = (row.get("PLAZA") or "").strip()
-            # Algunas filas traen varias cuentas separadas por espacios para un mismo cliente
-            for cuenta in (row.get("CUENTA") or "").split():
-                catalogo.append(ClienteCuenta(cuenta=cuenta, cliente=cliente, banco=banco, plaza=plaza))
+            rfc = (row.get("RFC") or "").strip().upper()
+            cuentas = (row.get("CUENTA") or "").split()
+            if cuentas:
+                # Algunas filas traen varias cuentas separadas por espacios para un mismo cliente.
+                for cuenta in cuentas:
+                    catalogo.append(ClienteCuenta(cuenta=cuenta, cliente=cliente, banco=banco, plaza=plaza, rfc=rfc))
+            elif rfc:
+                # Entrada identificada solo por RFC (sin cuenta/CLABE conocida).
+                catalogo.append(ClienteCuenta(cuenta="", cliente=cliente, banco=banco, plaza=plaza, rfc=rfc))
     return catalogo
 
 
@@ -23,17 +29,25 @@ def guardar_catalogo_completo(path: str, catalogo: list[ClienteCuenta]) -> None:
     (usado por el editor de Catálogos: agregar/editar/eliminar cuentas)."""
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["CUENTA", "CLIENTE", "BANCO", "PLAZA"])
+        writer.writerow(["CUENTA", "CLIENTE", "BANCO", "PLAZA", "RFC"])
         for item in catalogo:
-            writer.writerow([item.cuenta, item.cliente, item.banco, item.plaza])
+            writer.writerow([item.cuenta, item.cliente, item.banco, item.plaza, getattr(item, "rfc", "")])
 
 
 def guardar_nuevas_cuentas(path: str, catalogo_actual: list[ClienteCuenta], propuestas: list[ClienteCuenta]) -> list[ClienteCuenta]:
     """Agrega al final del CSV del catálogo las cuentas propuestas que todavía
     no existan (por número de cuenta). Regresa las que realmente se agregaron.
     """
-    cuentas_existentes = {c.cuenta for c in catalogo_actual}
-    nuevas = [c for c in propuestas if c.cuenta not in cuentas_existentes]
+    cuentas_existentes = {c.cuenta for c in catalogo_actual if c.cuenta}
+    rfcs_existentes = {getattr(c, "rfc", "") for c in catalogo_actual if getattr(c, "rfc", "")}
+
+    def _es_nueva(c: ClienteCuenta) -> bool:
+        if c.cuenta:
+            return c.cuenta not in cuentas_existentes
+        rfc = getattr(c, "rfc", "")
+        return bool(rfc) and rfc not in rfcs_existentes
+
+    nuevas = [c for c in propuestas if _es_nueva(c)]
     if not nuevas:
         return []
 
@@ -50,6 +64,6 @@ def guardar_nuevas_cuentas(path: str, catalogo_actual: list[ClienteCuenta], prop
             f.write("\n")
         writer = csv.writer(f)
         for nueva in nuevas:
-            writer.writerow([nueva.cuenta, nueva.cliente, nueva.banco, nueva.plaza])
+            writer.writerow([nueva.cuenta, nueva.cliente, nueva.banco, nueva.plaza, getattr(nueva, "rfc", "")])
 
     return nuevas

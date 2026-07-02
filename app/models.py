@@ -9,6 +9,10 @@ class ClienteCuenta:
     cliente: str
     banco: str
     plaza: str
+    # RFC del cliente: clave alterna estable para identificar cuando la CLABE
+    # viene enmascarada pero el RFC no. Opcional (retrocompatible con catálogos
+    # sin esta columna).
+    rfc: str = ""
 
 
 @dataclass
@@ -31,6 +35,16 @@ class Movimiento:
     folio_manual: Optional[str] = None
     # Sucursal declarada por el usuario (override de la sugerida del estado de cuenta).
     sucursal_declarada: Optional[str] = None
+    # Sucursal leída directamente de la factura en SIPP cuando el movimiento se
+    # identificó por folio (fuente confiable, gana sobre la sugerida del estado
+    # de cuenta pero no sobre la declarada por el usuario).
+    sucursal_por_folio: Optional[str] = None
+    # Sugerencia de sucursal por estado de cuenta, CONGELADA al guardar el
+    # snapshot del historial, para poder mostrarla al restaurar sin recargar el
+    # .xlsx. No es fuente de verdad: si el estado de cuenta está cargado se
+    # recalcula en vivo.
+    sucursal_sugerida: Optional[str] = None
+    sucursal_sugerida_motivo: Optional[str] = None
 
     @property
     def identificado(self) -> bool:

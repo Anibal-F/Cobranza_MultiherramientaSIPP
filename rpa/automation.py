@@ -86,8 +86,12 @@ _JS_GRID_FILAS_FACTURAS = """(gridAttr) => {
     const grid = document.querySelector(`[ng-grid="${gridAttr}"]`);
     if (!grid) return [];
     return Array.from(grid.querySelectorAll('.ngRow')).map(fila => {
+        const sucursalCelda = fila.querySelector('.col0');
+        const folioCelda = fila.querySelector('.col1');
         const clienteCelda = fila.querySelector('.col2');
         return {
+            sucursal: sucursalCelda ? sucursalCelda.textContent.trim() : null,
+            folio: folioCelda ? folioCelda.textContent.trim() : null,
             cliente: clienteCelda ? clienteCelda.textContent.trim() : null,
             texto: fila.textContent.trim(),
         };
@@ -95,6 +99,12 @@ _JS_GRID_FILAS_FACTURAS = """(gridAttr) => {
 }"""
 
 _RE_MONTO = re.compile(r"\$?\s?(\d{1,3}(?:,\d{3})*\.\d{2})")
+
+
+def _norm_folio(texto: Optional[str]) -> str:
+    """Normaliza un folio para comparar: solo alfanuméricos, en mayúsculas
+    (ej. 'FCL 190541' y 'FCL190541' quedan iguales)."""
+    return re.sub(r"[^A-Z0-9]", "", (texto or "").upper())
 
 # ──────────────────────────────────────────────────────────
 # Helpers para "Ingresos Diversos - Agregar" (modal de previsualización)
@@ -404,17 +414,18 @@ class RPAAutomation:
     # ──────────────────────────────────────────────────────
     async def buscar_clientes_por_folio(
         self, folios: List[Tuple[str, Optional[float]]]
-    ) -> Dict[Tuple[str, Optional[float]], Optional[str]]:
+    ) -> Dict[Tuple[str, Optional[float]], Optional[Tuple[str, Optional[str]]]]:
         """
         Abre su propia sesión de navegador (login + selección de empresa/sucursal),
         navega a Facturas - Listado y busca cada folio. Recibe pares (folio, monto)
         donde monto es el importe esperado (abono del movimiento bancario), usado
         para desambiguar cuando un folio devuelve varias facturas. Regresa un
-        diccionario (folio, monto) -> nombre de cliente (o None si no se encontró
-        o no se pudo desambiguar). Independiente del flujo de Recepción de
-        Facturas (run/_process_folio), que sigue en construcción.
+        diccionario (folio, monto) -> (nombre de cliente, sucursal) tomados de la
+        factura, o None si no se encontró o no se pudo desambiguar. Independiente
+        del flujo de Recepción de Facturas (run/_process_folio), que sigue en
+        construcción.
         """
-        resultados: Dict[Tuple[str, Optional[float]], Optional[str]] = {}
+        resultados: Dict[Tuple[str, Optional[float]], Optional[Tuple[str, Optional[str]]]] = {}
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -440,10 +451,12 @@ class RPAAutomation:
                         break
                     try:
                         self.log(f"Buscando folio {folio} en SIPP...", "info")
-                        cliente = await self._buscar_folio_en_listado(page, folio, monto)
-                        resultados[(folio, monto)] = cliente
-                        if cliente:
-                            self.log(f"  Folio {folio} -> {cliente}", "ok")
+                        encontrado = await self._buscar_folio_en_listado(page, folio, monto)
+                        resultados[(folio, monto)] = encontrado
+                        if encontrado:
+                            cliente, sucursal = encontrado
+                            suc_txt = f" [sucursal: {sucursal}]" if sucursal else ""
+                            self.log(f"  Folio {folio} -> {cliente}{suc_txt}", "ok")
                         else:
                             self.log(f"  Folio {folio} sin resultados.", "warn")
                     except Exception as exc:
@@ -489,32 +502,50 @@ class RPAAutomation:
 
     async def _buscar_folio_en_listado(
         self, page: Page, folio: str, monto_esperado: Optional[float] = None
-    ) -> Optional[str]:
-        await page.fill("input[ng-model='filtros.fl_FolioDocumento']", folio)
+    ) -> Optional[Tuple[str, Optional[str]]]:
+        # El folio puede traer serie de sucursal (ej. 'FCL190541'). Se busca por
+        # el número en SIPP (su campo hace coincidencia parcial), y si la serie
+        # existe se usa para desambiguar exactamente cuál factura es —sin depender
+        # del monto, porque los abonos parciales no igualan el total de la factura.
+        folio_norm = _norm_folio(folio)
+        numero = re.sub(r"\D", "", folio) or folio
+        tiene_serie = bool(re.search(r"[A-Z]", folio_norm))
+
+        await page.fill("input[ng-model='filtros.fl_FolioDocumento']", numero)
         await page.click("button[ng-click='buscar()']")
         await page.wait_for_timeout(1_500)
         filas = await page.evaluate(_JS_GRID_FILAS_FACTURAS, "gridFacturas")
 
         if not filas:
             return None
-        if len(filas) == 1:
-            return filas[0]["cliente"]
 
+        # 1) Desambiguación por serie/folio exacto (la más confiable).
+        if tiene_serie:
+            exactas = [f for f in filas if _norm_folio(f.get("folio")) == folio_norm]
+            if len(exactas) == 1:
+                return (exactas[0]["cliente"], exactas[0]["sucursal"])
+            if len(exactas) > 1:
+                filas = exactas  # varias con la misma serie: seguir con monto
+
+        if len(filas) == 1:
+            return (filas[0]["cliente"], filas[0]["sucursal"])
+
+        # 2) Desambiguación por monto (fallback cuando no hay serie o hay empate).
         if monto_esperado is not None:
             for fila in filas:
                 montos = [float(m.replace(",", "")) for m in _RE_MONTO.findall(fila["texto"])]
                 if any(abs(monto - monto_esperado) < 0.01 for monto in montos):
-                    return fila["cliente"]
+                    return (fila["cliente"], fila["sucursal"])
             self.log(
                 f"  Folio {folio}: {len(filas)} resultados, ninguno coincide con "
-                f"el monto ${monto_esperado:,.2f}; se omite.",
+                f"el monto ${monto_esperado:,.2f} (¿abono parcial?); se omite.",
                 "warn",
             )
             return None
 
         self.log(
-            f"  Folio {folio}: {len(filas)} resultados ambiguos y sin monto de "
-            "referencia para desambiguar; se omite.",
+            f"  Folio {folio}: {len(filas)} resultados ambiguos y sin serie ni "
+            "monto para desambiguar; se omite.",
             "warn",
         )
         return None

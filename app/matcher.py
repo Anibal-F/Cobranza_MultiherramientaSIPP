@@ -22,24 +22,74 @@ BANCOS_CONOCIDOS = [
 ]
 
 
+_CUENTA_DIGITOS_RE = re.compile(r"\d{%d,}" % LONGITUD_MINIMA_CUENTA)
+
+# RFC mexicano: 3-4 letras (moral/física) + 6 dígitos (fecha) + 3 de homoclave.
+_RFC_RE = re.compile(r"[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}")
+# Para extraer del texto del movimiento, preferimos el que sigue a la etiqueta "RFC".
+_RFC_ETIQUETADO_RE = re.compile(r"RFC\W{0,5}([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})", re.IGNORECASE)
+
+
+def _rfc_valido(texto: str) -> str:
+    """Devuelve el RFC normalizado (mayúsculas) si `texto` es un RFC válido, o ''."""
+    candidato = (texto or "").strip().upper()
+    return candidato if _RFC_RE.fullmatch(candidato) else ""
+
+
+def extraer_rfc(texto: str) -> str | None:
+    """Extrae el RFC del texto del movimiento. Prioriza el que aparece tras la
+    etiqueta 'RFC'; si no, toma el primer RFC bien formado del texto.
+
+    Antes de buscar se eliminan los identificadores por-transacción (CVE RAST,
+    referencia, folio): la clave de rastreo suele empezar con letras+dígitos
+    (ej. 'CRED05002607010000001860') que tienen forma de RFC y darían un falso
+    positivo. La limpieza se define más abajo en el módulo (`_RE_TOKENS_TRANSACCION`)."""
+    limpio = _RE_TOKENS_TRANSACCION.sub(" ", texto or "")
+    etiquetado = _RFC_ETIQUETADO_RE.search(limpio)
+    if etiquetado:
+        return etiquetado.group(1).upper()
+    generico = _RFC_RE.search(limpio.upper())
+    return generico.group(0) if generico else None
+
+
 def match_movimientos(movimientos: list[Movimiento], catalogo: list[ClienteCuenta]) -> None:
     """Marca cada movimiento con el cliente identificado, buscando el número de
     cuenta del catálogo como substring dentro del texto del movimiento.
     Modifica los movimientos in-place.
+
+    Solo se consideran CORRIDAS DE DÍGITOS (>= LONGITUD_MINIMA_CUENTA) de cada
+    cuenta. El catálogo tiene entradas basura no numéricas (ej. 'TEF RECIBIDO
+    BANORTE'), y hacer substring con esas produce falsos positivos contra las
+    descripciones bancarias ('SPEI RECIBIDO ... BANORTE'). Una cuenta como
+    '146651798/112335751' aporta sus dos números por separado.
     """
-    cuentas_ordenadas = sorted(
-        (c for c in catalogo if len(c.cuenta) >= LONGITUD_MINIMA_CUENTA),
-        key=lambda c: len(c.cuenta),
-        reverse=True,
-    )
+    indexado: list[tuple[str, ClienteCuenta]] = []
+    rfc_indexado: list[tuple[str, ClienteCuenta]] = []
+    for c in catalogo:
+        for numero in _CUENTA_DIGITOS_RE.findall(c.cuenta or ""):
+            indexado.append((numero, c))
+        rfc = _rfc_valido(getattr(c, "rfc", ""))
+        if rfc:
+            rfc_indexado.append((rfc, c))
+    indexado.sort(key=lambda par: len(par[0]), reverse=True)
 
     for mov in movimientos:
-        for cuenta_cliente in cuentas_ordenadas:
-            if cuenta_cliente.cuenta in mov.texto_busqueda:
+        # 1) Match por cuenta/CLABE (identificador más específico).
+        for numero, cuenta_cliente in indexado:
+            if numero in mov.texto_busqueda:
                 mov.cliente_match = cuenta_cliente.cliente
-                mov.cuenta_match = cuenta_cliente.cuenta
+                mov.cuenta_match = numero
                 mov.banco_match = cuenta_cliente.banco
                 break
+        else:
+            # 2) Fallback por RFC (cuando la CLABE viene enmascarada).
+            texto_upper = mov.texto_busqueda.upper()
+            for rfc, cuenta_cliente in rfc_indexado:
+                if rfc in texto_upper:
+                    mov.cliente_match = cuenta_cliente.cliente
+                    mov.cuenta_match = rfc
+                    mov.banco_match = cuenta_cliente.banco
+                    break
 
 
 def _palabras_significativas(nombre_normalizado: str) -> list[str]:
@@ -71,10 +121,42 @@ def _match_por_nombre(texto_normalizado: str, clientes_normalizados: list[tuple[
     return None
 
 
+# Identificadores ÚNICOS POR TRANSACCIÓN que NO deben tomarse como cuenta/CLABE
+# del cliente: la clave de rastreo (CVE RAST), la referencia numérica y el folio
+# (FLM) cambian en cada operación, así que guardarlos en el catálogo generaría
+# entradas basura que nunca volverían a coincidir.
+_RE_TOKENS_TRANSACCION = re.compile(
+    r"(?:CVE\s*RAST|CLAVE\s*DE\s*RASTREO|REFERENCIA(?:\s*NUMERICA)?|REF\.?|"
+    r"NO\.?\s*FLM|FLM|FOLIO)\s*:?\s*[A-Z]*\d[\dA-Z]*",
+    re.IGNORECASE,
+)
+
+# La CLABE interbancaria mexicana tiene exactamente 18 dígitos y suele venir
+# precedida de "CLABE".
+_RE_CLABE_ETIQUETADA = re.compile(r"CLABE\D{0,12}(\d{18})", re.IGNORECASE)
+
+
 def extraer_cuenta(texto: str) -> str | None:
-    numeros = re.findall(r"\d{8,18}", texto)
+    """Extrae la cuenta/CLABE ordenante del cliente desde el texto del
+    movimiento, para proponerla como clave del catálogo. Descarta los
+    identificadores únicos por transacción (CVE RAST, referencia, folio) que no
+    sirven como clave. Devuelve None si no hay un número estable de cuenta."""
+    texto = texto or ""
+
+    # 1) CLABE explícita ("... CLABE 0123456789012345 67 ...").
+    etiquetada = _RE_CLABE_ETIQUETADA.search(texto)
+    if etiquetada:
+        return etiquetada.group(1)
+
+    # 2) Buscar en el texto ya sin los tokens por-transacción.
+    limpio = _RE_TOKENS_TRANSACCION.sub(" ", texto)
+    numeros = re.findall(r"\d{10,18}", limpio)
     if not numeros:
         return None
+    # Preferir una CLABE de 18 dígitos si aparece; si no, el número más largo.
+    clabes = [n for n in numeros if len(n) == 18]
+    if clabes:
+        return clabes[0]
     return max(numeros, key=len)
 
 
@@ -96,7 +178,7 @@ def match_movimientos_por_nombre(
     Modifica los movimientos in-place y regresa los nuevos registros propuestos.
     """
     nuevas_cuentas: list[ClienteCuenta] = []
-    cuentas_propuestas: set[str] = set()
+    claves_propuestas: set[str] = set()
 
     for mov in movimientos:
         if mov.identificado:
@@ -110,15 +192,25 @@ def match_movimientos_por_nombre(
         mov.identificado_por_nombre = True
 
         cuenta_extraida = extraer_cuenta(mov.texto_busqueda)
-        if not cuenta_extraida:
+        rfc_extraido = extraer_rfc(mov.texto_busqueda)
+        if not cuenta_extraida and not rfc_extraido:
             continue
-        mov.cuenta_match = cuenta_extraida
-        mov.banco_match = _extraer_banco(mov.texto_busqueda, mov.banco)
 
-        if cuenta_extraida not in cuentas_propuestas:
-            cuentas_propuestas.add(cuenta_extraida)
+        mov.banco_match = _extraer_banco(mov.texto_busqueda, mov.banco)
+        # La cuenta/CLABE es la clave preferida; si no hay, se usa el RFC.
+        mov.cuenta_match = cuenta_extraida or rfc_extraido
+
+        clave = cuenta_extraida or f"RFC:{rfc_extraido}"
+        if clave not in claves_propuestas:
+            claves_propuestas.add(clave)
             nuevas_cuentas.append(
-                ClienteCuenta(cuenta=cuenta_extraida, cliente=cliente, banco=mov.banco_match, plaza="")
+                ClienteCuenta(
+                    cuenta=cuenta_extraida or "",
+                    cliente=cliente,
+                    banco=mov.banco_match,
+                    plaza="",
+                    rfc=rfc_extraido or "",
+                )
             )
 
     return nuevas_cuentas

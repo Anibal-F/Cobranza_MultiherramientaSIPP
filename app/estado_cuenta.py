@@ -17,6 +17,7 @@ editable.
 from dataclasses import dataclass, field
 from typing import Optional
 
+from .matcher import _palabras_significativas
 from .textutils import normalizar
 
 _COL_EMPRESA = 0      # A
@@ -36,6 +37,8 @@ class EstadoCuenta:
     # cliente_norm -> { empresa_key -> { sucursal -> [(folio, saldo), ...] } }
     por_cliente: dict[str, dict[str, dict[str, list[tuple[str, float]]]]] = field(default_factory=dict)
     nombre_original: dict[str, str] = field(default_factory=dict)
+    # cliente_norm -> conjunto de palabras significativas (para match difuso).
+    palabras_cliente: dict[str, frozenset] = field(default_factory=dict)
 
     @property
     def num_clientes(self) -> int:
@@ -94,19 +97,52 @@ def cargar_estado_cuenta(ruta: str) -> EstadoCuenta:
         wb.close()
 
     estado.por_cliente = {k: v for k, v in estado.por_cliente.items() if v}
+    estado.palabras_cliente = {
+        k: frozenset(_palabras_significativas(k)) for k in estado.por_cliente
+    }
     return estado
 
 
 def _resolver_cliente(estado: EstadoCuenta, cliente: str) -> Optional[str]:
-    """Clave del cliente: exacto normalizado, o por contención única."""
+    """Clave del cliente en el reporte. Se intenta, en orden:
+      1) match exacto normalizado;
+      2) contención de cadena única (ej. 'VELARDE ESPINOZA' ⊂ 'COMBUSTIBLES
+         VELARDE ESPINOZA');
+      3) match difuso por palabras significativas, para abreviaturas y prefijos
+         (ej. 'MA DE JESUS MARTINEZ SANDOVAL' vs 'MARIA DE JESUS MARTINEZ
+         SANDOVAL'). Solo resuelve si hay UN candidato claramente mejor, para no
+         adivinar mal.
+    """
     if not cliente:
         return None
     objetivo = normalizar(cliente)
     if objetivo in estado.por_cliente:
         return objetivo
+
     candidatos = [k for k in estado.por_cliente if k and (k in objetivo or objetivo in k)]
     if len(candidatos) == 1:
         return candidatos[0]
+
+    palabras_objetivo = set(_palabras_significativas(objetivo))
+    if len(palabras_objetivo) < 2:
+        return None
+
+    coincidencias: list[tuple[int, str]] = []
+    for clave, palabras in estado.palabras_cliente.items():
+        interseccion = palabras_objetivo & palabras
+        menor = min(len(palabras_objetivo), len(palabras)) if palabras else 0
+        # Al menos 2 palabras en común y, a lo más, una palabra distinta en el
+        # conjunto más pequeño (tolera 'MARIA' vs 'MA', prefijos como
+        # 'COMBUSTIBLES', etc.).
+        if len(interseccion) >= 2 and len(interseccion) >= menor - 1:
+            coincidencias.append((len(interseccion), clave))
+
+    if not coincidencias:
+        return None
+    coincidencias.sort(reverse=True)
+    # Solo si el mejor es estrictamente superior (no hay empate ambiguo).
+    if len(coincidencias) == 1 or coincidencias[0][0] > coincidencias[1][0]:
+        return coincidencias[0][1]
     return None
 
 

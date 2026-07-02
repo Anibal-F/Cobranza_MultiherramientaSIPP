@@ -41,11 +41,16 @@ async def cargar_ingresos_diversos_en_sipp(
     for m in movimientos:
         if not m.identificado:
             continue
-        # La sucursal declarada por el usuario (override) se FUERZA (gana incluso
-        # sobre la auto-sugerida de SIPP). La sugerida del estado de cuenta solo
-        # rellena las que SIPP deja vacías.
+        # Prioridad de sucursal (todas las de fuente confiable se FUERZAN, ganan
+        # incluso sobre la auto-sugerida de SIPP):
+        #   1) declarada por el usuario (override manual);
+        #   2) leída de la propia factura durante la búsqueda por folio;
+        #   3) sugerida por el estado de cuenta (heurística), solo rellena vacías.
         sucursal = getattr(m, "sucursal_declarada", None)
         es_declarada = bool(sucursal)
+        if not sucursal and getattr(m, "sucursal_por_folio", None):
+            sucursal = m.sucursal_por_folio
+            es_declarada = True  # fuente confiable: forzar
         if not sucursal and estado_cuenta is not None:
             res = sugerir_sucursal(estado_cuenta, m.cliente_match, m.abono, empresa.nombre_reporte)
             if res:
