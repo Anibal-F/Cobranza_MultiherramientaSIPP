@@ -2841,7 +2841,7 @@ def main(page: ft.Page) -> None:
                 ),
                 ft.Column(
                     [
-                        ft.Text("Conciliación Bancaria", size=22, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                        ft.Text("MultiHerramienta de Cobranza", size=22, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                         catalogo_info_text,
                     ],
                     spacing=0,
@@ -3022,8 +3022,8 @@ def main(page: ft.Page) -> None:
             controls=[
                 ft.TabBar(
                     tabs=[
-                        ft.Tab(label="Conciliación Bancaria", icon=ft.Icons.ACCOUNT_BALANCE),
-                        ft.Tab(label="Contado", icon=ft.Icons.MAIL_OUTLINE),
+                        ft.Tab(label="Identificación Bancaria", icon=ft.Icons.ACCOUNT_BALANCE),
+                        ft.Tab(label="Extracción de Contados", icon=ft.Icons.MAIL_OUTLINE),
                         ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
                     ],
                 ),
