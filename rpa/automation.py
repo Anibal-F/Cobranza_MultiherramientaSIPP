@@ -120,6 +120,106 @@ _SEL_FACTORAJE_FILA = "tr[ng-repeat='item in Listado']"
 _SEL_FACTORAJE_BTN_GUARDAR = "button[ng-click='guardarMovimiento(true, sn_Identificacion)']"
 
 
+# Fuerza la sección de factoraje en el modal de edición cuando el checkbox viene
+# deshabilitado (ng-disabled="sn_Identificacion || SN_MONEDEROELECTRONICO"): se
+# actúa sobre la instancia VISIBLE, se limpian los flags que lo deshabilitan y se
+# marca SN_FACTORAJE en el scope de Angular.
+_JS_FORZAR_FACTORAJE = """() => {
+    // Checkbox de la instancia VISIBLE (no dentro de un ancestro .ng-hide).
+    const enModalVisible = e => { let n = e; while (n) {
+        if (n.classList && n.classList.contains('ng-hide')) return false; n = n.parentElement; } return true; };
+    const els = Array.from(document.querySelectorAll('input[ng-model="SN_FACTORAJE"]'));
+    const el = els.find(enModalVisible) || els.find(e => e.offsetParent !== null) || els[0];
+    if (!el || !window.angular) return 'no-el/angular';
+    const $el = angular.element(el);
+    const scope = $el.scope();
+    if (!scope) return 'no-scope';
+    const apply = () => { if (scope.$$phase) scope.$evalAsync(); else scope.$apply(); };
+    // 1) Habilitar el checkbox (apagar ng-disabled) y aplicar el digest.
+    scope.sn_Identificacion = false;
+    scope.SN_MONEDEROELECTRONICO = false;
+    apply();
+    // 2) Marcar SN_FACTORAJE por el ngModelController (setea el scope correcto y
+    //    dispara ng-change), ya con el input habilitado.
+    const ctrl = $el.controller('ngModel');
+    if (ctrl) { ctrl.$setViewValue(true); ctrl.$render(); } else { scope.SN_FACTORAJE = true; }
+    apply();
+    return 'ctrl=' + (!!ctrl) + ' SN_FACTORAJE=' + scope.SN_FACTORAJE + ' disabled=' + el.disabled;
+}"""
+
+
+# Diagnóstico: valores de los flags que deshabilitan el checkbox de factoraje.
+_JS_FLAGS_FACTORAJE = """() => {
+    const enVis = e => { let n=e; while(n){ if(n.classList&&n.classList.contains('ng-hide')) return false; n=n.parentElement;} return true; };
+    const els = Array.from(document.querySelectorAll('input[ng-model="SN_FACTORAJE"]'));
+    const el = els.find(enVis) || els[0];
+    if (!el || !window.angular) return 'no-el/angular';
+    const s = angular.element(el).scope();
+    return 'sn_Identificacion=' + (s && s.sn_Identificacion) +
+           ' SN_MONEDEROELECTRONICO=' + (s && s.SN_MONEDEROELECTRONICO) +
+           ' disabled=' + el.disabled;
+}"""
+
+# Marca el checkbox de factoraje de forma atómica: apaga los flags de
+# ng-disabled, habilita el input y hace un CLICK REAL del DOM (dispara el evento
+# change → ng-model, igual que un clic humano, por lo que SÍ persiste al guardar
+# —a diferencia de $setViewValue—). Todo en un bloque para ganarle al digest que
+# lo re-deshabilita.
+_JS_CLICK_FACTORAJE = """() => {
+    const enVis = e => { let n=e; while(n){ if(n.classList&&n.classList.contains('ng-hide')) return false; n=n.parentElement;} return true; };
+    const els = Array.from(document.querySelectorAll('input[ng-model="SN_FACTORAJE"]'));
+    const el = els.find(enVis) || els.find(e => e.offsetParent !== null) || els[0];
+    if (!el || !window.angular) return 'no-el/angular';
+    const s = angular.element(el).scope();
+    if (!s) return 'no-scope';
+    s.sn_Identificacion = false;
+    s.SN_MONEDEROELECTRONICO = false;
+    el.disabled = false;
+    if (!el.checked) el.click();
+    if (s.$$phase) s.$evalAsync(); else s.$apply();
+    return 'checked=' + el.checked + ' SN_FACTORAJE=' + s.SN_FACTORAJE + ' disabled=' + el.disabled;
+}"""
+
+# Habilita el checkbox de factoraje apagando los flags de ng-disabled (sin tocar
+# SN_FACTORAJE: éste se marca luego con un clic REAL en el label, que sí persiste).
+_JS_HABILITAR_FACTORAJE = """() => {
+    const enVis = e => { let n=e; while(n){ if(n.classList&&n.classList.contains('ng-hide')) return false; n=n.parentElement;} return true; };
+    const els = Array.from(document.querySelectorAll('input[ng-model="SN_FACTORAJE"]'));
+    const el = els.find(enVis) || els[0];
+    if (!el || !window.angular) return 'no-el/angular';
+    const s = angular.element(el).scope();
+    if (!s) return 'no-scope';
+    s.sn_Identificacion = false;
+    s.SN_MONEDEROELECTRONICO = false;
+    if (s.$$phase) s.$evalAsync(); else s.$apply();
+    return 'disabled=' + el.disabled;
+}"""
+
+
+# Setea el interés de factoraje por el modelo de Angular (cuando el campo no se
+# hace visible). Replica el ng-change del input: recalcula IM_COMISION y el
+# importe. Recibe el interés como string.
+_JS_SET_INTERES = """(interes) => {
+    const enVisible = e => { let n = e; while (n) {
+        if (n.classList && n.classList.contains('ng-hide')) return false; n = n.parentElement; } return true; };
+    const els = Array.from(document.querySelectorAll('input[ng-model="IM_FACTORAJEINTERES"]'));
+    const el = els.find(enVisible) || els.find(e => e.offsetParent !== null) || els[0];
+    if (!el || !window.angular) return 'no-el/angular';
+    const $el = angular.element(el);
+    const scope = $el.scope();
+    if (!scope) return 'no-scope';
+    const val = parseFloat(interes) || 0;
+    const ctrl = $el.controller('ngModel');
+    if (ctrl) { ctrl.$setViewValue(val); ctrl.$render(); } else { scope.IM_FACTORAJEINTERES = val; }
+    scope.IM_COMISION = val + (scope.IM_FACTORAJECOMISION || 0);
+    if (typeof scope.ActualizarImporteMovimiento2 === 'function') {
+        try { scope.ActualizarImporteMovimiento2(); } catch (e) {}
+    }
+    if (scope.$$phase) scope.$evalAsync(); else scope.$apply();
+    return 'IM_FACTORAJEINTERES=' + scope.IM_FACTORAJEINTERES + ' IM_COMISION=' + scope.IM_COMISION;
+}"""
+
+
 def _emparejar_item_factoraje(referencia_fila: str, texto_fila: str, items: List[dict]) -> Optional[dict]:
     """Empareja una fila de la conciliación con un item del PDF: por REFERENCIA
     (celda, la más confiable), luego por folio (FLM/FMZ en el texto), luego por
@@ -792,6 +892,13 @@ class RPAAutomation:
                             "warn",
                         )
 
+                # SIPP auto-agrega una fila por CADA sucursal del cliente y solo
+                # pone el importe en una; las filas de importe vacío impiden
+                # guardar. Se eliminan las vacías (conservando al menos una).
+                borradas = await self._eliminar_sucursales_vacias(page, fila)
+                if borradas:
+                    self.log(f"    {borradas} sucursal(es) vacía(s) eliminada(s).", "info")
+
                 asignados += 1
                 self.log(
                     f"  Fila {i + 1} ({referencia_modal}): cliente '{cliente_asignado}', "
@@ -840,6 +947,42 @@ class RPAAutomation:
             self.log(f"  No se pudo completar el guardado de la conciliación: {exc}", "error")
             await self._volcar_html(page, "ingdiv_guardar")
         # Browser deliberadamente abierto para que el usuario adjunte soporte y envíe.
+
+    async def _eliminar_sucursales_vacias(self, page: Page, fila) -> int:
+        """Elimina las sub-filas de sucursal cuyo importe está vacío/0,
+        conservando al menos una. SIPP agrega una fila por CADA sucursal del
+        cliente y solo llena una; las vacías bloquean guardar.
+
+        Se anclan por el input de importe (ng-model='MovSucursal.IM_MOVIMIENTO'):
+        el atributo ng-repeat NO existe en el DOM renderizado. El botón de borrar
+        (btn-eliminar15p → eliminarSucursalModal) vive en el <tr> de la sub-fila."""
+        borradas = 0
+        vacios = ("", "0", "0.00", "0,00", "$0.00")
+        for _ in range(30):  # tope de seguridad
+            inputs = fila.locator("input[ng-model='MovSucursal.IM_MOVIMIENTO']")
+            n = await inputs.count()
+            if n <= 1:
+                break
+            idx_vacia = None
+            for j in range(n):
+                try:
+                    monto = (await inputs.nth(j).input_value()).strip()
+                except Exception:
+                    monto = ""
+                if monto in vacios:
+                    idx_vacia = j
+                    break
+            if idx_vacia is None:
+                break
+            # El botón de borrar está en el <tr> de esa sub-fila de sucursal.
+            fila_suc = inputs.nth(idx_vacia).locator("xpath=ancestor::tr[1]")
+            btn = fila_suc.locator("button.btn-eliminar15p")
+            if not await btn.count():
+                break
+            await btn.first.click()
+            await page.wait_for_timeout(200)
+            borradas += 1
+        return borradas
 
     async def _navigate_to_ingresos_diversos_agregar(self, page: Page):
         self.log("Navegando a Ingresos Diversos - Agregar...", "info")
@@ -1270,7 +1413,7 @@ class RPAAutomation:
         aplicados = 0
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(
-            headless=self.headless, slow_mo=25, args=["--start-maximized"]
+            headless=self.headless, slow_mo=8, args=["--start-maximized"]
         )
         context = await browser.new_context(viewport={"width": 1440, "height": 900}, locale="es-MX")
         page = await context.new_page()
@@ -1288,24 +1431,34 @@ class RPAAutomation:
 
             await self._abrir_conciliacion_por_folio(page, folio_conciliacion)
 
+            # FASE 1: leer todas las filas UNA vez y quedarnos con las referencias
+            # de BAJA FERRIES que empatan con el PDF (con su item).
             filas = page.locator(_SEL_FACTORAJE_FILA)
             total = await filas.count()
             self.log(f"  {total} movimiento(s) en la conciliación.", "info")
-
+            pendientes: List[Tuple[str, dict]] = []
             for i in range(total):
-                if self.should_cancel():
-                    self.log("Factoraje cancelado por el usuario.", "warn")
-                    break
                 fila = filas.nth(i)
                 texto = (await fila.inner_text()).replace("\n", " ")
-                # Referencia = 3ª celda directa (índice, concepto, REFERENCIA, abono...).
-                # Se usan td DIRECTOS (xpath=./td) para ignorar tablas anidadas.
                 try:
                     referencia = (await fila.locator("xpath=./td").nth(2).inner_text()).strip()
                 except Exception:
                     referencia = ""
                 item = _emparejar_item_factoraje(referencia, texto, items)
-                if not item:
+                if item and referencia:
+                    pendientes.append((referencia, item))
+            self.log(f"  {len(pendientes)} movimiento(s) de BAJA FERRIES a editar.", "info")
+
+            # FASE 2: procesar cada uno RE-BUSCANDO su fila por referencia. Editar
+            # un movimiento re-renderiza la lista; buscar por referencia (no por
+            # índice) evita el desfase (off-by-one) que abría el movimiento previo.
+            for referencia, item in pendientes:
+                if self.should_cancel():
+                    self.log("Factoraje cancelado por el usuario.", "warn")
+                    break
+                fila = await self._fila_por_referencia(page, referencia)
+                if fila is None:
+                    self.log(f"  No se encontró la fila de ref {referencia}; se omite.", "warn")
                     continue
                 try:
                     await self._editar_factoraje_en_fila(page, fila, item, institucion_value)
@@ -1318,14 +1471,69 @@ class RPAAutomation:
                 except Exception as exc:
                     self.log(f"  Error aplicando factoraje en ref {referencia}: {exc}", "error")
                     await self._volcar_html(page, f"factoraje_ref_{referencia}")
+                    await self._cerrar_modal_editar(page)
 
             self.log(f"Factoraje terminado: {aplicados} movimiento(s) editado(s).", "ok")
+
+            # Guardar la conciliación para concluir el flujo.
+            if aplicados:
+                await self._guardar_conciliacion_factoraje(page)
         finally:
             if not self.headless:
                 self.log("Revisa el resultado en SIPP (el navegador queda abierto).", "info")
             else:
                 await browser.close()
         return aplicados
+
+    async def _guardar_conciliacion_factoraje(self, page: Page) -> None:
+        """Cierra el modal de edición y guarda la conciliación. Tras Guardar,
+        SIPP muestra confirm(s) que se ACEPTAN y, al final, un modal para subir
+        archivo soporte que se CANCELA (se ignora). Se distingue por el mensaje
+        del diálogo (los de soporte mencionan 'soporte/archivo/estado de cuenta')."""
+        await self._cerrar_modal_editar(page)
+        self.log("  [paso] guardando la conciliación...", "info")
+        try:
+            btn = page.locator("button[ng-click='guardar()']").first
+            await btn.wait_for(state="visible", timeout=10_000)
+            await btn.dispatch_event("click")  # dispatch: por si queda fuera del viewport
+
+            claves_soporte = ("soporte", "archivo", "subir", "estado de cuenta", "edo de cuenta", "edo. de cuenta")
+            for _ in range(6):
+                try:
+                    await page.wait_for_selector("#divBloqueoAlert, #subDivAlert", state="visible", timeout=8_000)
+                except Exception:
+                    break
+                await page.wait_for_timeout(400)
+                mensaje = ""
+                try:
+                    mensaje = (await page.locator("#divMensaje").first.inner_text()).strip().lower()
+                except Exception:
+                    pass
+                if any(k in mensaje for k in claves_soporte):
+                    self.log("  Modal de archivo soporte: Cancelar (ignorado).", "info")
+                    await page.locator("button[onclick='fnc_closeConfirm(false)']").first.dispatch_event("click")
+                    await page.wait_for_timeout(500)
+                    break
+                self.log(f"  [paso] aceptando confirmación: {mensaje[:60] or '(sin texto)'}...", "info")
+                try:
+                    await page.locator("#__btn_aceptarConfirm__").first.dispatch_event("click")
+                except Exception:
+                    break
+                await page.wait_for_timeout(600)
+
+            # Cancelar también el posible modal de subir estado de cuenta (no-confirm).
+            try:
+                if await page.locator("#divBloqueo_modalSubirEdoCuenta:visible").count():
+                    await page.locator("#divBloqueo_modalSubirEdoCuenta").locator(
+                        "button", has_text="Cancelar"
+                    ).first.click()
+            except Exception:
+                pass
+
+            self.log("Conciliación guardada. Factoraje concluido.", "ok")
+        except Exception as exc:
+            self.log(f"  No se pudo guardar la conciliación automáticamente: {exc}", "warn")
+            await self._volcar_html(page, "factoraje_guardar")
 
     async def _abrir_conciliacion_por_folio(self, page: Page, folio: str) -> None:
         """Navega al listado de Ingresos Diversos, busca por Estado de Cuenta
@@ -1343,33 +1551,138 @@ class RPAAutomation:
         await page.wait_for_timeout(1_000)
         self.log("  Conciliación abierta.", "ok")
 
+    async def _fila_por_referencia(self, page: Page, referencia: str):
+        """Devuelve la fila (tr) de la conciliación cuya 3ª celda (referencia)
+        coincide con `referencia`, re-escaneando el DOM actual (robusto al
+        re-render tras guardar). None si no la encuentra."""
+        filas = page.locator(_SEL_FACTORAJE_FILA)
+        n = await filas.count()
+        for i in range(n):
+            fila = filas.nth(i)
+            try:
+                ref = (await fila.locator("xpath=./td").nth(2).inner_text()).strip()
+            except Exception:
+                continue
+            if ref == referencia:
+                return fila
+        return None
+
+    async def _cerrar_modal_editar(self, page: Page) -> None:
+        """Cierra el modal 'Editar Movimiento' si quedó abierto (su overlay
+        intercepta clics y bloquea los siguientes movimientos). El botón X suele
+        quedar fuera del viewport, por eso se dispara el click por evento (sin
+        requerir scroll) y, si falla, se llama modalClose() en el scope Angular."""
+        modal = "#divBloqueo_modalAgregarMovimientos"
+        try:
+            if not await page.locator(f"{modal}:visible").count():
+                return
+            # Se dispara modalClose() por evento (el botón X suele quedar fuera del
+            # viewport). Luego se ESPERA a que el modal desaparezca de verdad
+            # (offsetParent null = display:none tras el fadeOut), para que el
+            # siguiente movimiento abra fresco (checkbox habilitado).
+            await page.evaluate(
+                "() => { const els = document.querySelectorAll(\"[ng-click='modalClose()']\");"
+                " els.forEach(el => { if (el.offsetParent !== null) el.click(); }); }"
+            )
+            try:
+                await page.wait_for_function(
+                    "() => { const el = document.querySelector('input[ng-model=\"SN_FACTORAJE\"]');"
+                    " return !el || el.offsetParent === null; }",
+                    timeout=2_500,
+                )
+            except Exception:
+                pass
+            await page.wait_for_timeout(200)
+        except Exception as exc:
+            self.log(f"    (no se pudo cerrar el modal de edición: {exc})", "warn")
+
     async def _editar_factoraje_en_fila(self, page: Page, fila, item: dict, institucion_value: str) -> None:
-        # 1) Abrir el editor del movimiento (doble clic en la fila → editar(item)).
-        await fila.dblclick()
-        await page.wait_for_selector("input[ng-model='SN_FACTORAJE']", timeout=10_000)
+        check_sel = "input[type='checkbox'][ng-model='SN_FACTORAJE']"
+        combo_sel = "select[ng-model='ID_INSTITUCIONFINANCIERA']"
+
+        check = page.locator(f"{check_sel}:visible").first
+        combo = page.locator(f"{combo_sel}:visible").first
+        label = page.locator("label[for='chk_sn_Factoraje']:visible").first
+        ref_area = page.locator("textarea[ng-model='DE_REFERENCIA']:visible").first
+        ref_esperada = str(item.get("referencia") or "").strip()
+
+        # 1) Abrir el editor con dispatch_event('click') → dispara editar(item)
+        # directo. editar() repuebla el modal de forma ASÍNCRONA, así que el
+        # textarea de referencia muestra la del movimiento ANTERIOR un instante;
+        # por eso se ESPERA (polling) a que muestre la referencia esperada, en vez
+        # de leerla una vez (lo que provocaba el off-by-one y el reabrir constante).
+        cargado = False
+        for intento in range(3):
+            await fila.locator("button.btn-editar15p").first.dispatch_event("click")
+            await ref_area.wait_for(state="visible", timeout=10_000)
+            try:
+                await page.wait_for_function(
+                    "(ref) => { const t = document.querySelector(\"textarea[ng-model='DE_REFERENCIA']\");"
+                    " return t && t.value.trim() === ref; }",
+                    arg=ref_esperada,
+                    timeout=6_000,
+                )
+                cargado = True
+                break
+            except Exception:
+                ref_modal = (await ref_area.input_value()).strip()
+                self.log(f"    modal cargó ref '{ref_modal}', esperaba '{ref_esperada}'; reabriendo...", "warn")
+                await self._cerrar_modal_editar(page)
+        if not cargado and ref_esperada:
+            raise RuntimeError(f"el modal no cargó la referencia {ref_esperada}")
+        await page.wait_for_timeout(150)
+
+        # 2) Marcar factoraje SOLO si no está ya marcado para ESTE movimiento
+        # (decidir por is_checked, NO por si la sección es visible: el estado
+        # heredado engañaba). El checkbox suele venir deshabilitado por un digest
+        # que lo re-deshabilita en una carrera; por eso se habilita y se hace el
+        # CLICK REAL en un solo bloque JS (persiste como un clic humano).
+        if not await check.is_checked():
+            # Intento 1: clic real en el label (cuando el checkbox está habilitado).
+            if not await check.is_disabled():
+                try:
+                    await label.click(force=True)
+                    await page.wait_for_timeout(300)
+                except Exception:
+                    pass
+            # Intento 2 (o si estaba deshabilitado): habilitar + click real vía JS.
+            if not await check.is_checked():
+                res = await page.evaluate(_JS_CLICK_FACTORAJE)
+                self.log(f"    marcar factoraje (JS): {res}", "info")
+                await page.wait_for_timeout(300)
+        if not await check.is_checked():
+            raise RuntimeError("el checkbox de factoraje no quedó marcado")
+
+        # 3) Elegir la institución. Dispara mostrarCamposFactoraje() → muestra interés.
+        await combo.wait_for(state="visible", timeout=6_000)
+        await combo.select_option(value=str(institucion_value))
         await page.wait_for_timeout(400)
 
-        # 2) Marcar "Es Factoraje Financiero" (habilita la sección).
-        check = page.locator("input[type='checkbox'][ng-model='SN_FACTORAJE']").first
-        if not await check.is_checked():
-            await check.check(force=True)
-            await page.wait_for_timeout(300)
-
-        # 3) Institución de factoraje (combo simple, por value).
-        await page.locator("select[ng-model='ID_INSTITUCIONFINANCIERA']").first.select_option(
-            value=str(institucion_value)
-        )
-        await page.wait_for_timeout(300)
-
-        # 4) Interés de factoraje (dispara ng-change para recalcular el importe).
+        # 4) Interés de factoraje. Se intenta por UI; si el campo no aparece
+        # (sn_FactorajeInteres no se activó), se setea por el MODELO de Angular
+        # —Guardar lee el modelo aunque el campo esté oculto—. NO se hace
+        # dispatch sobre el combo (cuelga si ya no es visible).
         interes = f"{float(item.get('interes') or 0):.2f}"
-        campo = page.locator("input[ng-model='IM_FACTORAJEINTERES']").first
-        await campo.fill(interes)
-        await campo.dispatch_event("input")
-        await campo.dispatch_event("change")
+        campo = page.locator("input[ng-model='IM_FACTORAJEINTERES']:visible").first
+        lleno_por_ui = False
+        try:
+            await campo.wait_for(state="visible", timeout=4_000)
+            await campo.fill(interes)
+            await campo.dispatch_event("input")
+            await campo.dispatch_event("change")
+            lleno_por_ui = True
+        except Exception:
+            pass
+        if not lleno_por_ui:
+            res = await page.evaluate(_JS_SET_INTERES, interes)
+            self.log(
+                f"    ⚠ interés por modelo (revisar en SIPP si persistió): {res}", "warn"
+            )
         await page.wait_for_timeout(300)
 
-        # 5) Guardar el movimiento.
+        # 5) Guardar. Luego se cierra el modal EXPLÍCITAMENTE: "Guardar y Cerrar"
+        # no siempre lo cierra, y su overlay bloquearía el siguiente movimiento.
         await page.locator(_SEL_FACTORAJE_BTN_GUARDAR).first.click()
         await self._aceptar_confirms(page, "guardar movimiento factoraje")
-        await page.wait_for_timeout(600)
+        await page.wait_for_timeout(500)
+        await self._cerrar_modal_editar(page)

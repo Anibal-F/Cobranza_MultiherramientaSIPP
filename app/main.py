@@ -1431,7 +1431,12 @@ def main(page: ft.Page) -> None:
                 usuario, password, empresa=empresa_ref[0],
                 headless=not ver_navegador_ref[0], log_fn=log_fn,
             )
-            log_fn(f"Factoraje aplicado en {n} movimiento(s).", "ok")
+            mensaje_final = (
+                f"✅ Flujo de factoraje completado: {n} movimiento(s) de BAJA FERRIES "
+                f"con su interés aplicado y la conciliación guardada en SIPP."
+            )
+            estado_text.value = mensaje_final
+            log_fn(mensaje_final, "ok")
         except Exception as ex:
             ok_rpa = False
             log_fn(f"Error en factoraje: {ex}", "error")
