@@ -19,6 +19,22 @@ def _rpa(usuario, password, empresa: Empresa, headless, log_fn) -> RPAAutomation
     )
 
 
+async def aplicar_factoraje_en_sipp(
+    folio_conciliacion: str,
+    institucion_value: str,
+    items: list[dict],
+    usuario: str,
+    password: str,
+    empresa: Empresa = EMPRESA_DEFAULT,
+    headless: bool = False,
+    log_fn: Callable = print,
+) -> int:
+    """Abre la conciliación indicada en SIPP y captura el interés de factoraje
+    (BAJA FERRIES) en cada movimiento que empate con un renglón del PDF."""
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
+    return await automatizacion.aplicar_factoraje(folio_conciliacion, institucion_value, items)
+
+
 async def cargar_ingresos_diversos_en_sipp(
     movimientos: list[Movimiento],
     cuenta_bancaria_nombre: str,
@@ -40,6 +56,9 @@ async def cargar_ingresos_diversos_en_sipp(
     candidatos = []
     for m in movimientos:
         if not m.identificado:
+            continue
+        # No re-subir lo que ya venía en una extracción previa subida a SIPP.
+        if getattr(m, "ya_subido", False):
             continue
         # Prioridad de sucursal (todas las de fuente confiable se FUERZAN, ganan
         # incluso sobre la auto-sugerida de SIPP):

@@ -16,6 +16,9 @@ from .credenciales import borrar_credenciales, cargar_credenciales, guardar_cred
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from .historial import (
     cargar_historial,
+    claves_subidas,
+    clave_movimiento,
+    clave_movimiento_dict,
     construir_registro,
     guardar_historial,
     movimiento_desde_dict,
@@ -23,10 +26,16 @@ from .historial import (
 from rpa.automation import es_modo_test
 from .updater import aplicar_actualizacion, reiniciar_app, revisar_actualizaciones
 from .sucursales import cargar_sucursales
+from .textutils import normalizar
 from .empresas import EMPRESAS, EMPRESA_DEFAULT, EMPRESA_POR_CLAVE
 from .matcher import extraer_cuenta, match_movimientos, match_movimientos_por_nombre
 from .models import ClienteCuenta, Movimiento
-from .ingresos_diversos import cargar_ingresos_diversos_en_sipp, cargar_pagos_contado_en_sipp
+from .ingresos_diversos import (
+    aplicar_factoraje_en_sipp,
+    cargar_ingresos_diversos_en_sipp,
+    cargar_pagos_contado_en_sipp,
+)
+from .factoraje import extraer_factoraje
 from .mailbox_o365 import CorreoResumen, descargar_adjuntos, listar_correos, obtener_cuenta, obtener_cuerpo
 from .pagos_contado import PagoContadoExtraido, completar_con_adjunto, extraer_pago_contado
 from .parsers import detectar_banco, parsear_archivo
@@ -158,6 +167,45 @@ def main(page: ft.Page) -> None:
             on_change=lambda e: ver_navegador_ref.__setitem__(0, bool(e.control.value)),
         )
 
+    # Botón flotante para dejar un RPA en segundo plano: al cerrar el modal de
+    # avance, el FAB permite reabrirlo para ver el progreso/resumen.
+    dialogo_rpa_ref: list = [None]
+    rpa_corriendo_ref = [False]
+
+    def _fab_rpa_click(_e) -> None:
+        if dialogo_rpa_ref[0] is not None:
+            mostrar_dialogo(dialogo_rpa_ref[0])
+        if not rpa_corriendo_ref[0]:
+            # Ya terminó: al abrir el resumen, se retira el botón flotante.
+            fab_rpa.visible = False
+            page.update()
+
+    fab_rpa = ft.FloatingActionButton(
+        icon=ft.Icons.SYNC, visible=False, bgcolor=ORANGE, on_click=_fab_rpa_click,
+    )
+
+    def rpa_inicio(dialogo) -> None:
+        """Marca que un RPA está corriendo en segundo plano (muestra el FAB)."""
+        dialogo_rpa_ref[0] = dialogo
+        rpa_corriendo_ref[0] = True
+        fab_rpa.icon = ft.Icons.SYNC
+        fab_rpa.bgcolor = ORANGE
+        fab_rpa.tooltip = "RPA en curso — clic para ver el avance"
+        fab_rpa.visible = True
+        page.update()
+
+    def rpa_fin(ok: bool = True) -> None:
+        """Marca que el RPA terminó (FAB verde/rojo, clic para ver el resumen)."""
+        rpa_corriendo_ref[0] = False
+        fab_rpa.icon = ft.Icons.CHECK_CIRCLE if ok else ft.Icons.ERROR
+        fab_rpa.bgcolor = ft.Colors.GREEN_600 if ok else ft.Colors.RED_600
+        fab_rpa.tooltip = (
+            "RPA terminado — clic para ver el resumen" if ok
+            else "RPA con error — clic para ver el detalle"
+        )
+        fab_rpa.visible = True
+        page.update()
+
     catalogo = cargar_catalogo(CATALOGO_PATH)
     clientes_normalizados = preparar_clientes_normalizados(cargar_clientes(CLIENTES_PATH))
     sucursales_catalogo = cargar_sucursales()
@@ -284,6 +332,14 @@ def main(page: ft.Page) -> None:
     tabla_contenedor = ft.Container(content=tabla, expand=True)
 
     def estado_badge(m: Movimiento) -> ft.Container:
+        if m.ya_subido:
+            return ft.Container(
+                content=ft.Text("Ya subido", color=ft.Colors.WHITE, size=11, no_wrap=True),
+                bgcolor=ft.Colors.BLUE_GREY_400,
+                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                border_radius=12,
+                tooltip="Ya venía en una extracción previa subida a SIPP; no se volverá a subir.",
+            )
         if m.identificado_manual:
             return ft.Container(
                 content=ft.Text("Identificado (manual)", color=ft.Colors.WHITE, size=11, no_wrap=True),
@@ -639,6 +695,10 @@ def main(page: ft.Page) -> None:
         return bool(m.folio_manual) or bool(extraer_folio(m.texto_busqueda))
 
     def color_fila(m: Movimiento):
+        # Movimientos ya subidos a SIPP en una extracción previa: en gris tenue
+        # (tiene prioridad; ya no requieren acción).
+        if m.ya_subido:
+            return ft.Colors.with_opacity(0.06, ft.Colors.ON_SURFACE)
         # Resalta las filas no identificadas que tienen folio pendiente de buscar
         # en SIPP, para señalar el siguiente paso al usuario.
         if tiene_folio_pendiente(m):
@@ -751,6 +811,7 @@ def main(page: ft.Page) -> None:
                 base.get("archivo", historial_archivo_actual[0]),
                 ultima_ruta_csv[0] or base.get("ruta_csv", ""),
                 empresa_clave, movimientos,
+                subido_sipp=base.get("subido_sipp", False),  # preservar la marca
             )
             if existente is not None:
                 historial_registros[historial_registros.index(existente)] = registro
@@ -758,6 +819,21 @@ def main(page: ft.Page) -> None:
                 historial_registros.insert(0, registro)
 
         guardar_historial(HISTORIAL_PATH, historial_registros)
+
+    def marcar_movimientos_ya_subidos() -> int:
+        """Marca los movimientos que ya venían en un bloque previo YA SUBIDO a
+        SIPP del mismo banco (CSV acumulativo), para no re-subirlos. Devuelve
+        cuántos quedaron marcados."""
+        if not movimientos:
+            return 0
+        banco = movimientos[0].banco
+        subidas = claves_subidas(historial_registros, banco, excluir_id=historial_id_actual[0])
+        n = 0
+        for m in movimientos:
+            m.ya_subido = clave_movimiento(m) in subidas
+            if m.ya_subido:
+                n += 1
+        return n
 
     def restaurar_registro(registro: dict) -> None:
         """Vuelve a poner en pantalla una extracción guardada, con todos sus
@@ -799,6 +875,19 @@ def main(page: ft.Page) -> None:
         _rellenar_lista_historial()
         page.update()
 
+    def marcar_registro_subido(registro_id: str, valor: bool) -> None:
+        """Marca/desmarca un bloque como subido a SIPP (base de la deduplicación)."""
+        for r in historial_registros:
+            if r.get("id") == registro_id:
+                r["subido_sipp"] = valor
+                break
+        guardar_historial(HISTORIAL_PATH, historial_registros)
+        # Re-evaluar duplicados de la extracción en pantalla y refrescar.
+        marcar_movimientos_ya_subidos()
+        _rellenar_lista_historial()
+        refrescar_resumen()
+        refrescar_tabla()
+
     historial_lista = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, tight=True)
 
     def _fila_historial(r: dict) -> ft.Control:
@@ -806,6 +895,14 @@ def main(page: ft.Page) -> None:
         ident = r.get("num_identificados", 0)
         pct = (ident / total * 100) if total else 0
         es_actual = r.get("id") == historial_id_actual[0]
+        subido = bool(r.get("subido_sipp"))
+        boton_subido = ft.IconButton(
+            icon=ft.Icons.CLOUD_DONE if subido else ft.Icons.CLOUD_UPLOAD_OUTLINED,
+            icon_color=ft.Colors.GREEN_600 if subido else ft.Colors.ON_SURFACE_VARIANT,
+            tooltip=("Subida a SIPP (clic para desmarcar)" if subido
+                     else "Marcar como subida a SIPP"),
+            on_click=lambda _e, rid=r.get("id"), v=not subido: marcar_registro_subido(rid, v),
+        )
         return ft.Container(
             padding=12,
             border_radius=8,
@@ -831,6 +928,7 @@ def main(page: ft.Page) -> None:
                         ],
                         spacing=2, horizontal_alignment=ft.CrossAxisAlignment.END,
                     ),
+                    boton_subido,
                     ft.IconButton(
                         icon=ft.Icons.DELETE_OUTLINE,
                         icon_color=ft.Colors.RED_400,
@@ -838,7 +936,7 @@ def main(page: ft.Page) -> None:
                         on_click=lambda _e, reg=r: eliminar_registro_historial(reg),
                     ),
                 ],
-                spacing=12,
+                spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             on_click=lambda _e, reg=r: restaurar_registro(reg),
@@ -895,8 +993,15 @@ def main(page: ft.Page) -> None:
             catalogo.extend(agregadas)
             catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
 
+            # Nueva extracción: deduplicar contra bloques previos ya subidos a SIPP.
+            historial_id_actual[0] = None
+            ya_subidos = marcar_movimientos_ya_subidos()
+
             identificados_por_nombre = sum(1 for m in movimientos if m.identificado_por_nombre)
+            nuevos = len(movimientos) - ya_subidos
             mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
+            if ya_subidos:
+                mensaje += f" {ya_subidos} ya estaban en una extracción subida a SIPP (en gris); {nuevos} nuevos."
             if identificados_por_nombre:
                 mensaje += f" {identificados_por_nombre} se identificaron por nombre."
             if agregadas:
@@ -1091,15 +1196,18 @@ def main(page: ft.Page) -> None:
             borrar_credenciales()
 
         boton_sipp_buscar.disabled = True
-        boton_sipp_cancelar.disabled = True
+        # "Cerrar" queda habilitado: permite cerrar el modal y dejar el RPA en
+        # segundo plano (el FAB lo reabre).
         sipp_log_reset()
         sipp_progreso_text.value = "Ejecutando RPA en segundo plano..."
+        rpa_inicio(dialogo_sipp)
         page.update()
 
         def log_fn(mensaje: str, nivel: str = "info") -> None:
             sipp_progreso_text.value = mensaje
             sipp_log_fn(mensaje, nivel)
 
+        ok_rpa = True
         try:
             candidatos = extraer_folios_pendientes(movimientos)
             propuestas = await buscar_y_aplicar_folios(
@@ -1119,6 +1227,7 @@ def main(page: ft.Page) -> None:
             sipp_progreso_text.value = mensaje
             log_fn(mensaje, "ok")
         except Exception as ex:
+            ok_rpa = False
             estado_text.value = f"Error durante la búsqueda en SIPP: {ex}"
             log_fn(f"Error: {ex}", "error")
         finally:
@@ -1128,6 +1237,7 @@ def main(page: ft.Page) -> None:
             refrescar_resumen()
             refrescar_tabla()
             historial_guardar_snapshot()
+            rpa_fin(ok_rpa)
             page.update()
 
     boton_sipp_cancelar = ft.TextButton("Cerrar", on_click=on_cancelar_sipp)
@@ -1175,6 +1285,204 @@ def main(page: ft.Page) -> None:
         "Buscar folios en SIPP",
         icon=ft.Icons.TRAVEL_EXPLORE,
         on_click=on_click_buscar_sipp,
+        bgcolor=ORANGE,
+        color=ft.Colors.WHITE,
+    )
+
+    # ──────────────────────────────────────────────────────
+    # Factoraje (BAJA FERRIES): PDF de intereses + captura en SIPP
+    # ──────────────────────────────────────────────────────
+    # Instituciones del combo de SIPP (value → nombre), del HTML de factoraje.
+    INSTITUCIONES_FACTORAJE = [
+        ("0", "BBVA MEXICO, S.A."),
+        ("1", "ARRENDADORA Y FACTOR BANORTE"),
+        ("2", "BANCO SANTANDER MEXICO"),
+        ("3", "START BANREGIO"),
+        ("4", "BANCO VE POR MAS"),
+        ("5", "BANCO J.P. MORGAN"),
+        ("6", "HSBC MEXICO"),
+    ]
+
+    def _es_baja_ferries(mov: Movimiento) -> bool:
+        return "BAJA FERRIES" in normalizar(mov.cliente_match or "")
+
+    factoraje_filas: list = []
+    factoraje_pares: list = []  # [(Movimiento, FilaFactoraje)]
+
+    factoraje_folio_field = ft.TextField(label="Folio de conciliación (SIPP)", width=260)
+    factoraje_institucion_dd = ft.Dropdown(
+        label="Institución de factoraje",
+        width=320,
+        value="0",
+        options=[ft.dropdown.Option(key=v, text=n) for v, n in INSTITUCIONES_FACTORAJE],
+    )
+    factoraje_usuario_field = ft.TextField(label="Usuario SIPP")
+    factoraje_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
+    factoraje_info_text = ft.Text("")
+    factoraje_tabla = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO, tight=True)
+    factoraje_log_panel, factoraje_log_fn, factoraje_log_reset = crear_panel_log_rpa()
+    factoraje_ver_navegador_check = crear_check_ver_navegador()
+
+    def _cruzar_factoraje() -> None:
+        """Empareja cada renglón del PDF con un movimiento de BAJA FERRIES por
+        folio (del concepto) y, si no, por monto neto (= Monto a Recibir)."""
+        nonlocal factoraje_pares
+        factoraje_pares = []
+        movs_bf = [m for m in movimientos if _es_baja_ferries(m)]
+        usados = set()
+        for fila in factoraje_filas:
+            elegido = None
+            for m in movs_bf:
+                if id(m) in usados:
+                    continue
+                folio_mov = extraer_folio(m.texto_busqueda)
+                if folio_mov and normalizar(folio_mov).replace(" ", "") == fila.folio:
+                    elegido = m
+                    break
+            if elegido is None:
+                for m in movs_bf:
+                    if id(m) in usados:
+                        continue
+                    if abs(m.abono - fila.monto_recibir) < 0.01:
+                        elegido = m
+                        break
+            if elegido is not None:
+                usados.add(id(elegido))
+                elegido.factoraje_interes = fila.monto_intereses
+                elegido.factoraje_folio_pdf = fila.folio_texto
+                factoraje_pares.append((elegido, fila))
+
+    def _refrescar_tabla_factoraje() -> None:
+        factoraje_tabla.controls = [
+            ft.Row(
+                [
+                    ft.Text(f.folio_texto, width=110, weight=ft.FontWeight.BOLD),
+                    ft.Text(m.cliente_match or "-", width=160, overflow=ft.TextOverflow.ELLIPSIS),
+                    ft.Text(f"neto ${m.abono:,.2f}", width=140),
+                    ft.Text(f"interés ${f.monto_intereses:,.2f}", width=150, color=ft.Colors.GREEN_700),
+                    ft.Text(f"ref {m.referencia}", width=110, color=ft.Colors.ON_SURFACE_VARIANT),
+                ],
+                spacing=8,
+            )
+            for m, f in factoraje_pares
+        ]
+        sin_cruce = len(factoraje_filas) - len(factoraje_pares)
+        factoraje_info_text.value = (
+            f"{len(factoraje_pares)} movimiento(s) de BAJA FERRIES emparejado(s) con el PDF"
+            + (f"; {sin_cruce} renglón(es) del PDF sin movimiento." if sin_cruce else ".")
+        )
+        boton_factoraje_aplicar.disabled = not factoraje_pares
+
+    async def on_click_cargar_pdf_factoraje(_e) -> None:
+        archivos = await file_picker.pick_files(
+            file_type=ft.FilePickerFileType.CUSTOM, allowed_extensions=["pdf"],
+            allow_multiple=False, with_data=True,
+        )
+        if not archivos:
+            return
+        nonlocal factoraje_filas
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(archivos[0].bytes or b"")
+            ruta_pdf = tmp.name
+        try:
+            factoraje_filas = await asyncio.to_thread(extraer_factoraje, ruta_pdf)
+            _cruzar_factoraje()
+            _refrescar_tabla_factoraje()
+            refrescar_tabla()  # refleja el interés en el grid si se muestra
+        except Exception as ex:
+            factoraje_info_text.value = f"Error al leer el PDF de factoraje: {ex}"
+        finally:
+            try:
+                os.unlink(ruta_pdf)
+            except OSError:
+                pass
+        mostrar_dialogo(dialogo_factoraje)
+
+    async def on_confirmar_factoraje(_e) -> None:
+        usuario = (factoraje_usuario_field.value or "").strip()
+        password = factoraje_password_field.value or ""
+        folio = (factoraje_folio_field.value or "").strip()
+        if not usuario or not password:
+            factoraje_info_text.value = "Usuario y contraseña son obligatorios."
+            page.update()
+            return
+        if not folio:
+            factoraje_info_text.value = "Indica el folio de conciliación de SIPP."
+            page.update()
+            return
+        items = [
+            {"folio": f.folio, "interes": f.monto_intereses, "abono": m.abono, "referencia": m.referencia}
+            for m, f in factoraje_pares
+        ]
+        boton_factoraje_aplicar.disabled = True
+        factoraje_log_reset()
+        factoraje_info_text.value = "Ejecutando RPA de factoraje..."
+        rpa_inicio(dialogo_factoraje)
+        page.update()
+
+        def log_fn(mensaje: str, nivel: str = "info") -> None:
+            factoraje_info_text.value = mensaje
+            factoraje_log_fn(mensaje, nivel)
+
+        ok_rpa = True
+        try:
+            n = await aplicar_factoraje_en_sipp(
+                folio, factoraje_institucion_dd.value or "0", items,
+                usuario, password, empresa=empresa_ref[0],
+                headless=not ver_navegador_ref[0], log_fn=log_fn,
+            )
+            log_fn(f"Factoraje aplicado en {n} movimiento(s).", "ok")
+        except Exception as ex:
+            ok_rpa = False
+            log_fn(f"Error en factoraje: {ex}", "error")
+        finally:
+            boton_factoraje_aplicar.disabled = False
+            factoraje_password_field.value = ""
+            rpa_fin(ok_rpa)
+            page.update()
+
+    boton_factoraje_aplicar = ft.Button(
+        "Aplicar factoraje en SIPP", icon=ft.Icons.PLAY_ARROW,
+        on_click=lambda e: page.run_task(on_confirmar_factoraje, e),
+        bgcolor=NAVY, color=ft.Colors.WHITE, disabled=True,
+    )
+    dialogo_factoraje = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Factoraje BAJA FERRIES"),
+        content=ft.Container(
+            content=ft.Column(
+                [
+                    factoraje_info_text,
+                    ft.Container(content=factoraje_tabla, height=200),
+                    ft.Row([factoraje_folio_field, factoraje_institucion_dd], spacing=12),
+                    ft.Row([factoraje_usuario_field, factoraje_password_field], spacing=12),
+                    factoraje_ver_navegador_check,
+                    factoraje_log_panel,
+                ],
+                tight=True, spacing=12, scroll=ft.ScrollMode.AUTO,
+            ),
+            width=720,
+        ),
+        actions=[
+            ft.TextButton("Cerrar", on_click=lambda _e: page.pop_dialog()),
+            boton_factoraje_aplicar,
+        ],
+    )
+
+    def on_click_factoraje(_e) -> None:
+        if not any(_es_baja_ferries(m) for m in movimientos):
+            estado_text.value = "No hay movimientos identificados como BAJA FERRIES en la extracción."
+            page.update()
+            return
+        usuario_guardado, password_guardado = cargar_credenciales()
+        factoraje_usuario_field.value = usuario_guardado or ""
+        factoraje_password_field.value = password_guardado or ""
+        page.run_task(on_click_cargar_pdf_factoraje, _e)
+
+    boton_factoraje = ft.Button(
+        "Factoraje (BAJA FERRIES)",
+        icon=ft.Icons.REQUEST_QUOTE,
+        on_click=on_click_factoraje,
         bgcolor=ORANGE,
         color=ft.Colors.WHITE,
     )
@@ -1285,9 +1593,10 @@ def main(page: ft.Page) -> None:
             borrar_credenciales()
 
         boton_ingresos_div_confirmar.disabled = True
-        boton_ingresos_div_cancelar.disabled = True
+        # "Cerrar" habilitado: cerrar el modal deja el RPA en segundo plano (FAB).
         ingresos_div_log_reset()
         ingresos_div_progreso_text.value = "Ejecutando RPA... (se abrirá el navegador para revisar y guardar)"
+        rpa_inicio(dialogo_ingresos_div)
         page.update()
 
         def log_fn(mensaje: str, nivel: str = "info") -> None:
@@ -1295,6 +1604,7 @@ def main(page: ft.Page) -> None:
             ingresos_div_log_fn(mensaje, nivel)
 
         cuenta_nombre = nombre_cuenta_bancaria(cuenta_bancaria_dropdown.value or "")
+        ok_rpa = True
         try:
             enviados = await cargar_ingresos_diversos_en_sipp(
                 movimientos,
@@ -1314,13 +1624,19 @@ def main(page: ft.Page) -> None:
             )
             estado_text.value = mensaje
             log_fn(mensaje, "ok")
+            # Marca la extracción actual como subida a SIPP (base de la
+            # deduplicación de los próximos cortes acumulativos del banco).
+            if historial_id_actual[0]:
+                marcar_registro_subido(historial_id_actual[0], True)
         except Exception as ex:
+            ok_rpa = False
             estado_text.value = f"Error al cargar Ingresos Diversos en SIPP: {ex}"
             log_fn(f"Error: {ex}", "error")
         finally:
             boton_ingresos_div_confirmar.disabled = False
             boton_ingresos_div_cancelar.disabled = False
             ingresos_div_password_field.value = ""
+            rpa_fin(ok_rpa)
             page.update()
 
     boton_ingresos_div_cancelar = ft.TextButton("Cerrar", on_click=on_cancelar_ingresos_div)
@@ -1361,12 +1677,6 @@ def main(page: ft.Page) -> None:
             return
         if not (fecha_operacion_field.value or "").strip():
             estado_text.value = "Indica la Fecha de Operación antes de continuar."
-            page.update()
-            return
-        if estado_cuenta_ref[0] is None:
-            estado_text.value = (
-                "Carga primero el Estado de Cuenta (.xlsx) — se usa para sugerir la sucursal de cada movimiento."
-            )
             page.update()
             return
         identificados = sum(1 for m in movimientos if m.identificado)
@@ -1818,7 +2128,80 @@ def main(page: ft.Page) -> None:
         expand=True,
     )
 
+    def _norm_ref(s: str) -> str:
+        import re as _re
+        return _re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+
+    def cruzar_contado_con_bancos() -> None:
+        """Marca los pagos de contado que YA vienen en algún movimiento de una
+        extracción bancaria (match por monto y referencia). Esos no se suben por
+        el RPA de contado: se identifican en el bloque bancario."""
+        mov_banco = [
+            (r, d)
+            for r in historial_registros
+            for d in r.get("movimientos", [])
+        ]
+        for pago in pagos_contado:
+            pago.en_bloque_bancario = False
+            pago.bloque_ref = pago.bloque_id = pago.bloque_clave = ""
+            if pago.monto is None:
+                continue
+            por_monto = [(r, d) for (r, d) in mov_banco if abs((d.get("abono") or 0) - pago.monto) <= 0.01]
+            if not por_monto:
+                continue
+            ref = _norm_ref(pago.referencia)
+            elegido = None
+            if ref:
+                for (r, d) in por_monto:
+                    desc = _norm_ref((d.get("descripcion", "") or "") + (d.get("referencia", "") or ""))
+                    if ref in desc:
+                        elegido = (r, d)
+                        break
+            if elegido is None and len(por_monto) == 1:
+                elegido = por_monto[0]  # monto único: match razonable
+            if elegido:
+                r, d = elegido
+                pago.en_bloque_bancario = True
+                pago.bloque_id = r.get("id", "")
+                pago.bloque_clave = clave_movimiento_dict(d)
+                pago.bloque_ref = f"{r.get('banco','')} {r.get('hora','')} · ref {d.get('referencia','')}"
+
+    def identificar_pago_en_bloque(pago: PagoContadoExtraido) -> None:
+        """Aplica el cliente del pago de contado al movimiento bancario del bloque
+        coincidente (en el historial y, si está cargado, en pantalla)."""
+        if not (pago.bloque_id and pago.cliente_match and pago.bloque_clave):
+            estado_o365_text.value = "Falta cliente en el pago para identificar en el bloque."
+            page.update()
+            return
+        for r in historial_registros:
+            if r.get("id") != pago.bloque_id:
+                continue
+            for d in r.get("movimientos", []):
+                if clave_movimiento_dict(d) == pago.bloque_clave:
+                    d["cliente_match"] = pago.cliente_match
+                    d["identificado_manual"] = True
+                    break
+            r["num_identificados"] = sum(1 for d in r.get("movimientos", []) if d.get("cliente_match"))
+            break
+        guardar_historial(HISTORIAL_PATH, historial_registros)
+
+        # Si esa extracción está cargada en pantalla, reflejarlo al instante.
+        if historial_id_actual[0] == pago.bloque_id:
+            for m in movimientos:
+                if clave_movimiento(m) == pago.bloque_clave:
+                    m.cliente_match = pago.cliente_match
+                    m.identificado_manual = True
+                    break
+            refrescar_resumen()
+            refrescar_tabla()
+        estado_o365_text.value = (
+            f"'{pago.cliente_match}' identificado en el bloque bancario ({pago.bloque_ref}). "
+            "Este pago no se subirá por Contado."
+        )
+        refrescar_tabla_pagos_contado()
+
     def refrescar_tabla_pagos_contado() -> None:
+        cruzar_contado_con_bancos()
         filas = []
         for pago in pagos_contado:
             fecha_texto = pago.correo.fecha.strftime("%d/%m/%Y") if pago.correo.fecha else "-"
@@ -1877,6 +2260,16 @@ def main(page: ft.Page) -> None:
             acciones = ft.DataCell(
                 ft.Row(
                     [
+                        *(
+                            [ft.IconButton(
+                                icon=ft.Icons.LINK,
+                                icon_color=ft.Colors.ORANGE_700,
+                                tooltip=(f"Ya viene en un bloque bancario ({pago.bloque_ref}). "
+                                         "No se subirá por Contado. Clic para identificar el cliente en el bloque."),
+                                on_click=lambda _e, p=pago: identificar_pago_en_bloque(p),
+                            )]
+                            if pago.en_bloque_bancario else []
+                        ),
                         ft.IconButton(
                             icon=ft.Icons.PERSON_SEARCH,
                             tooltip="Seleccionar cliente",
@@ -1902,6 +2295,7 @@ def main(page: ft.Page) -> None:
 
             filas.append(
                 ft.DataRow(
+                    color=(ft.Colors.with_opacity(0.10, ft.Colors.ORANGE) if pago.en_bloque_bancario else None),
                     cells=[
                         celda_o365(fecha_texto),
                         celda_campo_pago(pago.concepto, on_change_concepto),
@@ -1989,7 +2383,7 @@ def main(page: ft.Page) -> None:
             borrar_credenciales()
 
         boton_pagos_sipp_confirmar.disabled = True
-        boton_pagos_sipp_cancelar.disabled = True
+        # "Cerrar" habilitado: cerrar el modal deja el RPA en segundo plano (FAB).
         pagos_sipp_log_reset()
         auto = enviar_automaticamente_switch.value
         # En modo envío automático no hay revisión manual → puede correr silencioso.
@@ -1999,13 +2393,15 @@ def main(page: ft.Page) -> None:
             "Ejecutando RPA en segundo plano..." if headless
             else "Ejecutando RPA... (se abrirá el navegador para revisar)"
         )
+        rpa_inicio(dialogo_pagos_sipp)
         page.update()
 
         def log_fn(mensaje: str, nivel: str = "info") -> None:
             pagos_sipp_progreso_text.value = mensaje
             pagos_sipp_log_fn(mensaje, nivel)
 
-        confirmados = [p for p in pagos_contado if p.cliente_match and p.plaza and p.monto is not None]
+        confirmados = [p for p in pagos_contado if p.cliente_match and p.plaza and p.monto is not None and not p.en_bloque_bancario]
+        ok_rpa = True
         try:
             enviados = await cargar_pagos_contado_en_sipp(
                 confirmados,
@@ -2021,12 +2417,14 @@ def main(page: ft.Page) -> None:
             estado_o365_text.value = mensaje
             log_fn(mensaje, "ok")
         except Exception as ex:
+            ok_rpa = False
             estado_o365_text.value = f"Error al cargar Pagos de Contado en SIPP: {ex}"
             log_fn(f"Error: {ex}", "error")
         finally:
             boton_pagos_sipp_confirmar.disabled = False
             boton_pagos_sipp_cancelar.disabled = False
             pagos_sipp_password_field.value = ""
+            rpa_fin(ok_rpa)
             page.update()
 
     boton_pagos_sipp_cancelar = ft.TextButton("Cerrar", on_click=on_cancelar_pagos_sipp)
@@ -2062,7 +2460,7 @@ def main(page: ft.Page) -> None:
             estado_o365_text.value = "Indica la Fecha de Operación, arriba en Conciliación Bancaria."
             page.update()
             return
-        confirmados = [p for p in pagos_contado if p.cliente_match and p.plaza and p.monto is not None]
+        confirmados = [p for p in pagos_contado if p.cliente_match and p.plaza and p.monto is not None and not p.en_bloque_bancario]
         if not confirmados:
             estado_o365_text.value = (
                 "Ningún pago tiene Cliente + Plaza + Monto confirmados todavía; revísalos en la tabla."
@@ -2530,6 +2928,7 @@ def main(page: ft.Page) -> None:
                     paso_badge(1),
                     boton_cargar,
                     boton_buscar_sipp,
+                    boton_factoraje,
                     archivo_nombre_text,
                     banco_detectado_text,
                     ft.Container(expand=True),
@@ -2639,6 +3038,7 @@ def main(page: ft.Page) -> None:
             await asyncio.sleep(300)
             await actualizar_bandeja_o365()
 
+    page.floating_action_button = fab_rpa
     page.add(
         ft.Column(
             [

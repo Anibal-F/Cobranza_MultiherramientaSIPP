@@ -50,6 +50,13 @@ class PagoContadoExtraido:
     ruta_adjunto: Optional[str] = None
     texto_adjunto: str = ""
     error: str = ""
+    # Cruce con bloques bancarios: si este pago ya viene en un movimiento de una
+    # extracción bancaria, NO se sube por el RPA de contado (se identifica en el
+    # bloque). Se llena en la app al cruzar contra el historial.
+    en_bloque_bancario: bool = False
+    bloque_ref: str = ""       # descripción legible del bloque/movimiento
+    bloque_id: str = ""        # id de la extracción en el historial
+    bloque_clave: str = ""     # clave del movimiento bancario coincidente
 
 
 def _detectar_tipo_movimiento(texto: str) -> str:

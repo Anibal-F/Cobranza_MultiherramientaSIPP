@@ -45,6 +45,14 @@ class Movimiento:
     # recalcula en vivo.
     sucursal_sugerida: Optional[str] = None
     sucursal_sugerida_motivo: Optional[str] = None
+    # True si este movimiento ya venía en una extracción previa YA SUBIDA a SIPP
+    # (CSV bancario acumulativo). Se marca al cargar el CSV; se muestra en gris y
+    # se excluye de la carga a SIPP para no duplicar.
+    ya_subido: bool = False
+    # Interés de factoraje (BAJA FERRIES) tomado del PDF NAFIN/BBVA y cruzado por
+    # folio/monto neto. Se captura en SIPP como "Interés Factoraje".
+    factoraje_interes: Optional[float] = None
+    factoraje_folio_pdf: Optional[str] = None
 
     @property
     def identificado(self) -> bool:

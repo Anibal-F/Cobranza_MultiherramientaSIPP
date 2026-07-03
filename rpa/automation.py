@@ -106,6 +106,41 @@ def _norm_folio(texto: Optional[str]) -> str:
     (ej. 'FCL 190541' y 'FCL190541' quedan iguales)."""
     return re.sub(r"[^A-Z0-9]", "", (texto or "").upper())
 
+
+# ──────────────────────────────────────────────────────────
+# Selectores para el flujo de Factoraje (BAJA FERRIES), confirmados con el HTML
+# real de SIPP (ingresosdiv.html / Ingdiv_verconciliacion.html / movimientosmodal.html).
+# ──────────────────────────────────────────────────────────
+# Listado "Ingresos Diversos": buscar por Estado de Cuenta (= id_Conciliacion).
+_SEL_FACTORAJE_INPUT_FOLIO = "input[ng-model='filtros.id_Conciliacion']"
+_SEL_FACTORAJE_BTN_BUSCAR = "[ng-click='listar()']"
+_SEL_FACTORAJE_BTN_ABRIR = "[ng-click='Visualizar(row)']"
+# Vista de la conciliación: filas de movimientos y guardar del editor.
+_SEL_FACTORAJE_FILA = "tr[ng-repeat='item in Listado']"
+_SEL_FACTORAJE_BTN_GUARDAR = "button[ng-click='guardarMovimiento(true, sn_Identificacion)']"
+
+
+def _emparejar_item_factoraje(referencia_fila: str, texto_fila: str, items: List[dict]) -> Optional[dict]:
+    """Empareja una fila de la conciliación con un item del PDF: por REFERENCIA
+    (celda, la más confiable), luego por folio (FLM/FMZ en el texto), luego por
+    monto neto."""
+    ref_fila = _norm_folio(referencia_fila)
+    for it in items:
+        ref = _norm_folio(it.get("referencia"))
+        if ref and ref == ref_fila:
+            return it
+    texto_norm = _norm_folio(texto_fila)
+    for it in items:
+        folio = _norm_folio(it.get("folio"))
+        if folio and folio in texto_norm:
+            return it
+    montos = [float(m.replace(",", "")) for m in _RE_MONTO.findall(texto_fila)]
+    for it in items:
+        abono = it.get("abono")
+        if abono is not None and any(abs(v - abono) < 0.01 for v in montos):
+            return it
+    return None
+
 # ──────────────────────────────────────────────────────────
 # Helpers para "Ingresos Diversos - Agregar" (modal de previsualización)
 # ──────────────────────────────────────────────────────────
@@ -618,18 +653,24 @@ class RPAAutomation:
         await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
         await page.wait_for_timeout(500)
 
-        filas = page.locator("#modal-bodymodalDatosBanco table tbody tr")
-        total_filas = await filas.count()
+        # Se cuentan los movimientos por sus lápices #EditarMovimiento_i (uno por
+        # movimiento). NO se usa "tbody tr": la columna "Importe Sucursales" trae
+        # tablas anidadas cuyas <tr> también matchean y rompen la lectura por
+        # índice (td.nth(3) inexistente → timeout).
+        lapices = page.locator("#modal-bodymodalDatosBanco [id^='EditarMovimiento_']")
+        total_filas = await lapices.count()
         self.log(f"{total_filas} movimiento(s) en la previsualización.", "info")
 
         # Snapshot de (referencia, importe) de TODAS las filas antes de editar
         # ninguna: editar una fila re-renderiza la tabla y rompe las lecturas
-        # posteriores (inner_text timeout).
+        # posteriores. Se leen SOLO los <td> directos de la fila del movimiento
+        # (xpath=./td) para ignorar los <td> de las tablas anidadas.
         filas_datos: List[Tuple[str, Optional[float]]] = []
         for i in range(total_filas):
-            fila = filas.nth(i)
-            ref = (await fila.locator("td").nth(2).inner_text()).strip()
-            imp = _parsear_importe(await fila.locator("td").nth(3).inner_text())
+            fila = page.locator(f"#EditarMovimiento_{i}").locator("xpath=ancestor::tr[1]")
+            celdas = fila.locator("xpath=./td")
+            ref = (await celdas.nth(2).inner_text()).strip()
+            imp = _parsear_importe(await celdas.nth(3).inner_text())
             filas_datos.append((ref, imp))
 
         pendientes = list(movimientos)
@@ -1206,3 +1247,129 @@ class RPAAutomation:
             self.log(f"  Error en guardado/envío, paso '{paso}': {exc}", "error")
             await self._volcar_html(page, f"guardar_envio_{paso.replace(' ', '_')}")
             raise
+
+    # ──────────────────────────────────────────────────────
+    # Factoraje (BAJA FERRIES): editar movimientos ya conciliados para capturar
+    # el interés de factoraje del PDF NAFIN/BBVA.
+    # ──────────────────────────────────────────────────────
+    async def aplicar_factoraje(
+        self,
+        folio_conciliacion: str,
+        institucion_value: str,
+        items: List[dict],
+    ) -> int:
+        """Abre la conciliación `folio_conciliacion`, localiza los movimientos de
+        BAJA FERRIES y, por cada uno que empate (por folio de documento o por
+        monto neto) con un renglón de `items`, marca "Es Factoraje Financiero",
+        elige la institución (`institucion_value`, value del combo) y captura el
+        interés, guardando el movimiento.
+
+        `items`: lista de dicts {folio, interes, abono, referencia}.
+        Regresa cuántos movimientos se editaron.
+        """
+        aplicados = 0
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(
+            headless=self.headless, slow_mo=25, args=["--start-maximized"]
+        )
+        context = await browser.new_context(viewport={"width": 1440, "height": 900}, locale="es-MX")
+        page = await context.new_page()
+        page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+
+        try:
+            self.log(
+                f"Factoraje: abriendo conciliación '{folio_conciliacion}' para "
+                f"{len(items)} movimiento(s) de BAJA FERRIES.",
+                "info",
+            )
+            await self._login(page)
+            await self._configure_session(page)
+            self._base_navegacion = page.url.split("#")[0]
+
+            await self._abrir_conciliacion_por_folio(page, folio_conciliacion)
+
+            filas = page.locator(_SEL_FACTORAJE_FILA)
+            total = await filas.count()
+            self.log(f"  {total} movimiento(s) en la conciliación.", "info")
+
+            for i in range(total):
+                if self.should_cancel():
+                    self.log("Factoraje cancelado por el usuario.", "warn")
+                    break
+                fila = filas.nth(i)
+                texto = (await fila.inner_text()).replace("\n", " ")
+                # Referencia = 3ª celda directa (índice, concepto, REFERENCIA, abono...).
+                # Se usan td DIRECTOS (xpath=./td) para ignorar tablas anidadas.
+                try:
+                    referencia = (await fila.locator("xpath=./td").nth(2).inner_text()).strip()
+                except Exception:
+                    referencia = ""
+                item = _emparejar_item_factoraje(referencia, texto, items)
+                if not item:
+                    continue
+                try:
+                    await self._editar_factoraje_en_fila(page, fila, item, institucion_value)
+                    aplicados += 1
+                    self.log(
+                        f"  ✓ Factoraje aplicado: ref {referencia} "
+                        f"(folio {item.get('folio')}) interés ${item.get('interes', 0):,.2f}",
+                        "ok",
+                    )
+                except Exception as exc:
+                    self.log(f"  Error aplicando factoraje en ref {referencia}: {exc}", "error")
+                    await self._volcar_html(page, f"factoraje_ref_{referencia}")
+
+            self.log(f"Factoraje terminado: {aplicados} movimiento(s) editado(s).", "ok")
+        finally:
+            if not self.headless:
+                self.log("Revisa el resultado en SIPP (el navegador queda abierto).", "info")
+            else:
+                await browser.close()
+        return aplicados
+
+    async def _abrir_conciliacion_por_folio(self, page: Page, folio: str) -> None:
+        """Navega al listado de Ingresos Diversos, busca por Estado de Cuenta
+        (id_Conciliacion = folio) y abre la conciliación (botón Visualizar)."""
+        self.log(f"  [paso] navegando al listado de Ingresos Diversos...", "info")
+        base = self._base_navegacion or page.url.split("#")[0]
+        await page.goto(f"{base}#/ConciliacionListado", wait_until="networkidle", timeout=30_000)
+        await page.wait_for_selector(_SEL_FACTORAJE_INPUT_FOLIO, timeout=20_000)
+        self.log(f"  [paso] buscando Estado de Cuenta '{folio}'...", "info")
+        await page.fill(_SEL_FACTORAJE_INPUT_FOLIO, folio)
+        await page.click(_SEL_FACTORAJE_BTN_BUSCAR)
+        await page.wait_for_timeout(2_000)
+        await page.locator(_SEL_FACTORAJE_BTN_ABRIR).first.click()
+        await page.wait_for_selector(_SEL_FACTORAJE_FILA, timeout=20_000)
+        await page.wait_for_timeout(1_000)
+        self.log("  Conciliación abierta.", "ok")
+
+    async def _editar_factoraje_en_fila(self, page: Page, fila, item: dict, institucion_value: str) -> None:
+        # 1) Abrir el editor del movimiento (doble clic en la fila → editar(item)).
+        await fila.dblclick()
+        await page.wait_for_selector("input[ng-model='SN_FACTORAJE']", timeout=10_000)
+        await page.wait_for_timeout(400)
+
+        # 2) Marcar "Es Factoraje Financiero" (habilita la sección).
+        check = page.locator("input[type='checkbox'][ng-model='SN_FACTORAJE']").first
+        if not await check.is_checked():
+            await check.check(force=True)
+            await page.wait_for_timeout(300)
+
+        # 3) Institución de factoraje (combo simple, por value).
+        await page.locator("select[ng-model='ID_INSTITUCIONFINANCIERA']").first.select_option(
+            value=str(institucion_value)
+        )
+        await page.wait_for_timeout(300)
+
+        # 4) Interés de factoraje (dispara ng-change para recalcular el importe).
+        interes = f"{float(item.get('interes') or 0):.2f}"
+        campo = page.locator("input[ng-model='IM_FACTORAJEINTERES']").first
+        await campo.fill(interes)
+        await campo.dispatch_event("input")
+        await campo.dispatch_event("change")
+        await page.wait_for_timeout(300)
+
+        # 5) Guardar el movimiento.
+        await page.locator(_SEL_FACTORAJE_BTN_GUARDAR).first.click()
+        await self._aceptar_confirms(page, "guardar movimiento factoraje")
+        await page.wait_for_timeout(600)

@@ -59,6 +59,7 @@ def construir_registro(
     ruta_csv: str,
     empresa_clave: str,
     movimientos: list[Movimiento],
+    subido_sipp: bool = False,
 ) -> dict:
     return {
         "id": registro_id,
@@ -68,8 +69,62 @@ def construir_registro(
         "archivo": archivo,
         "ruta_csv": ruta_csv,
         "empresa_clave": empresa_clave,
+        "subido_sipp": subido_sipp,
         "total_abonado": round(sum(m.abono for m in movimientos), 2),
         "num_movimientos": len(movimientos),
         "num_identificados": sum(1 for m in movimientos if m.identificado),
         "movimientos": [movimiento_a_dict(m) for m in movimientos],
     }
+
+
+# ── Deduplicación incremental de extracciones ─────────────────────────────
+# Los CSV del banco son acumulativos durante el día: cada corte trae lo anterior
+# + lo nuevo. Para no re-subir a SIPP lo ya cargado, se identifica cada
+# movimiento por una clave estable y se comparan contra los bloques ya marcados
+# como subidos a SIPP.
+
+def clave_dedup(banco: str, referencia: str, abono, fecha_iso: str, descripcion: str = "") -> str:
+    # Se combinan referencia Y descripción (además de banco, fecha y monto): el
+    # mismo movimiento en cortes acumulativos trae todo idéntico, y así se evita
+    # confundir dos movimientos distintos que compartan solo la referencia o solo
+    # el monto.
+    ref = (referencia or "").strip()
+    desc = " ".join((descripcion or "").split())[:80]  # normaliza espacios
+    try:
+        monto = float(abono or 0)
+    except (TypeError, ValueError):
+        monto = 0.0
+    return f"{(banco or '').upper()}|{fecha_iso or ''}|{ref}|{desc}|{monto:.2f}"
+
+
+def clave_movimiento(m: Movimiento) -> str:
+    return clave_dedup(
+        m.banco, m.referencia, m.abono, m.fecha.isoformat() if m.fecha else "", m.descripcion
+    )
+
+
+def clave_movimiento_dict(d: dict) -> str:
+    return clave_dedup(
+        d.get("banco", ""), d.get("referencia", ""), d.get("abono"), d.get("fecha") or "", d.get("descripcion", "")
+    )
+
+
+_clave_movimiento_dict = clave_movimiento_dict  # alias interno
+
+
+def claves_subidas(registros: list[dict], banco: str, excluir_id: str | None = None) -> set[str]:
+    """Conjunto de claves de movimientos ya subidos a SIPP para un banco (unión
+    de todos los bloques marcados subido_sipp). `excluir_id` omite un registro
+    (p. ej. el que se está creando/actualizando)."""
+    banco_u = (banco or "").upper()
+    claves: set[str] = set()
+    for r in registros:
+        if not r.get("subido_sipp"):
+            continue
+        if r.get("id") == excluir_id:
+            continue
+        if (r.get("banco", "") or "").upper() != banco_u:
+            continue
+        for d in r.get("movimientos", []):
+            claves.add(_clave_movimiento_dict(d))
+    return claves

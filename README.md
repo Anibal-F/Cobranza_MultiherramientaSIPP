@@ -89,6 +89,30 @@ SIPP_ENV=test python main.py
 (`SIPP_ENV` acepta `test`, `stage`, `staging`, `qa`, `pruebas` o `dev`). En modo
 pruebas la app muestra un badge rojo **"SIPP PRUEBAS"** en el encabezado.
 
+## Empaquetado (build) e ícono de la app
+
+La app se distribuye por `git` y se **auto-actualiza** desde GitHub al iniciar
+(y con el botón de actualización del encabezado). Para generar un ejecutable
+nativo con el ícono de Grupo Petroil se usa `flet build`.
+
+El ícono se toma de **`assets/icon.png`** (ya incluido; idealmente cuadrado y de
+alta resolución, p. ej. 512×512 o 1024×1024). En Windows, además, la ventana usa
+`assets/Logo_Petroil.ico` en tiempo de ejecución (`page.window.icon`).
+
+```bash
+# macOS (.app)
+flet build macos --icon assets/icon.png
+
+# Windows (.exe)
+flet build windows --icon assets/icon.png
+```
+
+Notas:
+- En **macOS corriendo con `python main.py`** (modo desarrollo) el ícono del dock
+  lo trae el cliente de Flet y **no** es configurable; solo se personaliza al
+  empaquetar con `flet build`.
+- En **Windows** el ícono ya se aplica en desarrollo vía `page.window.icon`.
+
 ## Estructura
 
 ```
