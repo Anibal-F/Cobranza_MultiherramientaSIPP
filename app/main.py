@@ -95,7 +95,7 @@ ORANGE = "#F59D00"
 
 
 def main(page: ft.Page) -> None:
-    page.title = "Conciliación Bancaria · Grupo Petroil"
+    page.title = "MultiHerramienta de Cobranza · Grupo Petroil"
     page.window.width = 1280
     page.window.height = 860
     page.window.icon = "Logo_Petroil.ico"
@@ -1485,7 +1485,7 @@ def main(page: ft.Page) -> None:
         page.run_task(on_click_cargar_pdf_factoraje, _e)
 
     boton_factoraje = ft.Button(
-        "Factoraje (BAJA FERRIES)",
+        "Factoraje",
         icon=ft.Icons.REQUEST_QUOTE,
         on_click=on_click_factoraje,
         bgcolor=ORANGE,
