@@ -95,9 +95,27 @@ La app se distribuye por `git` y se **auto-actualiza** desde GitHub al iniciar
 (y con el botón de actualización del encabezado). Para generar un ejecutable
 nativo con el ícono de Grupo Petroil se usa `flet build`.
 
-### Windows: build automatizado
+### Windows: instalación recomendada (sin build, con auto-actualización)
 
-Ejecuta desde la raíz del proyecto:
+Para desplegar en varias PCs conservando la **auto-actualización** por git, se
+corre la app desde el código (`python main.py`) — sin Flutter/build. Clona el
+repo en cada PC y ejecuta desde la raíz:
+
+```bat
+instalar_windows.bat
+```
+
+El script: instala/valida **Python 3.12**, **git** y **Tesseract OCR** con
+`winget`; crea el `.venv`; instala `requirements.txt` y **Chromium** (Playwright);
+fija el remoto `origin` a **HTTPS** (el repo es público → `git pull` sin
+credenciales); genera el lanzador `iniciar_cobranza.bat` (corre `pythonw main.py`,
+sin consola) y un **acceso directo** en el escritorio con `Logo_Petroil.ico`.
+**No** descarga Flutter. Cada PC se auto-actualiza desde GitHub al abrir la app.
+
+### Windows: build de un ejecutable (opcional, sin auto-actualización)
+
+Genera un `.exe` autocontenido (requiere descargar Flutter, ~2 GB la primera
+vez). El `.exe` **no** se auto-actualiza. Ejecuta desde la raíz:
 
 ```bat
 empaquetar_windows.bat
@@ -114,16 +132,20 @@ El script:
 
 El `.exe` final queda dentro de `build/windows/`.
 
-El ícono se toma de **`assets/icon.png`** (ya incluido; idealmente cuadrado y de
-alta resolución, p. ej. 512×512 o 1024×1024). En Windows, además, la ventana usa
-`assets/Logo_Petroil.ico` en tiempo de ejecución (`page.window.icon`).
+El ícono se toma **automáticamente** de **`assets/icon.png`** (ya incluido;
+idealmente cuadrado y de alta resolución, p. ej. 512×512 o 1024×1024). En
+Windows, además, la ventana usa `assets/Logo_Petroil.ico` en tiempo de ejecución
+(`page.window.icon`).
+
+> `flet build` (0.85.3) **no** acepta `--icon`; usa `assets/icon.png` por
+> convención. No pases ese flag o fallará con `unrecognized arguments: --icon`.
 
 ```bash
 # macOS (.app)
-flet build macos --icon assets/icon.png
+flet build macos
 
 # Windows (.exe)
-flet build windows --icon assets/icon.png
+flet build windows
 ```
 
 Notas:
