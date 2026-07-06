@@ -16,7 +16,15 @@ _ENV_GIT = {
 }
 
 
+# En Windows, evita que cada 'git' (app de consola) abra una ventana cmd al
+# correr la app con pythonw (sin consola).
+_CREATE_NO_WINDOW = 0x08000000
+
+
 def _git(args: list[str], base_dir: str) -> subprocess.CompletedProcess:
+    kwargs = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = _CREATE_NO_WINDOW
     return subprocess.run(
         ["git", *args],
         cwd=base_dir,
@@ -24,6 +32,7 @@ def _git(args: list[str], base_dir: str) -> subprocess.CompletedProcess:
         text=True,
         timeout=90,
         env=_ENV_GIT,
+        **kwargs,
     )
 
 

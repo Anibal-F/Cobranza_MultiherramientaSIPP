@@ -2748,13 +2748,21 @@ def main(page: ft.Page) -> None:
             await asyncio.sleep(1.2)
             reiniciar_app(BASE_DIR)  # macOS: reemplaza el proceso (no regresa)
             # Windows: reiniciar_app lanzó una instancia nueva y regresó aquí →
-            # cerramos esta ventana y salimos para que no queden dos.
-            await asyncio.sleep(0.8)
+            # hay que CERRAR esta ventana y matar este proceso para que no queden
+            # dos. Un hilo aparte fuerza la salida aunque el loop se esté cerrando;
+            # window.destroy() cierra la ventana/cliente Flet mientras tanto.
+            import threading
+            import time as _time
+
+            def _forzar_salida() -> None:
+                _time.sleep(1.5)
+                os._exit(0)
+
+            threading.Thread(target=_forzar_salida, daemon=True).start()
             try:
                 page.window.destroy()
             except Exception:
                 pass
-            os._exit(0)
         else:
             update_progress.visible = False
             boton_aplicar_update.disabled = False
@@ -3065,9 +3073,15 @@ def main(page: ft.Page) -> None:
 
     page.run_task(bucle_refresco_o365)
 
-    # Al iniciar: comprobar GitHub en segundo plano y auto-actualizar si hay
-    # cambios (sin trabajo abierto que perder al reiniciar).
-    page.run_task(comprobar_actualizaciones, False, True)
+    # Al iniciar: avisar y comprobar GitHub en segundo plano; auto-actualizar si
+    # hay cambios (sin trabajo abierto que perder al reiniciar).
+    async def _comprobar_actualizaciones_inicio() -> None:
+        notificacion_snackbar.content = ft.Text("Comprobando actualizaciones...")
+        notificacion_snackbar.open = True
+        page.update()
+        await comprobar_actualizaciones(mostrar=False, auto=True)
+
+    page.run_task(_comprobar_actualizaciones_inicio)
 
 
 if __name__ == "__main__":
