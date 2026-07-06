@@ -65,6 +65,33 @@ if errorlevel 1 goto :fail
 call :ensure_tesseract
 if errorlevel 1 goto :fail
 
+rem --- Icono de barra de tareas: el cliente de Flet (flet.exe) es quien crea la
+rem ventana, asi que la barra de tareas usa SU icono. Se lo cambiamos al de
+rem Petroil con rcedit (best-effort; si falla, la app funciona igual). ---
+echo [4.7/5] Personalizando el icono del cliente Flet (barra de tareas)...
+set "FLET_EXE="
+for /f "usebackq delims=" %%P in (`python -c "from flet_desktop import ensure_client_cached; import os; print(os.path.join(str(ensure_client_cached()), 'flet', 'flet.exe'))" 2^>nul`) do set "FLET_EXE=%%P"
+
+if not defined FLET_EXE (
+    echo [AVISO] No se pudo ubicar el cliente Flet; se omite el cambio de icono.
+) else if not exist "%FLET_EXE%" (
+    echo [AVISO] Cliente Flet no encontrado en "%FLET_EXE%"; se omite el cambio de icono.
+) else if not exist "%ICON_FILE%" (
+    echo [AVISO] No se encontro %ICON_FILE%; se omite el cambio de icono.
+) else (
+    set "RCEDIT=%CD%\rcedit-x64.exe"
+    if not exist "!RCEDIT!" (
+        echo [INFO] Descargando rcedit...
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -Uri 'https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe' -OutFile '!RCEDIT!' } catch { }"
+    )
+    if exist "!RCEDIT!" (
+        "!RCEDIT!" "!FLET_EXE!" --set-icon "%ICON_FILE%"
+        echo [OK] Icono aplicado al cliente Flet.
+    ) else (
+        echo [AVISO] No se pudo descargar rcedit; la barra de tareas usara el icono de Flet.
+    )
+)
+
 echo [5/5] Creando lanzador y acceso directo...
 
 rem --- Lanzador: corre la app SIN consola (pythonw) desde su carpeta ---
