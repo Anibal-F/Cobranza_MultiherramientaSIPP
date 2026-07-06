@@ -54,6 +54,13 @@ def _parsear_monto_pago(texto: str) -> Optional[float]:
         return None
 
 
+def es_traspaso(m: Movimiento) -> bool:
+    """True si el movimiento parece un 'Traspaso a Filiales' (no es cobranza de un
+    cliente). Se detecta por la palabra 'TRASPASO' en la descripción/concepto."""
+    texto = f"{m.descripcion or ''} {m.concepto or ''} {m.texto_busqueda or ''}".upper()
+    return "TRASPASO" in texto
+
+
 def abrir_archivo_con_app_predeterminada(ruta: str) -> None:
     sistema = platform.system()
     if sistema == "Darwin":
@@ -319,7 +326,7 @@ def main(page: ft.Page) -> None:
             columna("Cuenta", fixed_width=110),
             columna("Sucursal sugerida", fixed_width=180),
             columna("Estado", fixed_width=150),
-            columna("Acciones", fixed_width=90),
+            columna("Acciones", fixed_width=130),
         ],
         rows=[],
         min_width=1050,
@@ -332,6 +339,14 @@ def main(page: ft.Page) -> None:
     tabla_contenedor = ft.Container(content=tabla, expand=True)
 
     def estado_badge(m: Movimiento) -> ft.Container:
+        if m.excluido:
+            return ft.Container(
+                content=ft.Text("Excluido (traspaso)", color=ft.Colors.WHITE, size=11, no_wrap=True),
+                bgcolor=ft.Colors.RED_400,
+                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                border_radius=12,
+                tooltip="Movimiento excluido del RPA (no se sube a SIPP). Ej.: Traspaso a Filiales.",
+            )
         if m.ya_subido:
             return ft.Container(
                 content=ft.Text("Ya extraído", color=ft.Colors.WHITE, size=11, no_wrap=True),
@@ -500,6 +515,39 @@ def main(page: ft.Page) -> None:
             tooltip=f"Folio declarado: {m.folio_manual}" if m.folio_manual else "Declarar folio/texto a buscar en SIPP",
             icon_color=ORANGE if m.folio_manual else ft.Colors.ON_SURFACE_VARIANT,
             on_click=lambda _e, mov=m: abrir_dialogo_folio_manual(mov),
+        )
+
+    def toggle_excluir(m: Movimiento) -> None:
+        """Alterna si el movimiento se excluye del RPA que sube a SIPP."""
+        m.excluido = not m.excluido
+        estado_text.value = (
+            f"Movimiento excluido del RPA (no se subirá a SIPP): {m.referencia}."
+            if m.excluido
+            else f"Movimiento reincorporado al RPA: {m.referencia}."
+        )
+        refrescar_resumen()
+        refrescar_tabla()
+        historial_guardar_snapshot()
+
+    def boton_excluir(m: Movimiento) -> ft.Control:
+        """Botón para excluir/reincluir un movimiento del RPA. Siempre visible; se
+        resalta cuando el movimiento es un traspaso (detectado) o ya está excluido."""
+        if m.excluido:
+            return ft.IconButton(
+                icon=ft.Icons.UNDO,
+                tooltip="Reincorporar al RPA (volver a subir a SIPP)",
+                icon_color=ft.Colors.RED_600,
+                on_click=lambda _e, mov=m: toggle_excluir(mov),
+            )
+        return ft.IconButton(
+            icon=ft.Icons.BLOCK,
+            tooltip=(
+                "Excluir del RPA: es un traspaso, no se subirá a SIPP"
+                if es_traspaso(m)
+                else "Excluir este movimiento del RPA (no subir a SIPP)"
+            ),
+            icon_color=ft.Colors.RED_400 if es_traspaso(m) else ft.Colors.ON_SURFACE_VARIANT,
+            on_click=lambda _e, mov=m: toggle_excluir(mov),
         )
 
     def aplicar_filtros() -> list[Movimiento]:
@@ -695,6 +743,10 @@ def main(page: ft.Page) -> None:
         return bool(m.folio_manual) or bool(extraer_folio(m.texto_busqueda))
 
     def color_fila(m: Movimiento):
+        # Movimientos excluidos del RPA (traspasos a filiales, etc.): rojo tenue.
+        # Máxima prioridad visual: el usuario decidió que no se suban.
+        if m.excluido:
+            return ft.Colors.with_opacity(0.14, ft.Colors.RED)
         # Movimientos ya subidos a SIPP en una extracción previa: en gris tenue
         # (tiene prioridad; ya no requieren acción).
         if m.ya_subido:
@@ -736,7 +788,7 @@ def main(page: ft.Page) -> None:
                     celda(m.cuenta_match or "-"),
                     celda_sucursal_sugerida(m),
                     ft.DataCell(estado_badge(m)),
-                    ft.DataCell(ft.Row([boton_identificar_manual(m), boton_declarar_folio(m)], spacing=0)),
+                    ft.DataCell(ft.Row([boton_identificar_manual(m), boton_declarar_folio(m), boton_excluir(m)], spacing=0)),
                 ],
             )
             for m in filas
@@ -998,11 +1050,20 @@ def main(page: ft.Page) -> None:
             historial_id_actual[0] = None
             ya_subidos = marcar_movimientos_ya_subidos()
 
+            # Traspasos a filiales: se excluyen del RPA por defecto (no son cobranza).
+            traspasos = 0
+            for m in movimientos:
+                if es_traspaso(m):
+                    m.excluido = True
+                    traspasos += 1
+
             identificados_por_nombre = sum(1 for m in movimientos if m.identificado_por_nombre)
             nuevos = len(movimientos) - ya_subidos
             mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
             if ya_subidos:
                 mensaje += f" {ya_subidos} ya venían en un corte anterior (en gris, no se re-suben); {nuevos} nuevos."
+            if traspasos:
+                mensaje += f" {traspasos} traspaso(s) a filiales (en rojo, excluidos del RPA)."
             if identificados_por_nombre:
                 mensaje += f" {identificados_por_nombre} se identificaron por nombre."
             if agregadas:

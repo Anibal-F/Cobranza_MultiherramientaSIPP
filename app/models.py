@@ -49,6 +49,11 @@ class Movimiento:
     # (CSV bancario acumulativo). Se marca al cargar el CSV; se muestra en gris y
     # se excluye de la carga a SIPP para no duplicar.
     ya_subido: bool = False
+    # Movimiento excluido manualmente del RPA que sube a SIPP (p. ej. "Traspaso a
+    # Filiales": no es cobranza de un cliente). Se detecta automáticamente cuando
+    # la descripción contiene "TRASPASO" y el usuario puede alternarlo. Se pinta en
+    # rojo tenue, no se le asigna cliente y su fila se omite del CSV que se sube.
+    excluido: bool = False
     # Interés de factoraje (BAJA FERRIES) tomado del PDF NAFIN/BBVA y cruzado por
     # folio/monto neto. Se captura en SIPP como "Interés Factoraje".
     factoraje_interes: Optional[float] = None

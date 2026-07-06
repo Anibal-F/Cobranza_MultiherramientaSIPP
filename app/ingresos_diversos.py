@@ -1,3 +1,5 @@
+import os
+import tempfile
 from typing import Callable, Optional
 
 from rpa.automation import RPAAutomation
@@ -55,6 +57,10 @@ async def cargar_ingresos_diversos_en_sipp(
     el browser abierto para revisión manual del usuario."""
     candidatos = []
     for m in movimientos:
+        # Excluido manualmente (traspaso a filiales, etc.): ni se sube ni se
+        # identifica. Su fila también se quita del CSV (ver ruta_csv más abajo).
+        if getattr(m, "excluido", False):
+            continue
         if not m.identificado:
             continue
         # No re-subir lo que ya venía en una extracción previa subida a SIPP.
@@ -76,11 +82,63 @@ async def cargar_ingresos_diversos_en_sipp(
                 sucursal = res[0]
         candidatos.append((m.referencia, m.abono, m.cliente_match, sucursal, es_declarada))
 
+    # Los movimientos excluidos (traspasos a filiales) NO deben ni siquiera
+    # importarse en SIPP: se genera un CSV sin esas filas. Si no hay excluidos, se
+    # usa el archivo original tal cual.
+    excluidos = [m for m in movimientos if getattr(m, "excluido", False)]
+    ruta_a_subir = _csv_sin_excluidos(ruta_csv, excluidos, log_fn)
+
     automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
-    await automatizacion.cargar_ingresos_diversos(
-        candidatos, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, ruta_csv
-    )
+    try:
+        await automatizacion.cargar_ingresos_diversos(
+            candidatos, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, ruta_a_subir
+        )
+    finally:
+        if ruta_a_subir != ruta_csv:
+            try:
+                os.unlink(ruta_a_subir)
+            except OSError:
+                pass
     return len(candidatos)
+
+
+def _csv_sin_excluidos(ruta_csv: str, excluidos: list, log_fn: Callable) -> str:
+    """Devuelve la ruta de un CSV temporal igual al original pero SIN las filas de
+    los movimientos excluidos (se identifican por su referencia en la línea). Si no
+    hay nada que excluir o no se pudo escribir, devuelve la ruta original."""
+    referencias = {
+        (getattr(m, "referencia", "") or "").strip()
+        for m in excluidos
+        if len((getattr(m, "referencia", "") or "").strip()) >= 4
+    }
+    if not referencias:
+        if excluidos:
+            log_fn(
+                f"Aviso: {len(excluidos)} movimiento(s) excluido(s) sin referencia utilizable; "
+                "no se pudieron quitar del CSV (se subirán sin cliente).",
+                "warn",
+            )
+        return ruta_csv
+    try:
+        with open(ruta_csv, encoding="utf-8-sig", newline="") as f:
+            lineas = f.readlines()
+        conservadas, quitadas = [], 0
+        for i, linea in enumerate(lineas):
+            # La primera línea suele ser encabezado; nunca se descarta.
+            if i > 0 and any(ref in linea for ref in referencias):
+                quitadas += 1
+                continue
+            conservadas.append(linea)
+        if quitadas == 0:
+            return ruta_csv
+        fd, ruta_tmp = tempfile.mkstemp(suffix=".csv", prefix="mh_sin_excluidos_")
+        with os.fdopen(fd, "w", encoding="utf-8-sig", newline="") as f:
+            f.writelines(conservadas)
+        log_fn(f"CSV filtrado: se quitaron {quitadas} fila(s) excluida(s) antes de subir a SIPP.", "info")
+        return ruta_tmp
+    except OSError as ex:
+        log_fn(f"No se pudo generar el CSV filtrado ({ex}); se sube el original.", "warn")
+        return ruta_csv
 
 
 async def cargar_pagos_contado_en_sipp(
