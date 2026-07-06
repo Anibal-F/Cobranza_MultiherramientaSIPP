@@ -95,6 +95,25 @@ La app se distribuye por `git` y se **auto-actualiza** desde GitHub al iniciar
 (y con el botón de actualización del encabezado). Para generar un ejecutable
 nativo con el ícono de Grupo Petroil se usa `flet build`.
 
+### Windows: build automatizado
+
+Ejecuta desde la raíz del proyecto:
+
+```bat
+empaquetar_windows.bat
+```
+
+El script:
+- instala/valida Python 3.12 con `winget` si hace falta;
+- crea el entorno virtual `.venv`;
+- instala `requirements.txt`;
+- instala Chromium para Playwright;
+- instala/valida Tesseract OCR;
+- genera el ejecutable con `flet build windows`;
+- crea un acceso directo en el escritorio usando `Logo_Petroil.ico`.
+
+El `.exe` final queda dentro de `build/windows/`.
+
 El ícono se toma de **`assets/icon.png`** (ya incluido; idealmente cuadrado y de
 alta resolución, p. ej. 512×512 o 1024×1024). En Windows, además, la ventana usa
 `assets/Logo_Petroil.ico` en tiempo de ejecución (`page.window.icon`).

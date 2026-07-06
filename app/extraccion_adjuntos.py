@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import pdfplumber
 import pytesseract
@@ -8,6 +9,27 @@ EXTENSIONES_IMAGEN = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
 # Resolución de rasterizado para hacer OCR de PDFs sin capa de texto.
 _OCR_DPI = 300
+
+
+def _configurar_tesseract_windows() -> None:
+    if os.name != "nt" or shutil.which("tesseract"):
+        return
+
+    candidatos = [
+        os.environ.get("TESSERACT_CMD", ""),
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    for ruta in candidatos:
+        if ruta and os.path.exists(ruta):
+            pytesseract.pytesseract.tesseract_cmd = ruta
+            tessdata = os.path.join(os.path.dirname(ruta), "tessdata")
+            if os.path.isdir(tessdata) and not os.environ.get("TESSDATA_PREFIX"):
+                os.environ["TESSDATA_PREFIX"] = tessdata
+            return
+
+
+_configurar_tesseract_windows()
 
 
 def _ocr_imagen(img: Image.Image) -> str:
