@@ -1282,7 +1282,7 @@ def main(page: ft.Page) -> None:
         mostrar_dialogo(dialogo_sipp)
 
     boton_buscar_sipp = ft.Button(
-        "Buscar folios en SIPP",
+        "Buscar Folios en SIPP",
         icon=ft.Icons.TRAVEL_EXPLORE,
         on_click=on_click_buscar_sipp,
         bgcolor=ORANGE,
