@@ -43,6 +43,28 @@ from .rpa_folios import buscar_y_aplicar_folios, extraer_folio, extraer_folios_p
 
 EXTENSIONES_IMAGEN = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
+# Branding Grupo Petroil
+NAVY = "#003C74"
+GOLD = "#FBB812"
+ORANGE = "#F59D00"
+BORDER = "#ACABAB"
+FOCUS_BORDER = "#F7F6F4"
+
+class CustomDropdown(ft.Dropdown):
+    """Dropdown solamente con borde inferior visible."""
+
+    def __init__(self, **kwargs):
+        # Estilos visuales base
+        custom_styles={
+            "border": ft.InputBorder.UNDERLINE,
+            "border_color": BORDER,
+            "focused_border_color": FOCUS_BORDER,
+            "label_style": ft.TextStyle(color=ft.Colors.ON_SURFACE_VARIANT),}
+
+        config={**custom_styles, **kwargs}
+        super().__init__(**config)
+        
+
 
 def _parsear_monto_pago(texto: str) -> Optional[float]:
     limpio = (texto or "").replace("$", "").replace(",", "").strip()
@@ -95,10 +117,6 @@ FILTRO_NO_IDENTIFICADOS = "No identificados"
 FILTRO_SUCURSAL_TODAS = "Todas las sucursales"
 FILTRO_SUCURSAL_SIN = "No identificado"  # movimientos sin sucursal aún
 
-# Branding Grupo Petroil
-NAVY = "#003C74"
-GOLD = "#FBB812"
-ORANGE = "#F59D00"
 
 
 def main(page: ft.Page) -> None:
@@ -272,7 +290,7 @@ def main(page: ft.Page) -> None:
         refrescar_tabla()
 
     # --- Filtros ---
-    filtro_estado = ft.Dropdown(
+    filtro_estado = CustomDropdown(
         label="Estado",
         value=FILTRO_TODOS,
         options=[ft.dropdown.Option(o) for o in (FILTRO_TODOS, FILTRO_IDENTIFICADOS, FILTRO_NO_IDENTIFICADOS)],
@@ -280,7 +298,7 @@ def main(page: ft.Page) -> None:
         color=ft.Colors.ON_SURFACE,
         on_select=on_filtro_cambio,
     )
-    filtro_sucursal = ft.Dropdown(
+    filtro_sucursal = CustomDropdown(
         label="Sucursal",
         value=FILTRO_SUCURSAL_TODAS,
         options=[ft.dropdown.Option(FILTRO_SUCURSAL_TODAS)],
@@ -298,6 +316,8 @@ def main(page: ft.Page) -> None:
         on_change=on_filtro_cambio,
         on_submit=on_filtro_cambio,
         on_blur=on_filtro_cambio,
+        border=ft.InputBorder.UNDERLINE,
+        border_color=BORDER
     )
 
     def columna(
@@ -1171,7 +1191,7 @@ def main(page: ft.Page) -> None:
     # --- Declaración manual de sucursal (override de la sugerida) ---
     movimiento_sucursal_edit: list[Movimiento | None] = [None]
     sucursal_edit_info = ft.Text("")
-    sucursal_edit_dropdown = ft.Dropdown(
+    sucursal_edit_dropdown = CustomDropdown(
         label="Sucursal",
         editable=True,
         enable_filter=True,
@@ -1372,7 +1392,7 @@ def main(page: ft.Page) -> None:
     factoraje_pares: list = []  # [(Movimiento, FilaFactoraje)]
 
     factoraje_folio_field = ft.TextField(label="Folio de conciliación (SIPP)", width=260)
-    factoraje_institucion_dd = ft.Dropdown(
+    factoraje_institucion_dd = CustomDropdown(
         label="Institución de factoraje",
         width=320,
         value="0",
@@ -1562,6 +1582,8 @@ def main(page: ft.Page) -> None:
         value=date.today().strftime("%d/%m/%Y"),
         width=160,
         color=ft.Colors.ON_SURFACE,
+        border=ft.InputBorder.UNDERLINE,
+        border_color=BORDER,
     )
     # Empresa seleccionada: define el login de SIPP, el catálogo de cuentas y
     # las sucursales (estado de cuenta). Es global a toda la app.
@@ -1573,7 +1595,7 @@ def main(page: ft.Page) -> None:
     def nombre_cuenta_bancaria(id_sipp: str) -> str:
         return {c.id_sipp: c.nombre for c in empresa_ref[0].cuentas}.get(id_sipp or "", "")
 
-    cuenta_bancaria_dropdown = ft.Dropdown(
+    cuenta_bancaria_dropdown = CustomDropdown(
         label="Cuenta Bancaria (SIPP)",
         width=420,
         color=ft.Colors.ON_SURFACE,
@@ -1581,6 +1603,7 @@ def main(page: ft.Page) -> None:
         enable_filter=True,   # filtra la lista mientras escribes
         menu_height=300,      # tope de altura: el resto hace scroll
         options=_opciones_cuenta(),
+        border_color=BORDER,
     )
 
     def on_cambiar_empresa(e) -> None:
@@ -1592,13 +1615,14 @@ def main(page: ft.Page) -> None:
         refrescar_tabla()
         page.update()
 
-    empresa_dropdown = ft.Dropdown(
+    empresa_dropdown = CustomDropdown(
         label="Empresa (SIPP)",
         width=220,
         color=ft.Colors.ON_SURFACE,
         value=EMPRESA_DEFAULT.clave,
         options=[ft.dropdown.Option(key=e.clave, text=e.nombre) for e in EMPRESAS],
         on_select=on_cambiar_empresa,
+        border_color=BORDER,
     )
 
     # Empresa y cuenta para el flujo de Contado, INDEPENDIENTES del CSV (puedes
@@ -1608,7 +1632,7 @@ def main(page: ft.Page) -> None:
     def _opciones_cuenta_contado() -> list:
         return [ft.dropdown.Option(key=c.id_sipp, text=c.nombre) for c in empresa_contado_ref[0].cuentas]
 
-    cuenta_contado_dropdown = ft.Dropdown(
+    cuenta_contado_dropdown = CustomDropdown(
         label="Cuenta Bancaria por default (SIPP)",
         width=420,
         color=ft.Colors.ON_SURFACE,
@@ -1616,6 +1640,7 @@ def main(page: ft.Page) -> None:
         enable_filter=True,
         menu_height=300,
         options=_opciones_cuenta_contado(),
+        border_color=BORDER,
     )
 
     def on_cambiar_empresa_contado(e) -> None:
@@ -1628,13 +1653,14 @@ def main(page: ft.Page) -> None:
         refrescar_tabla_pagos_contado()
         page.update()
 
-    empresa_contado_dropdown = ft.Dropdown(
+    empresa_contado_dropdown = CustomDropdown(
         label="Empresa (SIPP)",
         width=220,
         color=ft.Colors.ON_SURFACE,
         value=EMPRESA_DEFAULT.clave,
         options=[ft.dropdown.Option(key=e.clave, text=e.nombre) for e in EMPRESAS],
         on_select=on_cambiar_empresa_contado,
+        
     )
 
     ingresos_div_usuario_field = ft.TextField(label="Usuario SIPP", autofocus=True)
@@ -1970,6 +1996,8 @@ def main(page: ft.Page) -> None:
         dense=True,
         width=320,
         on_change=lambda _e: refrescar_tabla_o365(),
+        border=ft.InputBorder.UNDERLINE,
+        border_color=BORDER
     )
     # Filtro de fecha vía DatePicker (en vez de teclear la fecha completa).
     fecha_filtro_sel: list[Optional[date]] = [None]
@@ -2613,6 +2641,8 @@ def main(page: ft.Page) -> None:
         color=ft.Colors.ON_SURFACE,
         on_change=on_cambio_filtro_catalogo,
         on_submit=lambda _e: refrescar_tabla_catalogo(),
+        border=ft.InputBorder.UNDERLINE,
+        border_color=BORDER,
     )
     catalogo_estado_text = ft.Text("")
     LIMITE_RESULTADOS_CATALOGO = 200
