@@ -2746,7 +2746,15 @@ def main(page: ft.Page) -> None:
             update_estado_text.value = "Actualización aplicada. Reiniciando la aplicación..."
             page.update()
             await asyncio.sleep(1.2)
-            reiniciar_app(BASE_DIR)  # reemplaza el proceso: recarga el código nuevo
+            reiniciar_app(BASE_DIR)  # macOS: reemplaza el proceso (no regresa)
+            # Windows: reiniciar_app lanzó una instancia nueva y regresó aquí →
+            # cerramos esta ventana y salimos para que no queden dos.
+            await asyncio.sleep(0.8)
+            try:
+                page.window.destroy()
+            except Exception:
+                pass
+            os._exit(0)
         else:
             update_progress.visible = False
             boton_aplicar_update.disabled = False

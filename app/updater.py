@@ -95,7 +95,22 @@ def aplicar_actualizacion(base_dir: str) -> tuple[bool, str]:
 
 
 def reiniciar_app(base_dir: str) -> None:
-    """Reemplaza el proceso actual por una instancia nueva (recarga el código).
-    Conserva las variables de entorno (ej. SIPP_ENV)."""
+    """Relanza la app para cargar el código nuevo, conservando las variables de
+    entorno (ej. SIPP_ENV).
+
+    - Windows: `os.execv` es poco fiable con apps GUI (Flet deja la ventana del
+      cliente huérfana). Se lanza una instancia NUEVA desacoplada; el proceso
+      actual debe cerrarse después (el llamador cierra la ventana y sale).
+    - macOS/Linux: se reemplaza el proceso con execv (no regresa)."""
     main_py = os.path.join(base_dir, "main.py")
+    if os.name == "nt":
+        DETACHED_PROCESS = 0x00000008
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        subprocess.Popen(
+            [sys.executable, main_py],
+            cwd=base_dir,
+            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            close_fds=True,
+        )
+        return  # el llamador cierra esta instancia (page.window.destroy + salir)
     os.execv(sys.executable, [sys.executable, main_py])
