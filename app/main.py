@@ -2760,7 +2760,9 @@ def main(page: ft.Page) -> None:
 
             threading.Thread(target=_forzar_salida, daemon=True).start()
             try:
-                page.window.destroy()
+                # destroy() es ASÍNCRONO: hay que await, si no el coroutine nunca
+                # corre y la ventana vieja se queda abierta.
+                await page.window.destroy()
             except Exception:
                 pass
         else:
