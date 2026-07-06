@@ -2840,7 +2840,7 @@ def main(page: ft.Page) -> None:
             page.update()
 
     boton_update = ft.IconButton(
-        icon=ft.Icons.SYSTEM_UPDATE,
+        icon=ft.Icons.SYNC,
         icon_color=ft.Colors.WHITE,
         tooltip="Comprobar actualizaciones",
         on_click=lambda e: page.run_task(comprobar_actualizaciones, True, False),
