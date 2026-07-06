@@ -892,6 +892,20 @@ class RPAAutomation:
                             "warn",
                         )
 
+                # Fallback: si tras todo el movimiento sigue SIN sucursal
+                # ("Seleccionar"), se pone "Corporativo" por defecto. SIPP no
+                # permite guardar con la sucursal vacía y el flujo se trabaría.
+                etiqueta_actual = await _texto_sucursal()
+                if etiqueta_actual.strip().lower() in ("", "seleccionar", "(?)"):
+                    valor_corp = await self._valor_opcion_en_select(sucursal_select, "Corporativo")
+                    if valor_corp:
+                        await sucursal_select.select_option(value=valor_corp)
+                        await page.wait_for_timeout(150)
+                        etiqueta_suc = await _texto_sucursal()
+                        origen_suc = "Corporativo (default)"
+                    else:
+                        self.log("    no se encontró la opción 'Corporativo' en el combo.", "warn")
+
                 # SIPP auto-agrega una fila por CADA sucursal del cliente y solo
                 # pone el importe en una; las filas de importe vacío impiden
                 # guardar. Se eliminan las vacías (conservando al menos una).

@@ -334,11 +334,11 @@ def main(page: ft.Page) -> None:
     def estado_badge(m: Movimiento) -> ft.Container:
         if m.ya_subido:
             return ft.Container(
-                content=ft.Text("Ya subido", color=ft.Colors.WHITE, size=11, no_wrap=True),
+                content=ft.Text("Ya extraído", color=ft.Colors.WHITE, size=11, no_wrap=True),
                 bgcolor=ft.Colors.BLUE_GREY_400,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                 border_radius=12,
-                tooltip="Ya venía en una extracción previa subida a SIPP; no se volverá a subir.",
+                tooltip="Ya venía en una extracción previa (corte anterior); no se volverá a subir a SIPP.",
             )
         if m.identificado_manual:
             return ft.Container(
@@ -821,9 +821,9 @@ def main(page: ft.Page) -> None:
         guardar_historial(HISTORIAL_PATH, historial_registros)
 
     def marcar_movimientos_ya_subidos() -> int:
-        """Marca los movimientos que ya venían en un bloque previo YA SUBIDO a
-        SIPP del mismo banco (CSV acumulativo), para no re-subirlos. Devuelve
-        cuántos quedaron marcados."""
+        """Marca (ya_subido=True) los movimientos que YA venían en una extracción
+        PREVIA del mismo banco (cortes acumulativos del día), para mostrarlos en
+        gris y excluirlos de la carga a SIPP. Devuelve cuántos quedaron marcados."""
         if not movimientos:
             return 0
         banco = movimientos[0].banco
@@ -993,7 +993,8 @@ def main(page: ft.Page) -> None:
             catalogo.extend(agregadas)
             catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
 
-            # Nueva extracción: deduplicar contra bloques previos ya subidos a SIPP.
+            # Nueva extracción: deduplicar contra extracciones previas del mismo
+            # banco (cortes acumulativos) para no re-procesar/duplicar.
             historial_id_actual[0] = None
             ya_subidos = marcar_movimientos_ya_subidos()
 
@@ -1001,7 +1002,7 @@ def main(page: ft.Page) -> None:
             nuevos = len(movimientos) - ya_subidos
             mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
             if ya_subidos:
-                mensaje += f" {ya_subidos} ya estaban en una extracción subida a SIPP (en gris); {nuevos} nuevos."
+                mensaje += f" {ya_subidos} ya venían en un corte anterior (en gris, no se re-suben); {nuevos} nuevos."
             if identificados_por_nombre:
                 mensaje += f" {identificados_por_nombre} se identificaron por nombre."
             if agregadas:

@@ -83,18 +83,19 @@ def construir_registro(
 # movimiento por una clave estable y se comparan contra los bloques ya marcados
 # como subidos a SIPP.
 
-def clave_dedup(banco: str, referencia: str, abono, fecha_iso: str, descripcion: str = "") -> str:
-    # Se combinan referencia Y descripción (además de banco, fecha y monto): el
-    # mismo movimiento en cortes acumulativos trae todo idéntico, y así se evita
-    # confundir dos movimientos distintos que compartan solo la referencia o solo
-    # el monto.
+def clave_dedup(banco: str, referencia: str, abono, fecha_iso: str = "", descripcion: str = "") -> str:
+    # Llave: banco + referencia + descripción + monto. NO se incluye la fecha: el
+    # parser de algunos bancos (Banorte "Cuentas de Cheques") la extrae de forma
+    # inconsistente entre cortes, y el mismo movimiento generaría llaves distintas.
+    # La referencia (nº de movimiento) ya es única; la descripción + monto
+    # desambiguan cuando no hay referencia.
     ref = (referencia or "").strip()
     desc = " ".join((descripcion or "").split())[:80]  # normaliza espacios
     try:
         monto = float(abono or 0)
     except (TypeError, ValueError):
         monto = 0.0
-    return f"{(banco or '').upper()}|{fecha_iso or ''}|{ref}|{desc}|{monto:.2f}"
+    return f"{(banco or '').upper()}|{ref}|{desc}|{monto:.2f}"
 
 
 def clave_movimiento(m: Movimiento) -> str:
@@ -112,14 +113,18 @@ def clave_movimiento_dict(d: dict) -> str:
 _clave_movimiento_dict = clave_movimiento_dict  # alias interno
 
 
-def claves_subidas(registros: list[dict], banco: str, excluir_id: str | None = None) -> set[str]:
-    """Conjunto de claves de movimientos ya subidos a SIPP para un banco (unión
-    de todos los bloques marcados subido_sipp). `excluir_id` omite un registro
-    (p. ej. el que se está creando/actualizando)."""
+def claves_subidas(
+    registros: list[dict], banco: str, excluir_id: str | None = None, solo_subidos: bool = False
+) -> set[str]:
+    """Conjunto de claves de movimientos ya vistos en extracciones PREVIAS del
+    mismo banco (unión de sus movimientos), para detectar duplicados en cortes
+    acumulativos. Con `solo_subidos=True` considera únicamente los bloques
+    marcados como subidos a SIPP. `excluir_id` omite un registro (p. ej. el que
+    se está creando/actualizando)."""
     banco_u = (banco or "").upper()
     claves: set[str] = set()
     for r in registros:
-        if not r.get("subido_sipp"):
+        if solo_subidos and not r.get("subido_sipp"):
             continue
         if r.get("id") == excluir_id:
             continue
