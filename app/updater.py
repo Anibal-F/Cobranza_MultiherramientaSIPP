@@ -44,8 +44,21 @@ def revisar_actualizaciones(base_dir: str) -> dict:
       - resumen: log corto de los commits nuevos
       - error: mensaje si no se pudo comprobar
     """
+    # Distinguir "git no disponible" de "no es un clon git" para un mensaje claro.
+    try:
+        version = _git(["--version"], base_dir)
+        if version.returncode != 0:
+            raise FileNotFoundError
+    except (FileNotFoundError, OSError, subprocess.SubprocessError):
+        return {
+            "disponible": False,
+            "error": "git no está instalado o no está en el PATH. Reinstala con instalar_windows.bat.",
+        }
     if not es_repo_git(base_dir):
-        return {"disponible": False, "error": "La app no corre desde un repositorio git."}
+        return {
+            "disponible": False,
+            "error": "La carpeta no es un clon de git. Instala con 'git clone' (no copiando la carpeta).",
+        }
     try:
         fetch = _git(["fetch", "--quiet"], base_dir)
         if fetch.returncode != 0:
