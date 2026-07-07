@@ -74,6 +74,35 @@ _JS_SET_ESTATUS_VACIO = """() => {
     scope.$apply(() => { scope.filtro.id_Estatus = ''; });
 }"""
 
+_JS_SELECT_ALL_H2H = """() => {
+    if (!window.angular) return 'no-angular';
+    const el = document.querySelector("[ng-grid='gridMovimientosH2H']");
+    if (!el) return 'no-grid';
+    const scope = angular.element(el).scope();
+    const opts = scope.gridMovimientosH2H;
+    // 1) API nativa de ngGrid: selectAll(true) marca TODA la data (aunque esté paginada).
+    try {
+        if (opts && typeof opts.selectAll === 'function') {
+            opts.selectAll(true);
+            if (!scope.$$phase) scope.$apply();
+            return 'selectAll:' + ((scope.MovimientosH2HSeleccionados || []).length);
+        }
+    } catch (e) {}
+    // 2) Respaldo: poblar el arreglo de seleccionados y marcar filas.
+    try {
+        const data = scope.MovimientosH2H || [];
+        if (Array.isArray(scope.MovimientosH2HSeleccionados)) {
+            scope.MovimientosH2HSeleccionados.length = 0;
+            data.forEach(m => scope.MovimientosH2HSeleccionados.push(m));
+        }
+        const ng = opts && opts.ngGrid;
+        const rows = ng && ng.rowFactory && ng.rowFactory.parsedData;
+        if (rows) rows.forEach(r => { if (r && r.entity) r.selected = true; });
+        if (!scope.$$phase) scope.$apply();
+        return 'fallback:' + ((scope.MovimientosH2HSeleccionados || []).length);
+    } catch (e) { return 'error:' + e.message; }
+}"""
+
 _JS_GRID_ROW_COUNT = """(gridAttr) => {
     const grid = document.querySelector(`[ng-grid="${gridAttr}"]`);
     return grid ? grid.querySelectorAll('.ngRow').length : 0;
@@ -515,15 +544,63 @@ class RPAAutomation:
         search_input = container.locator(".chosen-search input")
         await search_input.click()
         await search_input.press_sequentially(text_filter, delay=15)
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(400)
 
-        # Click the first visible matching result
-        result = container.locator(
-            f".chosen-results li.active-result:has-text('{text_filter}')"
-        ).first
-        await result.wait_for(state="visible", timeout=5_000)
-        await result.click()
+        # El texto del combo en SIPP puede diferir del pegado (sufijos "S.A. DE
+        # C.V." vs "SA DE CV", espacios, acentos): con el nombre completo el filtro
+        # de chosen a veces no deja ningún resultado. Se borra carácter por carácter
+        # (desde el final) hasta que aparezca al menos un resultado visible.
+        borrados = 0
+        while await self._num_resultados_chosen(container) == 0:
+            valor = await search_input.input_value()
+            if not valor:
+                break  # ya se vació la búsqueda y aún no hay resultados
+            await search_input.press("Backspace")
+            await page.wait_for_timeout(150)
+            borrados += 1
+        if borrados:
+            self.log(
+                f"    combo '{ng_model}': sin match exacto; se recortó el texto "
+                f"{borrados} carácter(es) hasta encontrar resultado.",
+                "warn",
+            )
+
+        # Elegir el mejor resultado visible: el que contenga el texto de búsqueda
+        # actual; si no, el primero. Se marca con un atributo para hacerle un clic
+        # real (chosen selecciona al hacer clic en el <li>).
+        hay = await container.evaluate(
+            """(c) => {
+                const norm = (t) => (t || '').trim().toLowerCase();
+                const buscado = norm(c.querySelector('.chosen-search input')?.value);
+                const visibles = Array.from(c.querySelectorAll('.chosen-results li.active-result'))
+                    .filter(li => { const s = getComputedStyle(li);
+                        return s.display !== 'none' && s.visibility !== 'hidden'; });
+                if (!visibles.length) return false;
+                let obj = visibles[0];
+                if (buscado) {
+                    const m = visibles.find(li => norm(li.textContent).includes(buscado));
+                    if (m) obj = m;
+                }
+                c.querySelectorAll('li[data-rpa-pick]').forEach(li => li.removeAttribute('data-rpa-pick'));
+                obj.setAttribute('data-rpa-pick', '1');
+                return true;
+            }"""
+        )
+        if not hay:
+            raise RuntimeError(
+                f"No se encontró ningún resultado en el combo para '{text_filter}' "
+                f"(ng-model='{ng_model}')."
+            )
+        await container.locator("li[data-rpa-pick='1']").first.click()
         await page.wait_for_timeout(300)
+
+    async def _num_resultados_chosen(self, container) -> int:
+        """Cuenta los resultados VISIBLES (li.active-result) de un combo chosen."""
+        return await container.evaluate(
+            """(c) => Array.from(c.querySelectorAll('.chosen-results li.active-result'))
+                .filter(li => { const s = getComputedStyle(li);
+                    return s.display !== 'none' && s.visibility !== 'hidden'; }).length"""
+        )
 
     # ──────────────────────────────────────────────────────
     # Step 3 — Navigate to Recepción de Facturas
@@ -749,6 +826,173 @@ class RPAAutomation:
         self.log(f"  [paso] subiendo archivo bancario: {os.path.basename(ruta_csv)}...", "info")
         await archivo_input.set_input_files(ruta_csv)
 
+        await self._asignar_clientes_preview(page, movimientos)
+
+        try:
+            await self._agregar_movimientos_archivo_banco(page)
+            await self._guardar_conciliacion_archivo(page)
+        except Exception as exc:
+            self.log(f"  No se pudo completar el guardado de la conciliación: {exc}", "error")
+            await self._volcar_html(page, "ingdiv_guardar")
+        # Browser deliberadamente abierto para que el usuario adjunte soporte y envíe.
+
+    # ──────────────────────────────────────────────────────
+    # BBVA: Ingresos Diversos vía buzón Host-to-Host (H2H) + respaldo manual.
+    # BBVA no tiene "Subir Excel"; sus abonos llegan por el buzón H2H, que caen en
+    # la MISMA previsualización que el flujo CSV. El .xls es la fuente de
+    # identificación; lo que el H2H aún no tenga se captura con el '+'.
+    # ──────────────────────────────────────────────────────
+    async def cargar_ingresos_diversos_bbva_h2h(
+        self,
+        movimientos: List[Tuple],
+        cuenta_bancaria_nombre: str,
+        fecha_operacion_ddmmyyyy: str,
+        fecha_inicio_ddmmyyyy: str,
+        fecha_fin_ddmmyyyy: str,
+    ) -> int:
+        """`movimientos`: tuplas (referencia, abono, cliente, sucursal, forzar,
+        tipos, concepto). No guarda y envía: deja el navegador abierto para revisar
+        y adjuntar el soporte. Devuelve cuántos movimientos se procesaron."""
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(
+            headless=self.headless, slow_mo=30, args=["--start-maximized"]
+        )
+        context = await browser.new_context(
+            viewport={"width": 1440, "height": 900}, locale="es-MX"
+        )
+        page = await context.new_page()
+        page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+
+        self.log(
+            f"BBVA H2H: cuenta '{cuenta_bancaria_nombre}', fecha {fecha_operacion_ddmmyyyy}, "
+            f"rango {fecha_inicio_ddmmyyyy}–{fecha_fin_ddmmyyyy}, {len(movimientos)} "
+            "movimiento(s) identificado(s) del .xls.",
+            "info",
+        )
+        await self._login(page)
+        await self._configure_session(page)
+        self._base_navegacion = page.url.split("#")[0]
+        await self._navigate_to_ingresos_diversos_agregar(page)
+        await self._configurar_encabezado_ingresos_diversos(
+            page, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy
+        )
+
+        # 1) Buzón H2H → previsualización → identificar con los datos del .xls.
+        no_encontrados = list(movimientos)  # si el H2H no trae nada, todo es manual
+        if await self._traer_movimientos_h2h(page, fecha_inicio_ddmmyyyy, fecha_fin_ddmmyyyy):
+            no_encontrados = await self._asignar_clientes_preview(page, movimientos)
+            try:
+                await self._agregar_movimientos_archivo_banco(page)
+            except Exception as exc:
+                self.log(f"  No se pudieron agregar los movimientos del H2H: {exc}", "error")
+                await self._volcar_html(page, "bbva_h2h_agregar")
+        else:
+            self.log(
+                "El buzón H2H no devolvió movimientos; se capturarán todos manualmente.",
+                "warn",
+            )
+
+        # 2) Respaldo: lo que el .xls tiene pero el H2H no trajo → captura manual '+'.
+        faltan = [t for t in no_encontrados if t]
+        if faltan:
+            self.log(
+                f"{len(faltan)} movimiento(s) del .xls no estaban en el H2H; se agregan con '+'.",
+                "info",
+            )
+            agregados = 0
+            for i, t in enumerate(faltan):
+                if self.should_cancel():
+                    break
+                referencia, abono, cliente = t[0], t[1], t[2]
+                sucursal = t[3] if len(t) > 3 else None
+                tipos = t[5] if len(t) > 5 else []
+                concepto = t[6] if len(t) > 6 else ""
+                if not cliente:
+                    continue  # sin cliente no se puede capturar por '+'
+                if await self._agregar_un_movimiento_manual(
+                    page, i, len(faltan), concepto, referencia, abono, cliente, sucursal, tipos
+                ):
+                    agregados += 1
+            self.log(f"{agregados}/{len(faltan)} movimiento(s) faltante(s) agregado(s) manualmente.", "ok")
+
+        # 3) Guardar la conciliación (cancela el modal de subir soporte).
+        try:
+            await self._guardar_conciliacion_archivo(page)
+        except Exception as exc:
+            self.log(f"  No se pudo guardar la conciliación: {exc}", "error")
+            await self._volcar_html(page, "bbva_h2h_guardar")
+        return len(movimientos)
+
+    async def _traer_movimientos_h2h(
+        self, page: Page, fecha_inicio_ddmmyyyy: str, fecha_fin_ddmmyyyy: str
+    ) -> bool:
+        """Abre el buzón H2H, busca en el rango (fechas del .xls), selecciona TODOS
+        los lotes y da Aceptar. Devuelve True si apareció la previsualización."""
+        paso = "abrir buzón H2H"
+        try:
+            self.log("  [paso] abriendo buzón H2H (Subir Movimientos H2H)...", "info")
+            await page.click("button[ng-click='agregarMovimientosH2H()']")
+            await page.wait_for_selector(
+                "#divBloqueo_modalBusquedaMovimientosH2H", state="visible", timeout=15_000
+            )
+            await page.wait_for_timeout(400)
+
+            paso = "fijar rango de fechas"
+            self.log(
+                f"  [paso] rango H2H: {fecha_inicio_ddmmyyyy} a {fecha_fin_ddmmyyyy}...", "info"
+            )
+            await self._llenar_fecha_mascara(
+                page, "input[ng-model='dt_fh_Inicio']", fecha_inicio_ddmmyyyy.replace("/", "")
+            )
+            await self._llenar_fecha_mascara(
+                page, "input[ng-model='dt_fh_Fin']", fecha_fin_ddmmyyyy.replace("/", "")
+            )
+            # "Movimientos Diarios" (por defecto).
+            try:
+                await page.check("#rdbTipoMovimiento_1", force=True)
+            except Exception:
+                pass
+
+            paso = "buscar (lupa)"
+            self.log("  [paso] buscando movimientos H2H en el rango...", "info")
+            await page.click("button[ng-click='listarMovimientosH2H()']")
+            try:
+                await page.wait_for_function(
+                    "() => document.querySelectorAll(\"[ng-grid='gridMovimientosH2H'] .ngRow\").length > 0",
+                    timeout=12_000,
+                )
+            except Exception:
+                self.log("    el buzón H2H no devolvió lotes en el rango.", "warn")
+                try:
+                    await page.click("#divBloqueo_modalBusquedaMovimientosH2H button.btn-warning")
+                except Exception:
+                    pass
+                return False
+            await page.wait_for_timeout(500)
+
+            paso = "seleccionar todos los lotes"
+            resultado = await page.evaluate(_JS_SELECT_ALL_H2H)
+            self.log(f"  [paso] selección de lotes H2H: {resultado}.", "info")
+            await page.wait_for_timeout(300)
+
+            paso = "Aceptar"
+            self.log("  [paso] Aceptar: trayendo movimientos a la previsualización...", "info")
+            await page.click("button[ng-click='getDetallesH2H()']")
+            await page.wait_for_selector(
+                "#divBloqueo_modalDatosBanco", state="visible", timeout=25_000
+            )
+            return True
+        except Exception as exc:
+            self.log(f"  Error en el buzón H2H (paso '{paso}'): {exc}", "error")
+            await self._volcar_html(page, "bbva_h2h_buzon")
+            return False
+
+    async def _asignar_clientes_preview(self, page: Page, movimientos) -> list:
+        """En el modal 'Previsualización de datos en Archivo Bancario' (mismo para
+        el flujo CSV 'Subir Excel' y el flujo H2H de BBVA), asigna a cada fila su
+        cliente/sucursal y marca Ant./Cnt. según los candidatos `movimientos`
+        (tuplas ref, abono, cliente, sucursal, forzar, tipos). Devuelve la lista de
+        candidatos que NO se encontraron en la previsualización (para respaldo)."""
         self.log("  [paso] esperando modal de previsualización (Datos Banco)...", "info")
         await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
         await page.wait_for_timeout(500)
@@ -796,6 +1040,7 @@ class RPAAutomation:
             cliente = mov[2]
             sucursal_sugerida = mov[3] if len(mov) > 3 else None
             forzar_sucursal = mov[4] if len(mov) > 4 else False
+            tipos_mov = mov[5] if len(mov) > 5 else []
             pendientes.remove(mov)
 
             self.log(
@@ -913,6 +1158,12 @@ class RPAAutomation:
                 if borradas:
                     self.log(f"    {borradas} sucursal(es) vacía(s) eliminada(s).", "info")
 
+                # Marca las columnas Ant./Cnt. según los tipos del movimiento. En
+                # la previsualización de archivo (CSV) SOLO existen esas dos; el
+                # resto de tipos solo se pueden marcar en la captura manual ('+').
+                if tipos_mov:
+                    await self._marcar_ant_cnt_preview(fila, tipos_mov)
+
                 asignados += 1
                 self.log(
                     f"  Fila {i + 1} ({referencia_modal}): cliente '{cliente_asignado}', "
@@ -928,39 +1179,65 @@ class RPAAutomation:
             "cliente identificado (dejadas vacías).",
             "info",
         )
+        return pendientes
 
-        # Guardado: secuencia de SIPP (cada "Guardar" dispara un confirm que
-        # aceptamos). Al final, el modal de Subir Estado de Cuenta se CANCELA
-        # para que el usuario adjunte el soporte y envíe a mano.
-        try:
-            self.log("  [paso] Guardar movimientos del archivo bancario...", "info")
-            await page.click("button[ng-click='AgregarMovimientosArchivoBancario()']")
-            await self._aceptar_confirms(page, "'¿Agregar los movimientos al estado de cuenta?'")
+    async def _agregar_movimientos_archivo_banco(self, page: Page) -> None:
+        """Pasa los movimientos de la previsualización a la tabla de la
+        conciliación (botón 'Agregar los movimientos al estado de cuenta')."""
+        self.log("  [paso] Guardar movimientos del archivo bancario...", "info")
+        await page.click("button[ng-click='AgregarMovimientosArchivoBancario()']")
+        await self._aceptar_confirms(page, "'¿Agregar los movimientos al estado de cuenta?'")
 
-            self.log("  [paso] Guardar conciliación...", "info")
-            await page.wait_for_selector(
-                "button[ng-click='guardar()']", state="visible", timeout=15_000
-            )
-            await page.click("button[ng-click='guardar()']")
-            await self._aceptar_confirms(page, "'¿Seguro que desea Guardar la conciliación?'")
+    async def _guardar_conciliacion_archivo(self, page: Page) -> None:
+        """Guarda la conciliación y cancela el modal de Subir Estado de Cuenta
+        (el usuario adjunta el soporte y envía a mano)."""
+        self.log("  [paso] Guardar conciliación...", "info")
+        await page.wait_for_selector(
+            "button[ng-click='guardar()']", state="visible", timeout=15_000
+        )
+        await page.click("button[ng-click='guardar()']")
+        await self._aceptar_confirms(page, "'¿Seguro que desea Guardar la conciliación?'")
 
-            self.log("  [paso] esperando modal 'Subir Estado de Cuenta' para Cancelar...", "info")
-            await page.wait_for_selector(
-                "#divBloqueo_modalSubirEdoCuenta", state="visible", timeout=15_000
-            )
-            await page.wait_for_timeout(400)
-            await page.locator("#divBloqueo_modalSubirEdoCuenta").locator(
-                "button", has_text="Cancelar"
-            ).first.click()
+        self.log("  [paso] esperando modal 'Subir Estado de Cuenta' para Cancelar...", "info")
+        await page.wait_for_selector(
+            "#divBloqueo_modalSubirEdoCuenta", state="visible", timeout=15_000
+        )
+        await page.wait_for_timeout(400)
+        await page.locator("#divBloqueo_modalSubirEdoCuenta").locator(
+            "button", has_text="Cancelar"
+        ).first.click()
+        self.log(
+            "Conciliación guardada. Se canceló el envío: adjunta el archivo soporte y presiona "
+            "Guardar y Enviar manualmente en SIPP cuando estés conforme.",
+            "ok",
+        )
+
+    async def _marcar_ant_cnt_preview(self, fila, tipos: List[str]) -> None:
+        """En el modal de previsualización de archivo bancario (CSV), marca las
+        columnas Ant. (Anticipo) y Cnt. (Contado) de la fila según `tipos`. Son las
+        ÚNICAS disponibles ahí; si se pidieron otros tipos se avisa (solo se pueden
+        capturar por el modal '+' manual)."""
+        # td directos: 0 Fecha, 1 Concepto, 2 Referencia, 3 Importe, 4 Ant., 5 Cnt.
+        celdas = fila.locator("xpath=./td")
+        objetivos = {"Anticipo": 4, "Contado": 5}
+        for etiqueta, idx in objetivos.items():
+            if etiqueta not in tipos:
+                continue
+            try:
+                chk = celdas.nth(idx).locator("input[type='checkbox']").first
+                if await chk.count() and await self._check_forzado(chk):
+                    self.log(f"    marcado en previsualización: {etiqueta}.", "ok")
+                else:
+                    self.log(f"    no se pudo marcar '{etiqueta}' en la previsualización.", "warn")
+            except Exception as exc:
+                self.log(f"    error al marcar '{etiqueta}': {exc}", "warn")
+        otros = [t for t in tipos if t not in objetivos]
+        if otros:
             self.log(
-                "Conciliación guardada. Se canceló el envío: adjunta el archivo soporte y presiona "
-                "Guardar y Enviar manualmente en SIPP cuando estés conforme.",
-                "ok",
+                "    tipos no disponibles en la previsualización de archivo (solo por "
+                f"'+' manual): {', '.join(otros)}.",
+                "warn",
             )
-        except Exception as exc:
-            self.log(f"  No se pudo completar el guardado de la conciliación: {exc}", "error")
-            await self._volcar_html(page, "ingdiv_guardar")
-        # Browser deliberadamente abierto para que el usuario adjunte soporte y envíe.
 
     async def _eliminar_sucursales_vacias(self, page: Page, fila) -> int:
         """Elimina las sub-filas de sucursal cuyo importe está vacío/0,
@@ -997,6 +1274,205 @@ class RPAAutomation:
             await page.wait_for_timeout(200)
             borradas += 1
         return borradas
+
+    # ──────────────────────────────────────────────────────
+    # Ingresos Diversos por captura MANUAL (modal "Agregar Movimientos"),
+    # para bancos que SIPP no importa por "Subir Excel" (ej. BanBajío).
+    # ──────────────────────────────────────────────────────
+    # ids conocidos de los checkboxes "¿Es ...?" (patrón chk_sn_...). Los que no
+    # aparezcan aquí se buscan por el texto del <label>.
+    _IDS_CHECK_TIPO = {
+        "Contado": "chk_sn_Contado",
+        "Anticipo": "chk_sn_Anticipo",
+        "Factoraje Financiero": "chk_sn_Factoraje",
+    }
+
+    async def cargar_ingresos_diversos_manual(
+        self,
+        movimientos: List[Tuple[str, str, float, str, Optional[str], List[str]]],
+        cuenta_bancaria_nombre: str,
+        fecha_operacion_ddmmyyyy: str,
+    ) -> int:
+        """Agrega en 'Ingresos Diversos - Agregar' cada movimiento identificado
+        usando el modal 'Agregar Movimientos' (el '+'), en vez de 'Subir Excel'.
+        Pensado para bancos cuyo archivo SIPP no importa (BanBajío).
+
+        Cada movimiento es (concepto, referencia, monto, cliente, sucursal, tipos),
+        donde `tipos` es una lista de etiquetas ('Contado', 'Anticipo', ...) cuyos
+        checkboxes '¿Es ...?' se marcan. No guarda: deja el navegador abierto para
+        revisión. Devuelve cuántos movimientos se agregaron."""
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(
+            headless=self.headless, slow_mo=40, args=["--start-maximized"]
+        )
+        context = await browser.new_context(
+            viewport={"width": 1440, "height": 900}, locale="es-MX"
+        )
+        page = await context.new_page()
+        page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+
+        self.log(
+            f"Captura manual de Ingresos Diversos: cuenta '{cuenta_bancaria_nombre}', "
+            f"fecha {fecha_operacion_ddmmyyyy}, {len(movimientos)} movimiento(s).",
+            "info",
+        )
+        await self._login(page)
+        await self._configure_session(page)
+        self._base_navegacion = page.url.split("#")[0]
+        await self._navigate_to_ingresos_diversos_agregar(page)
+        await self._configurar_encabezado_ingresos_diversos(
+            page, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy
+        )
+
+        agregados = 0
+        for i, mov in enumerate(movimientos):
+            if self.should_cancel():
+                self.log("Captura cancelada por el usuario.", "warn")
+                break
+            if await self._agregar_un_movimiento_manual(page, i, len(movimientos), *mov):
+                agregados += 1
+
+        self.log(
+            f"{agregados}/{len(movimientos)} movimiento(s) agregado(s). Revisa la tabla "
+            "en SIPP (sucursales e importes) y presiona Guardar cuando estés conforme.",
+            "ok",
+        )
+        return agregados
+
+    async def _agregar_un_movimiento_manual(
+        self, page: Page, i: int, total: int,
+        concepto: str, referencia: str, monto: float,
+        cliente: str, sucursal: Optional[str], tipos: List[str],
+    ) -> bool:
+        paso = "abrir modal"
+        try:
+            self.log(f"Agregando {i + 1}/{total}: '{cliente}' ${monto:,.2f}...", "info")
+            await page.click("button[ng-click='agregarMovimientos()']")
+            await page.wait_for_selector(
+                "#divBloqueo_modalAgregarMovimientos", state="visible", timeout=10_000
+            )
+            await page.wait_for_timeout(300)
+            modal = page.locator("#divBloqueo_modalAgregarMovimientos")
+
+            paso = "llenar concepto/referencia/importe"
+            await modal.locator("#DE_CONCEPTO_Agregar").fill((concepto or "")[:250])
+            await modal.locator("#DE_REFERENCIA_Agregar").fill(referencia or "")
+            await modal.locator("#IM_MOVIMIENTO_Agregar").fill(f"{monto:.2f}")
+
+            # Marcar los tipos indicados (checkboxes "¿Es ...?").
+            for etiqueta in (tipos or []):
+                paso = f"marcar '¿Es {etiqueta}?'"
+                if await self._marcar_check_tipo(modal, etiqueta):
+                    self.log(f"    marcado: ¿Es {etiqueta}?", "ok")
+                else:
+                    self.log(f"    no se encontró el check '¿Es {etiqueta}?'", "warn")
+                await page.wait_for_timeout(150)
+
+            paso = "seleccionar cliente"
+            await self._chosen_select(page, "ID_CLIENTE", cliente)
+            await page.wait_for_timeout(300)
+
+            # Sucursal: la indicada o 'Corporativo' por defecto (SIPP no guarda sin
+            # sucursal y el flujo se trabaría).
+            paso = "seleccionar sucursal"
+            objetivo = sucursal or "Corporativo"
+            opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", objetivo)
+            if not opcion and objetivo != "Corporativo":
+                self.log(f"    sucursal '{objetivo}' no está en el combo; uso 'Corporativo'.", "warn")
+                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", "Corporativo")
+                objetivo = "Corporativo"
+            if opcion:
+                await modal.locator("#ID_SUCURSAL_Agregar_0").select_option(value=opcion["value"])
+                self.log(f"    sucursal: {opcion['text']}", "ok")
+                await modal.locator("#IM_MOVIMIENTO_Agregar_0").fill(f"{monto:.2f}")
+            else:
+                self.log("    no se encontró la sucursal ni 'Corporativo' en el combo.", "warn")
+            await page.wait_for_timeout(300)
+
+            paso = "guardar movimiento"
+            await modal.locator("button.btn-info", has_text="Guardar Movimiento").click()
+            # El modal se cierra tras guardar, pero NO siempre vía la clase
+            # ng-hide (a veces por display/opacity/offsetParent). Se detecta por
+            # varias señales para no esperar el timeout completo cada vez.
+            if not await self._esperar_cierre_modal_agregar(page, timeout=15_000):
+                self.log("    (el modal no cerró a tiempo; lo fuerzo y continúo)", "warn")
+                await page.evaluate(
+                    "() => { const m = document.querySelector('#divBloqueo_modalAgregarMovimientos');"
+                    " if (m) m.classList.add('ng-hide'); }"
+                )
+            await page.wait_for_timeout(150)
+            self.log(f"  Movimiento {i + 1} agregado.", "ok")
+            return True
+        except Exception as exc:
+            self.log(f"  Error agregando movimiento {i + 1} en '{paso}': {exc}", "error")
+            await self._volcar_html(page, f"ingdiv_manual_{i + 1}")
+            # Cerrar el modal para no bloquear el siguiente movimiento.
+            try:
+                await page.evaluate(
+                    "() => { const m = document.querySelector('#divBloqueo_modalAgregarMovimientos');"
+                    " if (m) m.classList.add('ng-hide'); }"
+                )
+            except Exception:
+                pass
+            return False
+
+    async def _esperar_cierre_modal_agregar(self, page: Page, timeout: int = 15_000) -> bool:
+        """Espera a que el modal 'Agregar Movimientos' se cierre, detectando
+        cualquier señal de ocultamiento (ng-hide, display/visibility/opacity,
+        offsetParent). Devuelve True si cerró; False si venció el timeout."""
+        try:
+            await page.wait_for_function(
+                """() => {
+                    const m = document.querySelector('#divBloqueo_modalAgregarMovimientos');
+                    if (!m) return true;
+                    if (m.classList.contains('ng-hide')) return true;
+                    const s = getComputedStyle(m);
+                    if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0) return true;
+                    if (m.offsetParent === null) return true;
+                    return false;
+                }""",
+                timeout=timeout,
+            )
+            return True
+        except Exception:
+            return False
+
+    async def _marcar_check_tipo(self, modal, etiqueta: str) -> bool:
+        """Marca el checkbox '¿Es {etiqueta}?' del modal. Intenta primero por id
+        conocido (chk_sn_...) y, si no, por el texto del <label>."""
+        cid = self._IDS_CHECK_TIPO.get(etiqueta)
+        if cid:
+            loc = modal.locator(f"#{cid}")
+            if await loc.count():
+                return await self._check_forzado(loc.first)
+        texto = f"¿Es {etiqueta}?"
+        label = modal.locator("label", has_text=texto).first
+        if await label.count():
+            chk = label.locator("input[type='checkbox']")
+            if not await chk.count():
+                chk = label.locator(
+                    "xpath=preceding-sibling::input[@type='checkbox'][1]"
+                    " | following-sibling::input[@type='checkbox'][1]"
+                )
+            if not await chk.count():
+                for_id = await label.get_attribute("for")
+                if for_id:
+                    chk = modal.locator(f"#{for_id}")
+            if await chk.count():
+                return await self._check_forzado(chk.first)
+        return False
+
+    async def _check_forzado(self, locator) -> bool:
+        try:
+            if not await locator.is_checked():
+                await locator.check(force=True)
+            return True
+        except Exception:
+            try:
+                await locator.click(force=True)
+                return True
+            except Exception:
+                return False
 
     async def _navigate_to_ingresos_diversos_agregar(self, page: Page):
         self.log("Navegando a Ingresos Diversos - Agregar...", "info")

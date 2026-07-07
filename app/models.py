@@ -2,6 +2,18 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
+# Opciones del modal "Agregar Movimientos" de SIPP (checkboxes "¿Es ...?").
+# El orden refleja el de SIPP. Se pueden combinar varias en un mismo movimiento.
+OPCIONES_TIPO_MOVIMIENTO = [
+    "Anticipo",
+    "Contado",
+    "Efectivo",
+    "TPV",
+    "Factoraje Financiero",
+    "Indemnización",
+    "Monedero Electrónico",
+]
+
 
 @dataclass
 class ClienteCuenta:
@@ -54,6 +66,12 @@ class Movimiento:
     # la descripción contiene "TRASPASO" y el usuario puede alternarlo. Se pinta en
     # rojo tenue, no se le asigna cliente y su fila se omite del CSV que se sube.
     excluido: bool = False
+    # Tipos de movimiento para la captura en SIPP por el modal "Agregar
+    # Movimientos" (bancos que SIPP no importa por Excel, p. ej. BanBajío).
+    # Cada elemento es una etiqueta de la lista OPCIONES_TIPO_MOVIMIENTO (ej.
+    # "Contado", "Factoraje Financiero"); el RPA marca su checkbox "¿Es ...?".
+    # Vacío = Ingreso Diverso normal (ningún check).
+    tipos_movimiento: list = field(default_factory=list)
     # Interés de factoraje (BAJA FERRIES) tomado del PDF NAFIN/BBVA y cruzado por
     # folio/monto neto. Se captura en SIPP como "Interés Factoraje".
     factoraje_interes: Optional[float] = None

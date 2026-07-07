@@ -29,7 +29,10 @@ _FOLIO_PATRONES = (
     # "FACT <num>" / "FACTURA <num>" (sin serie de sucursal).
     re.compile(r"\bFACT(?:URA)?\.?\s*()(\d{4,})", re.IGNORECASE),
     # Serie general de sucursal: F + 2 iniciales + número (FLM/FHM/FCL/FMZ/FMY...).
-    re.compile(r"\b(F[A-Z]{2})\s*[- ]?\s*(\d{4,})", re.IGNORECASE),
+    # (?<![A-Z]) en vez de \b: permite la serie PEGADA a dígitos (ej. BBVA
+    # "0060726FMZ 246981", donde entre el dígito y la F no hay límite de palabra),
+    # pero evita capturarla a media palabra (letra-antes queda bloqueada).
+    re.compile(r"(?<![A-Z])(F[A-Z]{2})\s*[- ]?\s*(\d{4,})", re.IGNORECASE),
     # Formato antiguo "Liq de F 122088".
     re.compile(r"LIQ\s+DE\s+F\s*()(\d{3,})", re.IGNORECASE),
 )

@@ -1,10 +1,12 @@
 from ..models import Movimiento
-from . import banorte, banregio, santander
+from . import bajio, banorte, banregio, bbva, santander
 
 PARSERS = {
     "SANTANDER": santander,
     "BANREGIO": banregio,
     "BANORTE": banorte,
+    "BANBAJIO": bajio,
+    "BBVA": bbva,
 }
 
 

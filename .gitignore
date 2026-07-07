@@ -9,13 +9,18 @@ __pycache__/
 .DS_Store
 html_pages/
 
+
 # Reportes/estados de cuenta (data financiera, no subir)
 *.xlsx
+*.csv
+*.html
 Reporte_Estado_de_Cuenta.xlsx
 
 historial_extracciones.json
-
 # Lanzador generado por instalar_windows.bat (por máquina)
 iniciar_cobranza.bat
 
 rcedit-x64.exe
+Catalogos/Cuentas_Clientes/Catalogo_Cuentas_Clientes.csv
+Catalogos/Movimiento Bancos/BBVA 7012 6 JUL 3.pdf
+.gitignore
