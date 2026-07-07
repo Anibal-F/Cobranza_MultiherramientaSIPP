@@ -82,9 +82,14 @@ def revisar_actualizaciones(base_dir: str) -> dict:
         if not local or local == remoto:
             return {"disponible": False, "detras": 0}
 
-        detras = _git(["rev-list", "--count", "HEAD..@{u}"], base_dir).stdout.strip()
+        detras = int(_git(["rev-list", "--count", "HEAD..@{u}"], base_dir).stdout.strip() or 0)
+        if detras == 0:
+            # Local va igual o adelante del remoto (commits propios sin subir):
+            # no hay nada que "pull"-ear, así que no hay actualización pendiente.
+            return {"disponible": False, "detras": 0}
+
         resumen = _git(["log", "--oneline", "-5", "HEAD..@{u}"], base_dir).stdout.strip()
-        return {"disponible": True, "detras": int(detras or 0), "resumen": resumen}
+        return {"disponible": True, "detras": detras, "resumen": resumen}
     except subprocess.TimeoutExpired:
         return {"disponible": False, "error": "Tiempo de espera agotado al consultar GitHub."}
     except (OSError, subprocess.SubprocessError) as ex:
