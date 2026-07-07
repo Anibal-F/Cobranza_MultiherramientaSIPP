@@ -254,7 +254,7 @@ def main(page: ft.Page) -> None:
     # Cargos fuera de alcance por ahora (solo se procesan abonos). Se deja
     # comentado por si en el futuro se requiere mostrar también los cargos.
     # card_total_cargos = ft.Text("$0.00", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700)
-    card_total_abonos = ft.Text("$0.00", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+    card_total_abonos = ft.Text("$0.00", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700, no_wrap=True)
 
     def resumen_card(titulo: str, valor_control: ft.Text) -> ft.Container:
         return ft.Container(
@@ -263,6 +263,7 @@ def main(page: ft.Page) -> None:
                 spacing=4,
             ),
             padding=16,
+            height=88,  # altura fija: todas las tarjetas iguales sin importar la fuente
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             border=ft.Border(
                 top=ft.BorderSide(3, GOLD),
