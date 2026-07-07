@@ -1,0 +1,2297 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>xm05601</Author>
+  <LastAuthor>xm05601</LastAuthor>
+  <Created>2013-02-15T15:50:06Z</Created>
+  <Company>BBVA Bancomer, S.A.</Company>
+  <Version>11.9999</Version>
+ </DocumentProperties>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>7680</WindowHeight>
+  <WindowWidth>15195</WindowWidth>
+  <WindowTopX>480</WindowTopX>
+  <WindowTopY>30</WindowTopY>
+  <ProtectStructure>False</ProtectStructure>
+  <ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="s24">
+   <Alignment ss:Vertical="Bottom"/>
+  </Style>
+  <Style ss:ID="s25">
+   <NumberFormat ss:Format="Short Date"/>
+  </Style>
+  <Style ss:ID="s27">
+   <Alignment ss:Vertical="Bottom"/>
+   <NumberFormat ss:Format="Fixed"/>
+  </Style>
+  <Style ss:ID="s28">
+   <NumberFormat ss:Format="Fixed"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Hoja1">
+  <Table ss:ExpandedColumnCount="7" ss:ExpandedRowCount="1000" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="60">
+   <Column ss:Width="79.5"/>
+   <Column ss:AutoFitWidth="0" ss:Width="170.25"/>
+   <Column ss:AutoFitWidth="0" ss:Width="168.75"/>
+   <Column ss:StyleID="s28" ss:AutoFitWidth="0" ss:Width="123.75"/>
+   <Column ss:AutoFitWidth="0" ss:Width="116.25"/>
+   <Column ss:AutoFitWidth="0" ss:Width="111"/>
+   <Row>
+    <Cell ss:StyleID="s24"><Data ss:Type="String">Cuenta</Data></Cell>
+    <Cell ss:StyleID="s24"><Data ss:Type="String">0100647012</Data></Cell>
+    <Cell ss:StyleID="s24"/>
+    <Cell ss:StyleID="s27"/>
+    <Cell ss:StyleID="s24"/>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Fecha Operación</Data></Cell>
+    <Cell><Data ss:Type="String">Concepto</Data></Cell>
+    <Cell><Data ss:Type="String">Referencia</Data></Cell>
+    <Cell><Data ss:Type="String">Referencia Ampliada</Data></Cell>
+    <Cell><Data ss:Type="String">Cargo</Data></Cell>
+    <Cell><Data ss:Type="String">Abono</Data></Cell>
+    <Cell><Data ss:Type="String">Saldo</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0008467011</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0186693296 PAGO FACT FMZ 2470</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">216292.57</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.417856118E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0028011018</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0116970281 ABONO FMX 073240</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">100000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.396226861E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0092835016</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0110471755 ABONO FACT FLM1923</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">133385.26</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.386226861E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0049132990</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0478521298 F729F446</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">135805.8</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.372888335E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01032300083446554287</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1294456</Data></Cell>
+    <Cell><Data ss:Type="String">                              1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">351085.6</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.359307755E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01019200012646552207014</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1293201 9710670</Data></Cell>
+    <Cell><Data ss:Type="String">          SANTANDER 01152807761621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">433195.5</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.324199195E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023680192546572290002</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1278357 0194815</Data></Cell>
+    <Cell><Data ss:Type="String">          BANAMEX   01152145451621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">316330</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.280879645E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023480139646571261072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1275996 0571261</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01152098001621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">215799.88</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.249246645E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01042890104746555258072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1268474 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01151923761621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5346787.54</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.227666657E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023480139846572203072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1265531 0572203</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01151884651621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">215624.15</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.692987903E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023480139746577255072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1253405 0577255</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01151630741621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">260309.14</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.671425488E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0024222015</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0143245217 DIESEL ABASTECEDOR</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">17754</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.645394574E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115151527  072</Data></Cell>
+    <Cell><Data ss:Type="String">0060726Fac</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">52600</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.643619174E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115139877  002</Data></Cell>
+    <Cell><Data ss:Type="String">0060726ELA FGP46940</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">250750</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.638359174E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01019220009546555262</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1243192</Data></Cell>
+    <Cell><Data ss:Type="String">LIQ FACT 192379               1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">36264.53</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.613284174E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115105273  002</Data></Cell>
+    <Cell><Data ss:Type="String">0001766FMZ 246713</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">510532</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.609657721E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023610073046575226014</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1242412 9702062</Data></Cell>
+    <Cell><Data ss:Type="String">          SANTANDER 01150953661621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">188937.87</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.558604521E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115090100  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246981</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">524583.32</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.539710734E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115076253  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246980</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">682193.16</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.487252402E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115068580  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246905</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">681888.24</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.419033086E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0021824012</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0194869184 COMBUSTIBLE</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">100000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.350844262E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115062763  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246782</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">680472.54</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.340844262E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017370050846568246030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1239187 0016219</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01150565161621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">856260.72</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.272797008E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115055586  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246422</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">678120.3</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.187170936E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0087635012</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0447725817 FMZ 246450</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">510532</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.119358906E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115041689  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246421</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">677989.62</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.068305706E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00276774</Data></Cell>
+    <Cell><Data ss:Type="String">INNOVATIVOS                   BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4106396.45</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.000506744E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017370050746563265030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1237592 0016219</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01150349501621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">893964.44</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5898670.99</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115034321  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246362</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">681931.8</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5004706.55</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0115023865  030</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FMZ 246286</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">681191.28</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4322774.75</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0000549013</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0154455312 abono de factura</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">300000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3641583.47</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0046152015</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0106430236 pago factura 74155</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">409312</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3341583.47</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0019059037</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0125916445</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">464366.85</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2932271.47</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114917561  072</Data></Cell>
+    <Cell><Data ss:Type="String">0060726F 193531</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">262400</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2467904.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01030680093846552255002</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1222962 0102946</Data></Cell>
+    <Cell><Data ss:Type="String">          BANAMEX   01148624411621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">400000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2205504.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025570120046555265072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1218906 0190809</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01148166741621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">514944</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1805504.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0038208141</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    1165666023 FTJ086914</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7908</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1290560.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI ENVIADO BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0000886996  072</Data></Cell>
+    <Cell><Data ss:Type="String">0000001TRASPASO A BANORTE</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7000000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1282652.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0016741360</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    1165666023 FTJ086829</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7911</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8282652.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114738701  014</Data></Cell>
+    <Cell><Data ss:Type="String">967829701031880250746559208</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1656332.23</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8274741.62</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01021290066546553261062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1211500 0121100</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01147260361621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">518205.95</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6618409.39</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0012858019</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0468454086 FACTURA 074157</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">408112.26</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6100203.44</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027740074046586211072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1206808 0586211</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01146715811621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">428430.18</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5692091.18</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022780168246573210072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1206598 0194295</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01146684241621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">215764.6</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5263661</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114654912  014</Data></Cell>
+    <Cell><Data ss:Type="String">9673763fen024725</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">474418.81</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5047896.4</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0031586021</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0120991317 PAGO</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">49788.42</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4573477.59</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114557420  014</Data></Cell>
+    <Cell><Data ss:Type="String">966765301031880250646556253</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">432836</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4523689.17</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023600058446564282002</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1196625 6564282</Data></Cell>
+    <Cell><Data ss:Type="String">          BANAMEX   01145538371621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">499801.5</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4090853.17</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029220162446550225</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1195056</Data></Cell>
+    <Cell><Data ss:Type="String">FMZ246577 LIBR DIESEL         1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">253795.56</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3591051.67</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029220162346554264</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1193880</Data></Cell>
+    <Cell><Data ss:Type="String">FMZ246576 LIBR MAGNA          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">218103.89</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3337256.11</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00466476</Data></Cell>
+    <Cell><Data ss:Type="String">FACTURAS                      BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">753751.38</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3119152.22</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0072069016</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0168612994 FEPGSA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">112500</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2365400.84</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025300195246577250072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1188608 0577250</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01144706281621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">139819.91</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2252900.84</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI ENVIADO HSBC</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0000875520  021</Data></Cell>
+    <Cell><Data ss:Type="String">0000001TRASPASO A HSBC</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">82000000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2113080.93</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0054894017</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0112082098 PAGO F125389 REG</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">446200</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.411308093E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029910215346556278072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1186559 0194807</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01144501361621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">252611.23</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.366688093E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114448366  072</Data></Cell>
+    <Cell><Data ss:Type="String">0260706TRASPASO A BBVA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3500000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.34142697E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0070174037</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0106430236 pago factura 74124</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">476864</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.99142697E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029910215246552213072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1184658 0194797</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01144320381621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">252764.39</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.94374057E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017610052646554255072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1184657 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01144320161621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">857199.87</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.918464131E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022140054546553242072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1184656 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01144320121621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1355259.98</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.832744144E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0070174026</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0106430236 pago factura 74122</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">410712</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.697218146E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0070174015</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0106430236 pago factura 74123</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">409312</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.656146946E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114381171  002</Data></Cell>
+    <Cell><Data ss:Type="String">0087873AG TRUCKING</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">182308.55</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.615215746E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01045250014546560277036</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1179294 2026070</Data></Cell>
+    <Cell><Data ss:Type="String">          INBURSA   01143777451621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1930661.66</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.596984891E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114314429  014</Data></Cell>
+    <Cell><Data ss:Type="String">964723201031880250546556240</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1114832.8</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.403918725E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114314428  014</Data></Cell>
+    <Cell><Data ss:Type="String">964723101031880250446550246</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">330000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.292435445E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023490070446574284072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1172575 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01143079861621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">182864.54</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.259435445E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01031030138646551256</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1169633</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO BANCARIO                 1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">247000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.241148991E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114236504  002</Data></Cell>
+    <Cell><Data ss:Type="String">0073159FMX 73159 NCMX37471</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5176</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.216448991E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOVE POR MAS</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114231288  113</Data></Cell>
+    <Cell><Data ss:Type="String">0026187SOS70037</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">136850</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.215931391E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01030860206846552286072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1165086 0552286</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01142310261621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1138431.94</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.202246391E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOVE POR MAS</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0114210505  113</Data></Cell>
+    <Cell><Data ss:Type="String">0026187SOS70039</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">149710</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.088403197E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022960414146562275030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1160801 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01141869351621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">31000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.073432197E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PETRO SMART COMBUSTI</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">GUIA:1160633</Data></Cell>
+    <Cell><Data ss:Type="String">REF:08000470106746557282 CIE:1622013</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2.595192574E7</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.070332197E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01000470007946559237</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1158354</Data></Cell>
+    <Cell><Data ss:Type="String">01000470007946559237          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5494.61</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.665524771E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMB</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">GUIA:1158354</Data></Cell>
+    <Cell><Data ss:Type="String">REF:01000470007946559237 CIE:1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5494.61</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.66497531E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PETRO SMART COMBUSTI</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">GUIA:1157584</Data></Cell>
+    <Cell><Data ss:Type="String">REF:08000470106646559295 CIE:1622013</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.102348694E7</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.665524771E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01006900169746556257</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1157193</Data></Cell>
+    <Cell><Data ss:Type="String">01006900169746556257          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6839064.11</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.5767873465E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025290131846573291072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1154641 0573291</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01141250881621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">152407.02</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.5083967054E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0022425120</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0160928933 FLM 194696</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">430282.96</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.5068726352E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0022425113</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0160928933 FLM 194568</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">501468.32</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.5025698056E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0022425106</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0160928933 FLM 194499</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">430564.8</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4975551224E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01049480129646551271072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1152082 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01140992371621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">934087.86</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4932494744E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01049480129746558278072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1152080 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01140992331621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">256960.17</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4839085958E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0022425099</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0160928933 FLM 194404</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">515305.73</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4813389941E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0022425092</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0160928933 FLM 194406</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">501897.4</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4761859368E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0022425085</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0160928933 FLM 194405</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">430716.56</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4711669628E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01018670016646555260</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1146510</Data></Cell>
+    <Cell><Data ss:Type="String">01018670016646555260          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1879443.29</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4668597972E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00605263</Data></Cell>
+    <Cell><Data ss:Type="String">CMC ABASTEC VEN06JUL26        BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.06517073E7</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.4480653643E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00605263</Data></Cell>
+    <Cell><Data ss:Type="String">CMC ABASTEC VEN05JUL26        BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.065657991E7</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.3415482913E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01001820009746552273</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1144958</Data></Cell>
+    <Cell><Data ss:Type="String">260706                        1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3426023</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.2349824922E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01005200010346554255</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1144957</Data></Cell>
+    <Cell><Data ss:Type="String">260706                        1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1083627.5</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.2007222622E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113963887  030</Data></Cell>
+    <Cell><Data ss:Type="String">1682057Pago Combustible</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">937371.54</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.1898859872E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113937357  002</Data></Cell>
+    <Cell><Data ss:Type="String">0000003COMPRA 1500 LTS DIESEL VHSA TA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">40800</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.1805122718E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01006900169646552289</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1135193</Data></Cell>
+    <Cell><Data ss:Type="String">01006900169646552289          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.789506972E7</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.1801042718E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">TRASPASO A TERCEROS</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00318140</Data></Cell>
+    <Cell><Data ss:Type="String">DEVOLUCION DE ABASTECEDORA    BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">780000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.0011535746E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01011870038846555259</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1133845</Data></Cell>
+    <Cell><Data ss:Type="String">01011870038846555259          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">436058.98</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.0089535746E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">187000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.0045929848E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017460006846569270058</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1126034 0326262</Data></Cell>
+    <Cell><Data ss:Type="String">          BANREGIO  01138484201621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">448700</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1.0027229848E8</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO CHEQUE BBVA</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">53860</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.982359848E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO CHEQUE BBVA</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0305879</Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">21861</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.976973848E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">145279</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.974787748E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017450005646568201058</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1123723 0097880</Data></Cell>
+    <Cell><Data ss:Type="String">          BANREGIO  01138259591621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">448932</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.960259848E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01028870222346553249</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1121450</Data></Cell>
+    <Cell><Data ss:Type="String">FACTURAS VARIAS               1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2789212</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.915366648E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113786982  014</Data></Cell>
+    <Cell><Data ss:Type="String">9609855TRASPASO A BANCOMER</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5000000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.636445448E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113786954  014</Data></Cell>
+    <Cell><Data ss:Type="String">9610634TRASPASO A BANCOMER</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1500000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">9.136445448E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750180146553218062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1114958 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01137395001621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251552.74</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.986445448E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0081342022</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0116970281 ABONO FMX 073240</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">60000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.961290174E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750180046551276062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1113898 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01137282131621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251578.23</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.955290174E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179946556204062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1112971 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01137190111621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251144.96</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.930132351E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179846559230062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1112165 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01137107611621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251425.31</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.905017855E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0055600122</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0447680465</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1046000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.879875324E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0081342011</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0116970281 LIQUIDACIONFMX0729</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">45000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.775275324E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179746559217062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1109635 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01136837861621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251246.9</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.770775324E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113661488  072</Data></Cell>
+    <Cell><Data ss:Type="String">0124561fact 124561</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">276920</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.745650634E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">INSTITUTO FONACOT</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">GUIA:1105264</Data></Cell>
+    <Cell><Data ss:Type="String">                              0736546</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">272434.53</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.717958634E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113637559  072</Data></Cell>
+    <Cell><Data ss:Type="String">0124485fact 124485</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">224190</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.745202087E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113628233  014</Data></Cell>
+    <Cell><Data ss:Type="String">0000001PAYMENT TO SUPPLIERS</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">50000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.722783087E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179646558288062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1101236 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01136020031621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251501.77</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.717783087E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179546555236062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1099542 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01135865621621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251680.18</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.69263291E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179446553294062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1098564 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01135772051621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251731.15</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.667464892E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01042890104946559239072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1097812 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01135700471621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6129282.65</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.642291777E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0047347205</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0485320941 pago de 600 litr</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">16224</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.029363512E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179346557236062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1097057 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01135635341621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">215384.99</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.027741112E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179246558236062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1094552 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01135395181621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">214924.53</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">8.006202613E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOHSBC</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113538751  021</Data></Cell>
+    <Cell><Data ss:Type="String">0060726ABONO A FACTURA 115235</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">20000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.98471016E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113523852  072</Data></Cell>
+    <Cell><Data ss:Type="String">0032193pago f 87194 195 266 265</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">85481.32</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.98271016E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113465828  002</Data></Cell>
+    <Cell><Data ss:Type="String">0060726AUTO TRANSPORTES FRONTERA NORT</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">60361.32</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.974162028E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0071255015</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0483574679 Factura FGP047499</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">808290</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.968125896E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0071255010</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0483574679 Factura FGP047498</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">808290</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.887296896E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">20945</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.806467896E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0092687059</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0143245217 DIESEL ABASTECEDOR</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">17485</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.804373396E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029690032346558201072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1077791 0190751</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01133830981621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">448932</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.802624896E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029670110246550203</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1076763</Data></Cell>
+    <Cell><Data ss:Type="String">F 5783 -5784                  1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">436074.59</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.757731696E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0092687026</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0143245217 DIESEL ABASTECEDOR</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">20175</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.714124237E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">TRASPASO ENTRE CUENTAS</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00318140</Data></Cell>
+    <Cell><Data ss:Type="String">PRESTAMO ABACOM               BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2600000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.712106737E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023520142146578223030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1064423 0008223</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01132851011621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">428364.96</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.972106737E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113272203  072</Data></Cell>
+    <Cell><Data ss:Type="String">0000001liq fco</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">155300</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.929270241E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029660094446557213</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1060425</Data></Cell>
+    <Cell><Data ss:Type="String">F 5328-5329                   1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">431954.45</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.913740241E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017610052546557281072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1058761 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01132301371621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">642943.58</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.870544796E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">46610</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.806250438E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">97630</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.801589438E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">91460</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.791826438E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">93500</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.782680438E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">96800</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.773330438E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">43091.81</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.763650438E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">48454</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.759341257E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0000423405</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0448992916 Pago</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">30000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.754495857E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01037020081046555284</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1048113</Data></Cell>
+    <Cell><Data ss:Type="String">0103702008104655284           1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">270000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.751495857E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">51355.86</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.724495857E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113121489  030</Data></Cell>
+    <Cell><Data ss:Type="String">4176704PAGO DE COMBUSTIBLE</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2000000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.719360271E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">49980</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.519360271E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01050000064746550210072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1044570 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01130939821621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">255214.34</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.514362271E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">45620.5</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.488840837E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">60531.5</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.484278787E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">43861</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.478225637E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025020006246559234072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1036981 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01130240911621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1617091.39</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.473839537E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029350105946565268030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1035375 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01130094561621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">45474.45</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.312130398E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0042378051</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0487900619 FACT 073453</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">37999.74</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.307582953E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0113003659  072</Data></Cell>
+    <Cell><Data ss:Type="String">0000337RESTO FAC</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">76000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.303782979E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022140054446559210072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1033546 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01129920231621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">430696.63</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.296182979E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017420025546561290002</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1033302 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANAMEX   01129896311621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">102732.17</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.253113316E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">REFBNTC00650773</Data></Cell>
+    <Cell><Data ss:Type="String">3978303                       BMRCASH</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">120735</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.242840099E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029350105846562216030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1032935 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01129854991621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">170000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.230766599E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0019283016</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0123707296 DIESEL</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">255000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.213766599E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01016690077746556211072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1028266 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01129413881621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">214190.76</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.188266599E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0085778394</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0481382063 fact</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">12002.49</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.166847523E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0009992543</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0481382063 facts</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">48719.97</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.165647274E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0034523045</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0175381479 F 193036</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">516658.61</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.160775277E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0034523039</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0175381479 F 192869</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">504298.61</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.109109416E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0034523033</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0175381479 F 192733</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">432369.75</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.058679555E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0080625032</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0123531651 VARIAS FACTURAS MX</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">177034.86</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">7.01544258E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112822835  002</Data></Cell>
+    <Cell><Data ss:Type="String">000000101022510059946558279</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">2273553.27</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.997739094E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0080625025</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0123531651 VARIAS FACTURAS TJ</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">53300</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.770383767E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0013366021</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0193733351 PAGO FACT FMZ 2470</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">255874.57</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.765053767E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0013366013</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0193733351 PAGO FACT FMZ 2470</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">252853.67</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.73946631E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112796030  072</Data></Cell>
+    <Cell><Data ss:Type="String">0060726HGT</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">193980.39</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.714180943E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112790535  072</Data></Cell>
+    <Cell><Data ss:Type="String">0116000PAGO ABAST COMB FAC 247031 VB</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">524800</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.694782904E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025290131746573278072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1012471 0573278</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01127901971621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">100000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.642302904E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112782375  072</Data></Cell>
+    <Cell><Data ss:Type="String">0115000PAGO ABAST COMB FAC 247661 CMM</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1049600</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.632302904E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025290131646572252072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">1010308 0572252</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01127694231621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">252202.81</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.527342904E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0032879020</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0143245217 DIESEL ABASTECEDOR</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">16140</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.502122623E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112706693  058</Data></Cell>
+    <Cell><Data ss:Type="String">0600914DIESEL</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">26900</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.500508623E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112688451  072</Data></Cell>
+    <Cell><Data ss:Type="String">0060726PAGO 4000 LITROS</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">99412.64</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.497818623E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024400111346563263002</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0999977 0194411</Data></Cell>
+    <Cell><Data ss:Type="String">PETR      BANAMEX   01126633411621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">935045.9</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.487877359E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01019230010746550296072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0998202 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01126456051621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">330000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.394372769E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112623760  058</Data></Cell>
+    <Cell><Data ss:Type="String">0100943Pago facturas FMT 041604 y 041</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">54259.46</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.361372769E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112618058  072</Data></Cell>
+    <Cell><Data ss:Type="String">0060726fra 190483</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">42956.5</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.355946823E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179146555281062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0991883 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01125812081621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">262288.49</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.351651173E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750179046553242062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0990739 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01125691421621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251935.04</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.325422324E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBMONEX</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112565498  112</Data></Cell>
+    <Cell><Data ss:Type="String">0060726FHS103563 ONAC-7332</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">82560</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.30022882E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750178946553245062</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0989609 0060726</Data></Cell>
+    <Cell><Data ss:Type="String">          AFIRME    01125581441621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">251450.8</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.29197282E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">94600</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.26682774E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">99000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.25736774E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01039970103546556232</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0987987</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO FACTURAS                 1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1500000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.24746774E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027640069746579276072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0981783 0193535</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01124772091621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">259223.53</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.09746774E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01019260022046554252014</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0977001 9505198</Data></Cell>
+    <Cell><Data ss:Type="String">          SANTANDER 01124320611621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">504254.77</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.071545387E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01030690178946558235</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0975293</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO FACTURAS                 1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">480000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6.02111991E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112333615  072</Data></Cell>
+    <Cell><Data ss:Type="String">0000607PAGO GASOLINAS GRUPO GARCIA MO</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3076430.08</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.97311991E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029220162146559206</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0965842</Data></Cell>
+    <Cell><Data ss:Type="String">FMZ246404 LIBR MAGNA          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">216371.69</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.665476902E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0018775120</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0112303841 FGD 125149 125312</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4517.45</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.643839733E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112304652  058</Data></Cell>
+    <Cell><Data ss:Type="String">0263589DIESEL MAZATLAN 0607</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">264000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.643387988E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029220162246556277</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0963563</Data></Cell>
+    <Cell><Data ss:Type="String">FMZ246405 LIBRA PREMIUM       1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">265856.71</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.616987988E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01040640094046553249</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0963333</Data></Cell>
+    <Cell><Data ss:Type="String">FGP047367                     1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">447284</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.590402317E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112269295  072</Data></Cell>
+    <Cell><Data ss:Type="String">000080801076900007646553292</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">903627.57</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.545673917E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029220162046555238</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0961898</Data></Cell>
+    <Cell><Data ss:Type="String">RF246274 SUCH MAGNA           1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">50000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.45531116E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOJP MORGAN</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112260530  110</Data></Cell>
+    <Cell><Data ss:Type="String">1218013SEMANA 28 PRIMER PAGO DEL 07-0</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">170000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.45031116E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">000000000008359</Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">112330</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.43331116E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024260154246552294072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0953230 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01121664521621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">234623.31</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.42207816E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01037030046446556274</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0949006</Data></Cell>
+    <Cell><Data ss:Type="String">01037030046446556274          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">222147.75</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.398615829E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01042890104846557297072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0948453 0060426</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01121149911621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">6213742.24</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">5.376401054E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01049480129446558239072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0947490 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01121042091621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">255084.62</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.75502683E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01049480129546557239072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0947489 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01121042041621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">429795.32</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.729518368E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01050000064646559217072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0947488 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01121042011621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">744956.26</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.686538836E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01037030046346552209</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0946535</Data></Cell>
+    <Cell><Data ss:Type="String">01037030046346552209          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">60000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.61204321E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">83000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.60604321E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">DEPOSITO EN EFECTIVO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> </Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">42280</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.59774321E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01037020080946558229</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0944715</Data></Cell>
+    <Cell><Data ss:Type="String">01037020080946558229          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">260000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.59351521E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112058531  072</Data></Cell>
+    <Cell><Data ss:Type="String">006072601036270110146551295</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">943673.21</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.56751521E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112055774  072</Data></Cell>
+    <Cell><Data ss:Type="String">0060726ABONO FMT 036230</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">20000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.473147889E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSCOTIABANK</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0112053166  044</Data></Cell>
+    <Cell><Data ss:Type="String">0060726Factura 125181</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">21293.38</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.471147889E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01030870126846560208</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0939050</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO                          1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1383231.98</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.469018551E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023520142046574255030</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0918834 0004255</Data></Cell>
+    <Cell><Data ss:Type="String">          BAJIO     01117703701621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">428125.82</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.330695353E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01015610185046550218072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0917802 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01117570061621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">409256.4</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.287882771E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0028894011</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0190107948 RESTO DE FACTURA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">33620.92</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.246957131E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CI01015610184946555286072</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0916595 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">          BANORTE   01117411731621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">409912.26</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.243595039E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01032300083246556287</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0907539</Data></Cell>
+    <Cell><Data ss:Type="String">                              1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">453693.4</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.202603813E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029020104546554273</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0896219</Data></Cell>
+    <Cell><Data ss:Type="String">FMZ 247033                    1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">398408.35</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.157234473E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01029020104446558215</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0893693</Data></Cell>
+    <Cell><Data ss:Type="String">FMZ246765                     1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">187453.73</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.117393638E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO CUENTA DE TERCERO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1"> 0047015012</Data></Cell>
+    <Cell><Data ss:Type="String">BNET    0191609890 FPA 86092 93 114 1</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">1422846.46</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">4.098648265E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01040640093946553252</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0888016</Data></Cell>
+    <Cell><Data ss:Type="String">FGP047339                     1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">447284</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.956363619E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">CE01040640093846556278</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">0887515</Data></Cell>
+    <Cell><Data ss:Type="String">FGP047320                     1621947</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">200000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.911635219E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">IVA TASA DE DESC CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">175743315</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">43.47</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.891635219E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">APLI TASA DE DES CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">175743315</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">271.68</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.891639566E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">VENTAS CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">145743315</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">169800</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.891666734E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">IVA TASA DE DESC CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">175743315</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">102.4</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.874686734E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">APLI TASA DE DES CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">175743315</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">640</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.874696974E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">VENTAS CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">145743315</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">400000</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.874760974E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">IVA TASA DE DESC CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">175092736</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">10.13</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.834760974E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">APLI TASA DE DES CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">175092736</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">63.33</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.834761987E7</Data></Cell>
+  </Row>
+   <Row>
+    <Cell ss:StyleID="s25"><Data ss:Type="DateTime">2026-07-06</Data></Cell>
+    <Cell><Data ss:Type="String">VENTAS CREDITO</Data></Cell>
+    <Cell><Data ss:Type="String" x:Ticked="1">145092736</Data></Cell>
+    <Cell><Data ss:Type="String">TERMINALES PUNTO DE VENTA</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">25333.16</Data></Cell>
+    <Cell ss:StyleID="s28"><Data ss:Type="Number">3.83476832E7</Data></Cell>
+  </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0"/>
+    <Footer x:Margin="0"/>
+    <PageMargins x:Bottom="0.984251969" x:Left="0.78740157499999996"
+     x:Right="0.78740157499999996" x:Top="0.984251969"/>
+   </PageSetup>
+   <Selected/>
+   <Panes>
+    <Pane>
+     <Number>3</Number>
+     <ActiveRow>8</ActiveRow>
+     <ActiveCol>1</ActiveCol>
+    </Pane>
+   </Panes>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+ <Worksheet ss:Name="Hoja2">
+  <Table ss:ExpandedColumnCount="0" ss:ExpandedRowCount="0" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="60"/>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0"/>
+    <Footer x:Margin="0"/>
+    <PageMargins x:Bottom="0.984251969" x:Left="0.78740157499999996"
+     x:Right="0.78740157499999996" x:Top="0.984251969"/>
+   </PageSetup>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+ <Worksheet ss:Name="Hoja3">
+  <Table ss:ExpandedColumnCount="0" ss:ExpandedRowCount="0" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="60"/>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0"/>
+    <Footer x:Margin="0"/>
+    <PageMargins x:Bottom="0.984251969" x:Left="0.78740157499999996"
+     x:Right="0.78740157499999996" x:Top="0.984251969"/>
+   </PageSetup>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>

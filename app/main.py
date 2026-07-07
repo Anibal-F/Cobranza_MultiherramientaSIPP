@@ -29,7 +29,7 @@ from .sucursales import cargar_sucursales
 from .textutils import normalizar
 from .empresas import EMPRESAS, EMPRESA_DEFAULT, EMPRESA_POR_CLAVE
 from .matcher import extraer_cuenta, match_movimientos, match_movimientos_por_nombre
-from .models import ClienteCuenta, Movimiento
+from .models import ClienteCuenta, Movimiento, OPCIONES_TIPO_MOVIMIENTO
 from .ingresos_diversos import (
     aplicar_factoraje_en_sipp,
     cargar_ingresos_diversos_en_sipp,
@@ -346,7 +346,7 @@ def main(page: ft.Page) -> None:
             columna("Cuenta", fixed_width=110),
             columna("Sucursal sugerida", fixed_width=180),
             columna("Estado", fixed_width=150),
-            columna("Acciones", fixed_width=130),
+            columna("Acciones", fixed_width=180),
         ],
         rows=[],
         min_width=1050,
@@ -568,6 +568,62 @@ def main(page: ft.Page) -> None:
             ),
             icon_color=ft.Colors.RED_400 if es_traspaso(m) else ft.Colors.ON_SURFACE_VARIANT,
             on_click=lambda _e, mov=m: toggle_excluir(mov),
+        )
+
+    # --- Tipo de movimiento (checkboxes "¿Es ...?" del modal de SIPP) ---
+    movimiento_a_tipificar: list[Movimiento | None] = [None]
+    tipo_checkboxes: dict[str, ft.Checkbox] = {
+        etiqueta: ft.Checkbox(label=f"¿Es {etiqueta}?") for etiqueta in OPCIONES_TIPO_MOVIMIENTO
+    }
+    tipo_info_text = ft.Text("")
+
+    def on_guardar_tipos(_e) -> None:
+        mov = movimiento_a_tipificar[0]
+        if mov is None:
+            return
+        mov.tipos_movimiento = [
+            etiqueta for etiqueta, chk in tipo_checkboxes.items() if chk.value
+        ]
+        page.pop_dialog()
+        refrescar_tabla()
+        historial_guardar_snapshot()
+
+    dialogo_tipos = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Tipo de movimiento"),
+        content=ft.Column(
+            [
+                tipo_info_text,
+                ft.Text(
+                    "Marca lo que aplique. Se usará al capturar en SIPP por el '+' "
+                    "(bancos sin 'Subir Excel', ej. BanBajío). Vacío = Ingreso Diverso.",
+                    size=11, color=ft.Colors.ON_SURFACE_VARIANT,
+                ),
+                *tipo_checkboxes.values(),
+            ],
+            tight=True, spacing=8, width=380, scroll=ft.ScrollMode.AUTO,
+        ),
+        actions=[
+            ft.TextButton("Cancelar", on_click=lambda _e: page.pop_dialog()),
+            ft.Button("Guardar", on_click=on_guardar_tipos, bgcolor=NAVY, color=ft.Colors.WHITE),
+        ],
+    )
+
+    def abrir_dialogo_tipos(mov: Movimiento) -> None:
+        movimiento_a_tipificar[0] = mov
+        seleccion = set(getattr(mov, "tipos_movimiento", []) or [])
+        for etiqueta, chk in tipo_checkboxes.items():
+            chk.value = etiqueta in seleccion
+        tipo_info_text.value = f"{mov.descripcion[:70]}\nAbono: ${mov.abono:,.2f}"
+        mostrar_dialogo(dialogo_tipos)
+
+    def boton_tipo(m: Movimiento) -> ft.Control:
+        tipos = getattr(m, "tipos_movimiento", []) or []
+        return ft.IconButton(
+            icon=ft.Icons.LABEL if tipos else ft.Icons.LABEL_OUTLINE,
+            tooltip=("Tipo: " + ", ".join(tipos)) if tipos else "Marcar tipo de movimiento (¿Es Contado?, ...)",
+            icon_color=ORANGE if tipos else ft.Colors.ON_SURFACE_VARIANT,
+            on_click=lambda _e, mov=m: abrir_dialogo_tipos(mov),
         )
 
     def aplicar_filtros() -> list[Movimiento]:
@@ -808,7 +864,7 @@ def main(page: ft.Page) -> None:
                     celda(m.cuenta_match or "-"),
                     celda_sucursal_sugerida(m),
                     ft.DataCell(estado_badge(m)),
-                    ft.DataCell(ft.Row([boton_identificar_manual(m), boton_declarar_folio(m), boton_excluir(m)], spacing=0)),
+                    ft.DataCell(ft.Row([boton_identificar_manual(m), boton_declarar_folio(m), boton_excluir(m), boton_tipo(m)], spacing=0)),
                 ],
             )
             for m in filas
@@ -1106,7 +1162,7 @@ def main(page: ft.Page) -> None:
     async def on_click_cargar(_e) -> None:
         archivos = await file_picker.pick_files(
             file_type=ft.FilePickerFileType.CUSTOM,
-            allowed_extensions=["csv"],
+            allowed_extensions=["csv", "xlsx", "xls"],
             allow_multiple=False,
             with_data=True,
         )
@@ -1124,7 +1180,17 @@ def main(page: ft.Page) -> None:
         # "Ingresos Diversos" en SIPP (ver ultima_ruta_csv).
         if ultima_ruta_csv[0] and os.path.exists(ultima_ruta_csv[0]):
             os.unlink(ultima_ruta_csv[0])
-        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+        # Conservar la extensión original (.csv, .xlsx de BanBajío, .xls de BBVA)
+        # para que la detección de banco y la subida a SIPP reciban el formato
+        # correcto.
+        nombre_lower = archivo.name.lower()
+        if nombre_lower.endswith(".xlsx"):
+            sufijo = ".xlsx"
+        elif nombre_lower.endswith(".xls"):
+            sufijo = ".xls"
+        else:
+            sufijo = ".csv"
+        with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
             tmp.write(archivo.bytes or b"")
             ruta_temporal = tmp.name
         procesar_csv_path(ruta_temporal, nombre_archivo=archivo.name)
@@ -1386,7 +1452,12 @@ def main(page: ft.Page) -> None:
     ]
 
     def _es_baja_ferries(mov: Movimiento) -> bool:
-        return "BAJA FERRIES" in normalizar(mov.cliente_match or "")
+        # Detecta por el cliente identificado y, como respaldo, por la descripción
+        # o el texto de búsqueda (por si el movimiento aún no se identificó).
+        texto = normalizar(
+            f"{mov.cliente_match or ''} {mov.descripcion or ''} {mov.texto_busqueda or ''}"
+        )
+        return "BAJA FERRIES" in texto or "BAJAFERRIES" in texto
 
     factoraje_filas: list = []
     factoraje_pares: list = []  # [(Movimiento, FilaFactoraje)]
@@ -1404,6 +1475,13 @@ def main(page: ft.Page) -> None:
     factoraje_tabla = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO, tight=True)
     factoraje_log_panel, factoraje_log_fn, factoraje_log_reset = crear_panel_log_rpa()
     factoraje_ver_navegador_check = crear_check_ver_navegador()
+    boton_cargar_pdf_factoraje = ft.Button(
+        "Cargar PDF de intereses",
+        icon=ft.Icons.PICTURE_AS_PDF,
+        on_click=lambda e: page.run_task(on_click_cargar_pdf_factoraje, e),
+        bgcolor=NAVY,
+        color=ft.Colors.WHITE,
+    )
 
     def _cruzar_factoraje() -> None:
         """Empareja cada renglón del PDF con un movimiento de BAJA FERRIES por
@@ -1473,12 +1551,12 @@ def main(page: ft.Page) -> None:
             refrescar_tabla()  # refleja el interés en el grid si se muestra
         except Exception as ex:
             factoraje_info_text.value = f"Error al leer el PDF de factoraje: {ex}"
+            page.update()
         finally:
             try:
                 os.unlink(ruta_pdf)
             except OSError:
                 pass
-        mostrar_dialogo(dialogo_factoraje)
 
     async def on_confirmar_factoraje(_e) -> None:
         usuario = (factoraje_usuario_field.value or "").strip()
@@ -1540,6 +1618,7 @@ def main(page: ft.Page) -> None:
             content=ft.Column(
                 [
                     factoraje_info_text,
+                    boton_cargar_pdf_factoraje,
                     ft.Container(content=factoraje_tabla, height=200),
                     ft.Row([factoraje_folio_field, factoraje_institucion_dd], spacing=12),
                     ft.Row([factoraje_usuario_field, factoraje_password_field], spacing=12),
@@ -1557,14 +1636,28 @@ def main(page: ft.Page) -> None:
     )
 
     def on_click_factoraje(_e) -> None:
-        if not any(_es_baja_ferries(m) for m in movimientos):
-            estado_text.value = "No hay movimientos identificados como BAJA FERRIES en la extracción."
-            page.update()
-            return
+        # El modal se abre SIEMPRE. Si no hay BAJA FERRIES en la extracción, se
+        # avisa dentro del propio modal (antes se cortaba en silencio).
+        movs_bf = [m for m in movimientos if _es_baja_ferries(m)]
+        # Reinicia estado del modal para no arrastrar datos de una corrida previa.
+        nonlocal factoraje_filas
+        factoraje_filas = []
+        factoraje_pares.clear()
+        _refrescar_tabla_factoraje()
+        if not movs_bf:
+            factoraje_info_text.value = (
+                "No se detectaron movimientos de BAJA FERRIES en esta extracción. "
+                "Verifica que estén cargados/identificados antes de aplicar factoraje."
+            )
+        else:
+            factoraje_info_text.value = (
+                f"{len(movs_bf)} movimiento(s) de BAJA FERRIES en la extracción. "
+                "Carga el PDF de intereses para cruzarlos."
+            )
         usuario_guardado, password_guardado = cargar_credenciales()
         factoraje_usuario_field.value = usuario_guardado or ""
         factoraje_password_field.value = password_guardado or ""
-        page.run_task(on_click_cargar_pdf_factoraje, _e)
+        mostrar_dialogo(dialogo_factoraje)
 
     boton_factoraje = ft.Button(
         "Factoraje",
@@ -1710,6 +1803,7 @@ def main(page: ft.Page) -> None:
                 empresa=empresa_ref[0],
                 headless=False,  # deja el navegador abierto para revisar/guardar
                 log_fn=log_fn,
+                sucursal_resolver=sucursal_efectiva,  # WYSIWYG: la del grid
             )
             mensaje = (
                 f"Carga a SIPP (Ingresos Diversos) lista: {enviados} movimiento(s) identificado(s) "
