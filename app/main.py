@@ -3196,12 +3196,84 @@ def main(page: ft.Page) -> None:
         on_click=abrir_historial,
     )
 
+    async def exportar_grid_excel(_e) -> None:
+        """Descarga el grid (columnas hasta Sucursal) a un archivo .xlsx,
+        respetando los filtros vigentes."""
+        filas = aplicar_filtros()
+        if not filas:
+            estado_text.value = "No hay movimientos para exportar."
+            page.update()
+            return
+
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill
+        from openpyxl.utils import get_column_letter
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Movimientos"
+        encabezados = [
+            "Fecha", "Banco", "Descripción", "Referencia", "Abono",
+            "Cliente identificado", "Cuenta", "Sucursal",
+        ]
+        ws.append(encabezados)
+        for celda in ws[1]:
+            celda.font = Font(bold=True, color="FFFFFF")
+            celda.fill = PatternFill("solid", fgColor="1B3A5B")  # NAVY
+
+        for m in filas:
+            ws.append([
+                m.fecha.strftime("%d/%m/%Y") if m.fecha else "",
+                m.banco,
+                m.descripcion,
+                m.referencia,
+                round(m.abono, 2),
+                m.cliente_match or "",
+                m.cuenta_match or "",
+                sucursal_efectiva(m) or "",
+            ])
+
+        anchos = [12, 12, 48, 20, 15, 32, 16, 22]
+        for i, w in enumerate(anchos, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        for fila_celdas in ws.iter_rows(min_row=2, min_col=5, max_col=5):
+            for celda in fila_celdas:
+                celda.number_format = "#,##0.00"
+        ws.freeze_panes = "A2"
+
+        banco = filas[0].banco or "movimientos"
+        nombre_def = f"movimientos_{banco}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        destino = await file_picker.save_file(
+            dialog_title="Guardar movimientos en Excel",
+            file_name=nombre_def,
+            allowed_extensions=["xlsx"],
+        )
+        if not destino:
+            return
+        if not destino.lower().endswith(".xlsx"):
+            destino += ".xlsx"
+        try:
+            wb.save(destino)
+        except OSError as ex:
+            estado_text.value = f"No se pudo guardar el Excel: {ex}"
+            page.update()
+            return
+        estado_text.value = f"Exportados {len(filas)} movimiento(s) a {os.path.basename(destino)}."
+        page.update()
+
+    boton_exportar_excel = ft.IconButton(
+        icon=ft.Icons.GRID_ON,
+        tooltip="Descargar grid a Excel (.xlsx)",
+        icon_color=ft.Colors.GREEN_700,
+        on_click=lambda e: page.run_task(exportar_grid_excel, e),
+    )
+
     contenido_conciliacion = ft.Container(
         content=ft.Column(
             [
                 bloque_superior_csv,
                 ft.Row(
-                    [filtro_estado, filtro_sucursal, filtro_texto, ft.Container(expand=True), boton_historial, boton_expandir_csv],
+                    [filtro_estado, filtro_sucursal, filtro_texto, ft.Container(expand=True), boton_exportar_excel, boton_historial, boton_expandir_csv],
                     spacing=16,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
