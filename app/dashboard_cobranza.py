@@ -260,90 +260,167 @@ def _tarjeta_total(etiqueta: str, total: float, color: str, es_total: bool = Fal
     )
 
 
-def _construir_grafica_vertical(items: list[tuple[str, float]], dark: bool) -> fc.BarChart:
-    """Pocas categorías (<= UMBRAL_MUCHAS_CATEGORIAS): una barra vertical por
-    categoría, un color fijo por slot. Specs: barra <=24px, esquina redondeada
-    solo arriba (cuadrada en la base), grid hairline recesivo. El valor exacto
-    vive en el tooltip y en la tarjeta KPI de arriba, no repetido sobre cada
-    barra (evita ruido de una etiqueta por punto). Versión compacta: fuentes y
-    barra más chicas para convivir con otras secciones en la misma pantalla."""
-    max_total = max((v for _, v in items), default=0)
-    grupos = []
-    labels = []
-    for i, (etiqueta, valor) in enumerate(items):
-        grupos.append(
-            fc.BarChartGroup(
-                x=i,
-                rods=[
-                    fc.BarChartRod(
-                        from_y=0,
-                        to_y=valor,
-                        width=18,
-                        color=_color_slot(i, dark),
-                        border_radius=ft.BorderRadius(top_left=3, top_right=3, bottom_left=0, bottom_right=0),
-                        tooltip=_formato_compacto(valor),
-                    )
-                ],
-            )
-        )
-        labels.append(fc.ChartAxisLabel(value=i, label=ft.Text(etiqueta, size=9, color=ft.Colors.ON_SURFACE_VARIANT)))
-
-    return fc.BarChart(
-        groups=grupos,
-        group_alignment=ft.MainAxisAlignment.SPACE_EVENLY,
-        bottom_axis=fc.ChartAxis(labels=labels, label_size=26),
-        left_axis=fc.ChartAxis(label_size=54),
-        horizontal_grid_lines=fc.ChartGridLines(color=ft.Colors.OUTLINE_VARIANT, width=1),
-        max_y=_redondear_max_y(max_total),
-        interactive=True,
-        border=ft.Border(
-            bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
-            left=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+def _chip_total(total: float) -> ft.Container:
+    """Pastilla discreta 'Total · $X' para la cabecera de cada sección."""
+    return ft.Container(
+        content=ft.Row(
+            [
+                ft.Text("Total", size=10, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Text(_formato_compacto(total), size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+            ],
+            spacing=6,
+            tight=True,
         ),
-        expand=True,
+        padding=ft.Padding(left=10, right=10, top=4, bottom=4),
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+        border_radius=20,
     )
 
 
-_ANCHO_TRACK = 200  # px del carril de la barra horizontal, a valor máximo (versión compacta)
+def _hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "") -> ft.Container:
+    """Tarjeta grande de la banda superior (hero): ícono en acento + valor
+    grande + etiqueta. `valor` puede ser una Exception (consulta fallida)."""
+    if isinstance(valor, Exception):
+        valor_texto, valor_color = "—", ft.Colors.ON_SURFACE_VARIANT
+    else:
+        valor_texto, valor_color = _formato_compacto(valor), ft.Colors.ON_SURFACE
+    contenido = [
+        ft.Row(
+            [
+                ft.Container(
+                    ft.Icon(icono, color=color, size=18),
+                    width=34, height=34, border_radius=10,
+                    bgcolor=ft.Colors.with_opacity(0.14, color),
+                    alignment=ft.Alignment.CENTER,
+                ),
+                ft.Text(etiqueta, size=12, color=ft.Colors.ON_SURFACE_VARIANT, expand=True,
+                        max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+            ],
+            spacing=10,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        ft.Text(valor_texto, size=26, weight=ft.FontWeight.W_700, color=valor_color),
+    ]
+    if subtexto:
+        contenido.append(ft.Text(subtexto, size=10, color=ft.Colors.ON_SURFACE_VARIANT))
+    return ft.Container(
+        content=ft.Column(contenido, spacing=6),
+        padding=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
+        border=ft.Border(
+            top=ft.BorderSide(3, color),
+            left=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+            right=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+            bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+        ),
+        border_radius=12,
+        height=124,  # alto fijo → las 4 tarjetas del hero quedan uniformes
+        col={"xs": 12, "sm": 6, "lg": 3},  # ancho responsivo: 4 por fila en pantallas anchas
+    )
 
 
-def _construir_grafica_horizontal(items: list[tuple[str, float]], dark: bool) -> ft.Control:
-    """Muchas categorías (sucursales / empresa+sucursal): fl_chart
-    (flet_charts.BarChart) no soporta barras horizontales, así que se arma a
-    mano con Containers — un solo color de acento (con muchas categorías
-    nominales, un tono por barra rompe el tope CVD-safe de 8 y no aporta
-    identidad que el propio nombre, ya escrito junto a la barra, no dé). Orden
-    descendente (ya viene así de la query). Valor siempre fuera de la barra, a
-    la derecha — nunca adentro, para no arriesgar recorte en las barras
-    cortas. Column con scroll propio: nada se trunca, solo se desplaza dentro
-    de su sección."""
+def _leyenda_fila(color: str, etiqueta: str, valor: float, total: float) -> ft.Row:
+    pct = (valor / total * 100) if total else 0
+    return ft.Row(
+        [
+            ft.Container(width=10, height=10, bgcolor=color, border_radius=5),
+            ft.Text(etiqueta, size=11, color=ft.Colors.ON_SURFACE, expand=True,
+                    max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, tooltip=etiqueta),
+            ft.Text(_formato_compacto(valor), size=11, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+            ft.Container(
+                ft.Text(f"{pct:.0f}%", size=10, color=ft.Colors.ON_SURFACE_VARIANT),
+                width=36, alignment=ft.Alignment.CENTER_RIGHT,
+            ),
+        ],
+        spacing=8,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
+
+def _construir_donut(items: list[tuple[str, float]], dark: bool) -> ft.Control:
+    """Composición parte-todo (Empresa, Tipo de negocio): gráfica de DONA con el
+    total en el centro y una leyenda (color · nombre · monto · %) al lado."""
+    total = sum(v for _, v in items) or 1
+    secciones = [
+        fc.PieChartSection(
+            value=float(valor) if valor > 0 else 0.0001,
+            color=_color_slot(i, dark),
+            radius=26,
+            title="",
+        )
+        for i, (_etiqueta, valor) in enumerate(items)
+    ]
+    pie = fc.PieChart(sections=secciones, center_space_radius=44, sections_space=2, expand=True)
+    centro = ft.Container(
+        content=ft.Column(
+            [
+                ft.Text("Total", size=9, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Text(_formato_compacto(total), size=15, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+            ],
+            spacing=0,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+        ),
+        alignment=ft.Alignment.CENTER,
+    )
+    grafica = ft.Container(ft.Stack([pie, centro]), width=150, height=150)
+    leyenda = ft.Column(
+        [_leyenda_fila(_color_slot(i, dark), et, val, total) for i, (et, val) in enumerate(items)],
+        spacing=10,
+        expand=True,
+    )
+    return ft.Row(
+        [grafica, ft.Container(leyenda, expand=True, padding=ft.Padding(left=8, right=0, top=6, bottom=6))],
+        spacing=14,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        height=180,
+    )
+
+
+_ANCHO_TRACK = 190  # px del carril del ranking, a valor máximo (versión compacta)
+
+
+def _construir_ranked_list(items: list[tuple[str, float]], dark: bool) -> ft.Control:
+    """Ranking tipo leaderboard (muchas categorías: sucursales / empresa+sucursal):
+    posición + nombre + barra sobre un carril tenue + monto. El carril de fondo da
+    la escala visual sin necesidad de ejes; orden descendente (viene de la query).
+    Column con scroll propio: nada se trunca."""
     color = _color_slot(0, dark)
+    track_bg = ft.Colors.with_opacity(0.08, ft.Colors.ON_SURFACE)
     max_total = max((v for _, v in items), default=0) or 1
     filas = []
-    for etiqueta, valor in items:
-        ancho = max(2, round(_ANCHO_TRACK * (valor / max_total)))
+    for i, (etiqueta, valor) in enumerate(items):
+        ancho = max(3, round(_ANCHO_TRACK * (valor / max_total)))
         filas.append(
             ft.Row(
                 [
                     ft.Container(
-                        ft.Text(
-                            etiqueta,
-                            size=10,
-                            color=ft.Colors.ON_SURFACE_VARIANT,
-                            max_lines=1,
-                            overflow=ft.TextOverflow.ELLIPSIS,
-                            tooltip=etiqueta,
-                        ),
-                        width=110,
+                        ft.Text(f"{i + 1}", size=10, color=ft.Colors.ON_SURFACE_VARIANT),
+                        width=16, alignment=ft.Alignment.CENTER_RIGHT,
                     ),
-                    ft.Container(width=ancho, height=13, bgcolor=color, border_radius=3, tooltip=_formato_compacto(valor)),
-                    ft.Text(_formato_compacto(valor), size=10, color=ft.Colors.ON_SURFACE),
+                    ft.Container(
+                        ft.Text(etiqueta, size=10, color=ft.Colors.ON_SURFACE,
+                                max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, tooltip=etiqueta),
+                        width=104,
+                    ),
+                    ft.Container(
+                        content=ft.Stack(
+                            [
+                                ft.Container(width=_ANCHO_TRACK, height=12, bgcolor=track_bg, border_radius=6),
+                                ft.Container(width=ancho, height=12, bgcolor=color, border_radius=6,
+                                             tooltip=_formato_compacto(valor)),
+                            ]
+                        ),
+                        width=_ANCHO_TRACK, height=12,
+                    ),
+                    ft.Text(_formato_compacto(valor), size=10, weight=ft.FontWeight.W_500,
+                            color=ft.Colors.ON_SURFACE),
                 ],
                 spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             )
         )
-    return ft.Column(filas, spacing=6, scroll=ft.ScrollMode.AUTO, height=200)
+    return ft.Column(filas, spacing=8, scroll=ft.ScrollMode.AUTO, height=200)
 
 
 def _estado_vacio() -> ft.Control:
@@ -416,40 +493,38 @@ async def _consultar_no_identificado(fecha_inicio: date, fecha_fin: date) -> flo
     return await asyncio.to_thread(obtener_total_no_identificado, fecha_inicio, fecha_fin)
 
 
+# (titulo, subtitulo, consulta, vista) — vista: "donut" (composición parte-todo)
+# o "ranked" (leaderboard con muchas categorías).
 _SECCIONES = [
     (
         "Empresa",
         "Asociados y Distribuidora · excluye pagos entre filiales, GAS, Autotanque y sucursal sin asignar",
         lambda fi, ff: _consultar_segmento(fi, ff, "nb_Empresa"),
-        False,
+        "donut",
     ),
     (
         "Tipo de negocio",
         "Asociados y Distribuidora · excluye pagos entre filiales, GAS, Autotanque y sucursal sin asignar",
         lambda fi, ff: _consultar_segmento(fi, ff, "nb_TipoDeNegocio"),
-        False,
+        "donut",
     ),
     (
         "Sucursal",
         "Asociados y Distribuidora · excluye pagos entre filiales, GAS, Autotanque y sucursal sin asignar",
         lambda fi, ff: _consultar_segmento(fi, ff, "nb_sucursal"),
-        False,
+        "ranked",
     ),
     (
         "Sucursal (Gasolineras)",
         "Segmento GasPetroil · excluye pagos entre filiales",
         _consultar_sucursal_gas,
-        False,
+        "ranked",
     ),
     (
         "Otras empresas",
         "Fuera de Abastecedora / ACP Combustibles / Petro Smart · todos los tipos de negocio y sucursales",
         _consultar_otras_empresas,
-        # Sus etiquetas combinan "Empresa · Sucursal" (más largas que las demás
-        # secciones) — se ven encimadas como labels de eje en la barra vertical,
-        # así que esta sección siempre usa el formato de lista horizontal
-        # (con truncado + tooltip), sin importar cuántas categorías tenga.
-        True,
+        "ranked",
     ),
 ]
 
@@ -457,59 +532,54 @@ _ANCHO_SECCION = 640
 
 
 def _construir_seccion(
-    titulo: str, subtitulo: str, resultado, dark: bool, en_tabla: bool, forzar_horizontal: bool = False
+    titulo: str, subtitulo: str, resultado, dark: bool, en_tabla: bool, vista: str = "ranked"
 ) -> ft.Container:
-    """Una sección = título + tarjetas KPI (una por categoría, si son pocas) +
-    tarjeta Total + gráfica/tabla. `resultado` puede ser una lista de items,
-    una lista vacía, o una Exception (si esa consulta específica falló) — cada
-    sección se degrada de forma independiente, un fallo no tira el resto del
-    dashboard."""
+    """Una sección = cabecera (título + subtítulo + pastilla Total) + cuerpo
+    (dona / ranking / tabla). `resultado` puede ser una lista de items, vacía, o
+    una Exception (si esa consulta falló) — cada sección se degrada de forma
+    independiente, un fallo no tira el resto del dashboard."""
+    total_chip: ft.Control = ft.Container()
     if isinstance(resultado, Exception):
-        cards: list[ft.Control] = []
         cuerpo: ft.Control = ft.Container(
             content=ft.Text(f"No se pudo consultar: {resultado}", size=11, color=ft.Colors.RED_600),
             height=120,
             alignment=ft.Alignment.CENTER,
         )
     elif not resultado:
-        cards = []
         cuerpo = _estado_vacio()
     else:
         items = resultado
         total = sum(v for _, v in items)
-        pocas = len(items) <= UMBRAL_MUCHAS_CATEGORIAS and not forzar_horizontal
-        # `usar_horizontal` decide chart/tabla; `pocas` decide si además hay
-        # una tarjeta por categoría (independientes: "Otras empresas" puede
-        # tener pocas categorías y aun así usar el layout horizontal, porque
-        # sus etiquetas combinadas son más largas de lo normal).
-        usar_horizontal = len(items) > UMBRAL_MUCHAS_CATEGORIAS or forzar_horizontal
-        cards = []
-        if pocas:
-            cards.extend(_tarjeta_total(etiqueta, valor, _color_slot(i, dark)) for i, (etiqueta, valor) in enumerate(items))
-        cards.append(_tarjeta_total("Total", total, ft.Colors.PRIMARY, es_total=True))
-
+        total_chip = _chip_total(total)
         if en_tabla:
-            cuerpo = _construir_tabla(items, dark, un_solo_color=usar_horizontal)
-        elif usar_horizontal:
-            cuerpo = _construir_grafica_horizontal(items, dark)
+            cuerpo = _construir_tabla(items, dark, un_solo_color=(vista != "donut"))
+        elif vista == "donut":
+            cuerpo = _construir_donut(items, dark)
         else:
-            cuerpo = ft.Container(content=_construir_grafica_vertical(items, dark), height=200)
+            cuerpo = _construir_ranked_list(items, dark)
 
+    cabecera = ft.Row(
+        [
+            ft.Column(
+                [
+                    ft.Text(titulo, size=14, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+                    ft.Text(subtitulo, size=10, color=ft.Colors.ON_SURFACE_VARIANT,
+                            max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                ],
+                spacing=2,
+                expand=True,
+            ),
+            total_chip,
+        ],
+        vertical_alignment=ft.CrossAxisAlignment.START,
+    )
     return ft.Container(
-        content=ft.Column(
-            [
-                ft.Text(titulo, size=14, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
-                ft.Text(subtitulo, size=10, color=ft.Colors.ON_SURFACE_VARIANT),
-                ft.Row(cards, spacing=8, wrap=True) if cards else ft.Container(),
-                cuerpo,
-            ],
-            spacing=8,
-        ),
-        padding=14,
+        content=ft.Column([cabecera, ft.Divider(height=1), cuerpo], spacing=10),
+        padding=16,
         bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
         border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-        border_radius=10,
-        width=_ANCHO_SECCION,
+        border_radius=12,
+        col={"xs": 12, "lg": 6},  # ancho responsivo: 2 secciones por fila en pantallas anchas
     )
 
 
@@ -555,44 +625,45 @@ def construir_tab_dashboard(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     estado_text = ft.Text("", size=12, color=ft.Colors.RED_600)
     progress = ft.ProgressRing(width=16, height=16, visible=False, stroke_width=2)
-    # Un solo Row(wrap=True) plano para TODO (secciones + tarjeta de no
-    # identificados) — un Row anidado dentro de otro Row no hereda el ancho
-    # disponible del padre, así que su propio wrap=True nunca se dispara y el
-    # contenido se sale de la pantalla en vez de acomodarse en cuadrícula.
-    tarjeta_no_identificado_contenedor = ft.Container(width=200)
-    secciones_contenedor = ft.Row(
-        controls=[tarjeta_no_identificado_contenedor],
+
+    # Banda superior de KPIs (hero) y grid de secciones. ResponsiveRow reparte el
+    # ancho disponible en columnas (col por hijo) → los componentes se
+    # redimensionan para ocupar TODO el ancho de la ventana.
+    hero_contenedor = ft.ResponsiveRow(spacing=16, run_spacing=16)
+    secciones_contenedor = ft.ResponsiveRow(
         spacing=16,
         run_spacing=16,
-        wrap=True,
         vertical_alignment=ft.CrossAxisAlignment.START,
     )
-    cuerpo = ft.Column([secciones_contenedor], spacing=20, opacity=1.0, animate_opacity=200)
+    cuerpo = ft.Column([hero_contenedor, secciones_contenedor], spacing=20, opacity=1.0, animate_opacity=200)
+
+    def _total_seguro(resultado) -> float:
+        return sum(v for _, v in resultado) if isinstance(resultado, list) else 0
 
     def _refrescar_todo() -> None:
         dark = _dark()
         *resultados_secciones, total_no_identificado = resultados_actuales[0]
+
+        # Banda hero: los grandes indicadores del periodo.
+        res_empresa = resultados_secciones[0] if resultados_secciones else []
+        res_gas = resultados_secciones[3] if len(resultados_secciones) > 3 else []
+        res_otras = resultados_secciones[4] if len(resultados_secciones) > 4 else []
+        hero_contenedor.controls = [
+            _hero_tile("Ingresos identificados", _total_seguro(res_empresa), _color_slot(0, dark),
+                       ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
+                       "Asociados y Distribuidora (segmento principal)"),
+            _hero_tile("Gasolineras", _total_seguro(res_gas), _color_slot(1, dark),
+                       ft.Icons.LOCAL_GAS_STATION_OUTLINED, "Segmento GasPetroil"),
+            _hero_tile("Otras empresas", _total_seguro(res_otras), _color_slot(2, dark),
+                       ft.Icons.BUSINESS_OUTLINED, "Fuera del segmento principal"),
+            _hero_tile("Sin identificar", total_no_identificado, "#e34948",
+                       ft.Icons.HELP_OUTLINE, "sn_Identificada = NO en el rango"),
+        ]
+
         secciones_contenedor.controls = [
-            _construir_seccion(titulo_s, subtitulo_s, resultado, dark, en_tabla[0], forzar_h)
-            for (titulo_s, subtitulo_s, _consulta, forzar_h), resultado in zip(_SECCIONES, resultados_secciones)
-        ] + [tarjeta_no_identificado_contenedor]
-        if isinstance(total_no_identificado, Exception):
-            tarjeta_no_identificado_contenedor.content = ft.Text(
-                f"No se pudo consultar: {total_no_identificado}", size=11, color=ft.Colors.RED_600
-            )
-        else:
-            tarjeta_no_identificado_contenedor.content = ft.Column(
-                [
-                    ft.Text("Sin identificar", size=14, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
-                    ft.Text(
-                        "Suma de movimientos con sn_Identificada = NO en el rango, sin otros filtros.",
-                        size=10,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                    ),
-                    _tarjeta_total("Total", total_no_identificado, ft.Colors.RED_400),
-                ],
-                spacing=8,
-            )
+            _construir_seccion(titulo_s, subtitulo_s, resultado, dark, en_tabla[0], vista)
+            for (titulo_s, subtitulo_s, _consulta, vista), resultado in zip(_SECCIONES, resultados_secciones)
+        ]
 
     async def cargar(_e=None) -> None:
         cuerpo.opacity = 0.5  # mantiene el render anterior visible (sin salto de layout) mientras carga
@@ -603,7 +674,7 @@ def construir_tab_dashboard(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
         fecha_inicio, fecha_fin = rango_sel[0]
         resultados = await asyncio.gather(
-            *(consulta(fecha_inicio, fecha_fin) for _titulo, _subtitulo, consulta, _forzar_h in _SECCIONES),
+            *(consulta(fecha_inicio, fecha_fin) for _titulo, _subtitulo, consulta, _vista in _SECCIONES),
             _consultar_no_identificado(fecha_inicio, fecha_fin),
             return_exceptions=True,
         )
