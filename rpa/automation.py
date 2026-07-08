@@ -1,7 +1,8 @@
 import asyncio
 import os
 import re
-from datetime import date
+import unicodedata
+from datetime import date, datetime
 from typing import Callable, Dict, List, Optional, Tuple
 from playwright.async_api import async_playwright, Page
 
@@ -72,6 +73,49 @@ _JS_SET_ESTATUS_VACIO = """() => {
     if (!sel) return;
     const scope = angular.element(sel).scope();
     scope.$apply(() => { scope.filtro.id_Estatus = ''; });
+}"""
+
+# Folios ("Estado de Cuenta", col 1) de las conciliaciones listadas. Se omiten las
+# CANCELADO (col 9 = Estatus): no cuentan como movimientos ya subidos.
+_JS_FOLIOS_LISTADO = """() => {
+    const out = [];
+    document.querySelectorAll(".ngRow").forEach(r => {
+        const cells = r.querySelectorAll('.ngCell');
+        const folio = cells[1] ? cells[1].innerText.trim() : '';
+        const estatus = cells[9] ? cells[9].innerText.trim().toUpperCase() : '';
+        if (folio && !estatus.includes('CANCELADO')) out.push(folio);
+    });
+    return [...new Set(out)];
+}"""
+
+# Movimientos de una conciliación abierta: (abono, cliente, sucursal) por fila.
+_JS_MOVS_CONCILIACION = """() => {
+    const out = [];
+    document.querySelectorAll("tr[ng-repeat='item in Listado']").forEach(tr => {
+        const tds = tr.querySelectorAll(':scope > td');
+        if (tds.length < 13) return;
+        out.push({
+            abono: tds[3] ? tds[3].innerText.trim() : '',
+            cliente: tds[11] ? tds[11].innerText.trim() : '',
+            sucursal: tds[12] ? tds[12].innerText.trim() : '',
+        });
+    });
+    return out;
+}"""
+
+# Selecciona en un <select> (ng-model) la opción cuyo texto coincide/incluye.
+_JS_SELECT_OPTION_POR_TEXTO = """([ngModel, texto]) => {
+    const sel = document.querySelector(`select[ng-model='${ngModel}']`);
+    if (!sel) return false;
+    const norm = t => (t||'').trim().toLowerCase();
+    const obj = norm(texto);
+    let opt = [...sel.options].find(o => norm(o.text) === obj)
+           || [...sel.options].find(o => norm(o.text).includes(obj));
+    if (!opt) return false;
+    sel.value = opt.value;
+    sel.dispatchEvent(new Event('change', {bubbles: true}));
+    try { const s = angular.element(sel).scope(); if (s && !s.$$phase) s.$apply(); } catch (e) {}
+    return opt.text;
 }"""
 
 _JS_SELECT_ALL_H2H = """() => {
@@ -286,6 +330,21 @@ def _parsear_importe(texto: str) -> Optional[float]:
         return float(limpio)
     except ValueError:
         return None
+
+
+def _norm_txt(texto) -> str:
+    """Mayúsculas, sin acentos y solo alfanumérico+espacio, para comparar nombres
+    de cliente/sucursal entre la app y SIPP."""
+    t = unicodedata.normalize("NFKD", str(texto or "").upper())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = re.sub(r"[^A-Z0-9 ]", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _cliente_sin_codigo(texto) -> str:
+    """Quita el prefijo 'NNNNN - ' del cliente que muestra SIPP
+    (ej. '05881 - LOGISTICA TEROMO' → 'LOGISTICA TEROMO')."""
+    return re.sub(r"^\s*\d+\s*-\s*", "", str(texto or "")).strip()
 
 
 def _emparejar_movimiento(
@@ -1346,7 +1405,8 @@ class RPAAutomation:
     ) -> bool:
         paso = "abrir modal"
         try:
-            self.log(f"Agregando {i + 1}/{total}: '{cliente}' ${monto:,.2f}...", "info")
+            etiqueta_cli = cliente if cliente else "(sin cliente)"
+            self.log(f"Agregando {i + 1}/{total}: '{etiqueta_cli}' ${monto:,.2f}...", "info")
             await page.click("button[ng-click='agregarMovimientos()']")
             await page.wait_for_selector(
                 "#divBloqueo_modalAgregarMovimientos", state="visible", timeout=10_000
@@ -1368,26 +1428,32 @@ class RPAAutomation:
                     self.log(f"    no se encontró el check '¿Es {etiqueta}?'", "warn")
                 await page.wait_for_timeout(150)
 
-            paso = "seleccionar cliente"
-            await self._chosen_select(page, "ID_CLIENTE", cliente)
-            await page.wait_for_timeout(300)
-
-            # Sucursal: la indicada o 'Corporativo' por defecto (SIPP no guarda sin
-            # sucursal y el flujo se trabaría).
-            paso = "seleccionar sucursal"
-            objetivo = sucursal or "Corporativo"
-            opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", objetivo)
-            if not opcion and objetivo != "Corporativo":
-                self.log(f"    sucursal '{objetivo}' no está en el combo; uso 'Corporativo'.", "warn")
-                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", "Corporativo")
-                objetivo = "Corporativo"
-            if opcion:
-                await modal.locator("#ID_SUCURSAL_Agregar_0").select_option(value=opcion["value"])
-                self.log(f"    sucursal: {opcion['text']}", "ok")
-                await modal.locator("#IM_MOVIMIENTO_Agregar_0").fill(f"{monto:.2f}")
+            # Sin cliente identificado: se captura el movimiento SOLO con importe
+            # (SIPP lo permite). No se toca cliente ni sucursal; el usuario lo
+            # identifica después en SIPP.
+            if not cliente:
+                self.log("    sin cliente: se captura solo el importe (a identificar en SIPP).", "warn")
             else:
-                self.log("    no se encontró la sucursal ni 'Corporativo' en el combo.", "warn")
-            await page.wait_for_timeout(300)
+                paso = "seleccionar cliente"
+                await self._chosen_select(page, "ID_CLIENTE", cliente)
+                await page.wait_for_timeout(300)
+
+                # Sucursal: la indicada o 'Corporativo' por defecto (SIPP no guarda
+                # sin sucursal y el flujo se trabaría).
+                paso = "seleccionar sucursal"
+                objetivo = sucursal or "Corporativo"
+                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", objetivo)
+                if not opcion and objetivo != "Corporativo":
+                    self.log(f"    sucursal '{objetivo}' no está en el combo; uso 'Corporativo'.", "warn")
+                    opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", "Corporativo")
+                    objetivo = "Corporativo"
+                if opcion:
+                    await modal.locator("#ID_SUCURSAL_Agregar_0").select_option(value=opcion["value"])
+                    self.log(f"    sucursal: {opcion['text']}", "ok")
+                    await modal.locator("#IM_MOVIMIENTO_Agregar_0").fill(f"{monto:.2f}")
+                else:
+                    self.log("    no se encontró la sucursal ni 'Corporativo' en el combo.", "warn")
+                await page.wait_for_timeout(300)
 
             paso = "guardar movimiento"
             await modal.locator("button.btn-info", has_text="Guardar Movimiento").click()
@@ -1504,10 +1570,10 @@ class RPAAutomation:
     # ──────────────────────────────────────────────────────
     async def cargar_pagos_contado(
         self,
-        grupos: List[Tuple[str, List[Tuple[str, str, str, str, str, float, Optional[str]]]]],
+        grupos: list,
         fecha_operacion_ddmmyyyy: str,
         enviar_automaticamente: bool = False,
-    ) -> None:
+    ) -> List[dict]:
         """
         Abre su propia sesión y arma una conciliación de "Ingresos Diversos -
         Agregar" POR CADA cuenta bancaria destino. `grupos` es una lista de
@@ -1550,8 +1616,14 @@ class RPAAutomation:
         self.log(f"Base de navegación SIPP: {self._base_navegacion}", "info")
 
         cuentas_con_error = 0
+        duplicados_global: List[dict] = []  # para el resumen visual en la app
 
-        for idx, (cuenta_bancaria_nombre, pagos) in enumerate(grupos):
+        for idx, grupo in enumerate(grupos):
+            # Compatibilidad: cada grupo es (cuenta, pagos) o (cuenta, pagos,
+            # fecha_min_correo). La fecha del correo (día que cayó al buzón) es el
+            # inicio del rango de búsqueda de duplicados.
+            cuenta_bancaria_nombre, pagos = grupo[0], grupo[1]
+            fecha_dup_min = grupo[2] if len(grupo) > 2 else None
             if self.should_cancel():
                 self.log("Carga de pagos de contado cancelada por el usuario.", "warn")
                 break
@@ -1569,6 +1641,41 @@ class RPAAutomation:
                 f"({len(pagos)} movimiento(s))...",
                 "info",
             )
+
+            # Verificación de duplicados: revisa las conciliaciones ya subidas en el
+            # rango [fecha del correo … fecha de operación] de esta cuenta y omite
+            # los pagos que ya estén (mismo monto, cliente y sucursal).
+            fecha_ini_dup, fecha_fin_dup = self._rango_dup(fecha_dup_min, fecha_operacion_ddmmyyyy)
+            existentes = await self._leer_movimientos_conciliaciones(
+                page_cuenta, cuenta_bancaria_nombre, fecha_ini_dup, fecha_fin_dup
+            )
+            pagos, dups = self._filtrar_duplicados_contado(pagos, existentes)
+            for p, folio in dups:
+                duplicados_global.append({
+                    "cliente": p[3],
+                    "monto": p[5],
+                    "sucursal": p[4],
+                    "folio": folio,
+                    "cuenta": cuenta_bancaria_nombre,
+                })
+                self.log(
+                    f"  ⚠ Posible duplicado ya subido (OMITIDO): '{p[3]}' ${p[5]:,.2f} · "
+                    f"sucursal '{p[4]}' → conciliación {folio}.",
+                    "warn",
+                )
+            if dups:
+                self.log(
+                    f"  {len(dups)} pago(s) omitido(s) por duplicado; se agregan {len(pagos)}.",
+                    "info",
+                )
+            if not pagos:
+                self.log(
+                    f"  Todos los pagos de '{cuenta_bancaria_nombre}' ya estaban subidos; "
+                    "nada que agregar.",
+                    "warn",
+                )
+                continue
+
             await self._navigate_to_ingresos_diversos_agregar(page_cuenta)
             await self._configurar_encabezado_ingresos_diversos(
                 page_cuenta, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy
@@ -1626,6 +1733,124 @@ class RPAAutomation:
                 "warn",
             )
 
+        return duplicados_global
+
+    # ──────────────────────────────────────────────────────
+    # Verificación de duplicados de contado: antes de agregar, se revisan las
+    # conciliaciones YA existentes de esa fecha+cuenta en SIPP.
+    # ──────────────────────────────────────────────────────
+    def _rango_dup(self, fecha_min_ddmmyyyy: Optional[str], fecha_operacion_ddmmyyyy: str):
+        """Devuelve (inicio, fin) en dd/mm/yyyy para buscar duplicados: desde la
+        fecha del correo (si es anterior) hasta la fecha de operación. Si no hay
+        fecha del correo, usa la de operación para ambos extremos."""
+        if not fecha_min_ddmmyyyy:
+            return fecha_operacion_ddmmyyyy, fecha_operacion_ddmmyyyy
+        try:
+            a = datetime.strptime(fecha_min_ddmmyyyy, "%d/%m/%Y").date()
+            b = datetime.strptime(fecha_operacion_ddmmyyyy, "%d/%m/%Y").date()
+            ini, fin = (a, b) if a <= b else (b, a)
+            return ini.strftime("%d/%m/%Y"), fin.strftime("%d/%m/%Y")
+        except ValueError:
+            return fecha_min_ddmmyyyy, fecha_operacion_ddmmyyyy
+
+    async def _leer_movimientos_conciliaciones(
+        self, page: Page, cuenta_bancaria_nombre: str,
+        fecha_inicio_ddmmyyyy: str, fecha_fin_ddmmyyyy: str,
+    ) -> List[dict]:
+        """Va a ConciliacionListado, filtra por rango de fechas + cuenta, abre cada
+        conciliación y lee (monto, cliente, sucursal) de sus movimientos ya subidos.
+        Devuelve la lista de esos movimientos existentes (vacía si no hay o falla)."""
+        existentes: List[dict] = []
+        try:
+            base = self._base_navegacion or page.url.split("#")[0]
+            self.log(
+                f"  [dup] revisando conciliaciones previas ({fecha_inicio_ddmmyyyy} a "
+                f"{fecha_fin_ddmmyyyy}) de esta cuenta...",
+                "info",
+            )
+            await page.goto(f"{base}#/ConciliacionListado", wait_until="networkidle", timeout=30_000)
+            await page.wait_for_selector("input[ng-model='dt_fh_inicio']", timeout=20_000)
+            await self._llenar_fecha_mascara(page, "input[ng-model='dt_fh_inicio']", fecha_inicio_ddmmyyyy.replace("/", ""))
+            await self._llenar_fecha_mascara(page, "input[ng-model='dt_fh_fin']", fecha_fin_ddmmyyyy.replace("/", ""))
+            cuenta_ok = await page.evaluate(
+                _JS_SELECT_OPTION_POR_TEXTO, ["filtros.id_CuentaBancaria", cuenta_bancaria_nombre]
+            )
+            if not cuenta_ok:
+                self.log("    [dup] no se pudo filtrar por cuenta; se revisa por fecha solamente.", "warn")
+            await page.wait_for_timeout(300)
+            await page.click("[ng-click='listar()']")
+            await page.wait_for_timeout(2_500)
+
+            folios = await page.evaluate(_JS_FOLIOS_LISTADO)
+            self.log(
+                f"    [dup] {len(folios)} conciliación(es) previa(s) en "
+                f"{fecha_inicio_ddmmyyyy}–{fecha_fin_ddmmyyyy}.",
+                "info",
+            )
+            for folio in folios:
+                if not folio:
+                    continue
+                try:
+                    # _abrir_conciliacion_por_folio re-navega al listado y busca por
+                    # folio, así que no hace falta volver manualmente entre folios.
+                    await self._abrir_conciliacion_por_folio(page, folio)
+                    movs = await page.evaluate(_JS_MOVS_CONCILIACION)
+                    for mv in movs:
+                        existentes.append({
+                            "monto": _parsear_importe(mv.get("abono")),
+                            "cliente": mv.get("cliente", ""),
+                            "sucursal": mv.get("sucursal", ""),
+                            "folio": folio,
+                        })
+                except Exception as exc:
+                    self.log(f"    [dup] no se pudo leer la conciliación {folio}: {exc}", "warn")
+            self.log(f"    [dup] {len(existentes)} movimiento(s) ya subido(s) leído(s).", "info")
+        except Exception as exc:
+            self.log(f"  [dup] no se pudieron revisar conciliaciones previas: {exc}", "warn")
+            await self._volcar_html(page, "contado_dup_listado")
+        return existentes
+
+    def _es_mismo_movimiento(self, monto, cliente: str, sucursal: str, e: dict) -> bool:
+        """True si el pago (monto, cliente, sucursal) coincide con un movimiento ya
+        subido `e`. Fecha implícita: el listado ya se filtró por la fecha.
+
+        La sucursal es CONDICIONAL: si el pago no trae sucursal (el correo no la
+        estipuló), no se exige y basta con fecha+cliente+monto; si sí la trae, debe
+        coincidir."""
+        try:
+            if e.get("monto") is None or abs(float(monto) - float(e["monto"])) > 0.01:
+                return False
+        except (TypeError, ValueError):
+            return False
+        # Sucursal: solo se compara si el pago la trae. Igual o una contiene a la
+        # otra (tolera formatos 'GDL - Guadalajara').
+        sa = _norm_txt(sucursal)
+        if sa:
+            sb = _norm_txt(e.get("sucursal"))
+            if not (sb and (sa == sb or sa in sb or sb in sa)):
+                return False
+        # Cliente: se quita el código 'NNNNN - ' de SIPP y se compara por inclusión.
+        ca, cb = _norm_txt(cliente), _norm_txt(_cliente_sin_codigo(e.get("cliente")))
+        return bool(ca and cb and (ca == cb or ca in cb or cb in ca))
+
+    def _filtrar_duplicados_contado(self, pagos: list, existentes: List[dict]):
+        """Separa `pagos` en (nuevos, duplicados) comparando cada uno contra los
+        movimientos ya subidos. Tupla de pago: (concepto, ref, tipo, cliente,
+        plaza, monto, comprobante). `duplicados` es una lista de (pago, folio) con
+        el folio de la conciliación donde se encontró la coincidencia."""
+        nuevos, dups = [], []
+        for p in pagos:
+            cliente, plaza, monto = p[3], p[4], p[5]
+            match = next(
+                (e for e in existentes if self._es_mismo_movimiento(monto, cliente, plaza, e)),
+                None,
+            )
+            if match is not None:
+                dups.append((p, match.get("folio", "")))
+            else:
+                nuevos.append(p)
+        return nuevos, dups
+
     async def _agregar_movimientos_contado(
         self,
         page: Page,
@@ -1640,6 +1865,17 @@ class RPAAutomation:
             if self.should_cancel():
                 self.log("Carga de pagos de contado cancelada por el usuario.", "warn")
                 break
+
+            # Contado requiere sucursal para crear el movimiento. Si el correo no la
+            # trajo (y no resultó ser duplicado), se salta con aviso: el usuario la
+            # indica en la app y lo vuelve a cargar.
+            if not (plaza or "").strip():
+                self.log(
+                    f"  Movimiento {i + 1}/{len(pagos)} '{cliente}' ${monto:,.2f} SIN plaza: "
+                    "no se agrega (indícala en la app y recarga).",
+                    "warn",
+                )
+                continue
 
             self.log(f"Agregando movimiento {i + 1}/{len(pagos)}: {concepto[:60]}...", "info")
             paso = "abrir modal"
