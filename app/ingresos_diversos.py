@@ -74,45 +74,54 @@ async def cargar_ingresos_diversos_en_sipp(
         # identifica. Su fila también se quita del CSV (ver ruta_csv más abajo).
         if getattr(m, "excluido", False):
             continue
-        if not m.identificado:
-            continue
         # No re-subir lo que ya venía en una extracción previa subida a SIPP.
         if getattr(m, "ya_subido", False):
             continue
-        # Prioridad de sucursal (todas las de fuente confiable se FUERZAN, ganan
-        # incluso sobre la auto-sugerida de SIPP):
+        identificado = m.identificado
+        tipos = list(getattr(m, "tipos_movimiento", []) or [])
+
+        # Prioridad de sucursal (solo aplica si hay cliente identificado):
         #   1) declarada por el usuario (override manual);
         #   2) leída de la propia factura durante la búsqueda por folio;
         #   3) sugerida por el estado de cuenta (heurística), solo rellena vacías.
-        sucursal = getattr(m, "sucursal_declarada", None)
-        es_declarada = bool(sucursal)
-        if not sucursal and getattr(m, "sucursal_por_folio", None):
-            sucursal = m.sucursal_por_folio
-            es_declarada = True  # fuente confiable: forzar
-        if not sucursal and estado_cuenta is not None:
-            res = sugerir_sucursal(estado_cuenta, m.cliente_match, m.abono, empresa.nombre_reporte)
-            if res:
-                sucursal = res[0]
-        tipos = list(getattr(m, "tipos_movimiento", []) or [])
-        candidatos.append((m.referencia, m.abono, m.cliente_match, sucursal, es_declarada, tipos))
-        # Captura manual: sucursal EXACTA que muestra el grid (WYSIWYG) si se dio el
-        # resolver; si no, la derivada arriba. Tupla:
-        # (concepto, referencia, monto, cliente, sucursal, tipos).
-        sucursal_manual = sucursal_resolver(m) if sucursal_resolver is not None else sucursal
+        sucursal = None
+        es_declarada = False
+        if identificado:
+            sucursal = getattr(m, "sucursal_declarada", None)
+            es_declarada = bool(sucursal)
+            if not sucursal and getattr(m, "sucursal_por_folio", None):
+                sucursal = m.sucursal_por_folio
+                es_declarada = True  # fuente confiable: forzar
+            if not sucursal and estado_cuenta is not None:
+                res = sugerir_sucursal(estado_cuenta, m.cliente_match, m.abono, empresa.nombre_reporte)
+                if res:
+                    sucursal = res[0]
+        # Sucursal WYSIWYG (la que muestra el grid) si se dio el resolver.
+        sucursal_manual = (
+            sucursal_resolver(m) if (identificado and sucursal_resolver is not None) else sucursal
+        )
+
+        # Los flujos por archivo/H2H (candidatos) solo procesan identificados: en la
+        # previsualización solo se les puede asignar cliente si ya lo tenemos.
+        if identificado:
+            candidatos.append((m.referencia, m.abono, m.cliente_match, sucursal, es_declarada, tipos))
+            candidatos_bbva.append(
+                (m.referencia, m.abono, m.cliente_match, sucursal_manual, True, tipos, m.descripcion or "")
+            )
+
+        # Captura manual (BanBajío): se agregan TODOS los movimientos, con o SIN
+        # cliente. Sin cliente se captura solo el importe (SIPP lo permite) y el
+        # usuario lo identifica después en SIPP. Tupla:
+        # (concepto, referencia, monto, cliente|None, sucursal|None, tipos).
         manuales.append(
             (
                 m.descripcion or "",
                 m.referencia,
                 m.abono,
-                m.cliente_match,
-                sucursal_manual,
-                list(getattr(m, "tipos_movimiento", []) or []),
+                m.cliente_match if identificado else None,
+                sucursal_manual if identificado else None,
+                tipos,
             )
-        )
-        # BBVA (H2H): usa la sucursal WYSIWYG del grid y se fuerza; incluye concepto
-        # para el respaldo por captura manual.
-        candidatos_bbva.append(
-            (m.referencia, m.abono, m.cliente_match, sucursal_manual, True, tipos, m.descripcion or "")
         )
 
     automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
@@ -220,8 +229,12 @@ async def cargar_pagos_contado_en_sipp(
     id_sipp de la empresa) y deja que el RPA arme una conciliación por cuenta.
     Regresa cuántos se enviaron a intentar agregar."""
     nombre_cuenta_por_id = {c.id_sipp: c.nombre for c in empresa.cuentas}
-    # Agrupar por cuenta destino, preservando el orden de aparición.
+    # Agrupar por cuenta destino, preservando el orden de aparición. Se guarda
+    # además la fecha MÍNIMA de los pagos de cada cuenta (fecha del correo): la
+    # verificación de duplicados busca desde esa fecha (el pago pudo subirse en un
+    # día de operación distinto al de hoy) hasta la fecha de operación.
     grupos: dict[str, list[tuple]] = {}
+    grupos_fecha_min: dict[str, "date"] = {}
     for pago in pagos:
         nombre_cuenta = nombre_cuenta_por_id.get(pago.cuenta_bancaria, "")
         grupos.setdefault(nombre_cuenta, []).append(
@@ -235,12 +248,24 @@ async def cargar_pagos_contado_en_sipp(
                 pago.ruta_adjunto,
             )
         )
+        if pago.correo and pago.correo.fecha:
+            f = pago.correo.fecha.date()
+            actual = grupos_fecha_min.get(nombre_cuenta)
+            if actual is None or f < actual:
+                grupos_fecha_min[nombre_cuenta] = f
 
-    grupos_lista = [(nombre, datos) for nombre, datos in grupos.items()]
-    total = sum(len(datos) for _, datos in grupos_lista)
+    grupos_lista = [
+        (
+            nombre,
+            datos,
+            grupos_fecha_min[nombre].strftime("%d/%m/%Y") if nombre in grupos_fecha_min else None,
+        )
+        for nombre, datos in grupos.items()
+    ]
+    total = sum(len(datos) for _, datos, _ in grupos_lista)
 
     automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
-    await automatizacion.cargar_pagos_contado(
+    duplicados = await automatizacion.cargar_pagos_contado(
         grupos_lista, fecha_operacion_ddmmyyyy, enviar_automaticamente
     )
-    return total
+    return total, (duplicados or [])

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tempfile
@@ -83,6 +84,75 @@ def es_traspaso(m: Movimiento) -> bool:
     return "TRASPASO" in texto
 
 
+def es_movimiento_portal_cliente(m: Movimiento) -> bool:
+    """BBVA: los movimientos cuyo concepto empieza con 'CI' o 'CE' provienen del
+    portal de clientes y YA están capturados en SIPP; subirlos por el RPA los
+    duplicaría, así que se excluyen (como los traspasos)."""
+    if (m.banco or "").upper() != "BBVA":
+        return False
+    texto = (m.concepto or m.descripcion or "").strip().upper()
+    return bool(re.match(r"^(CI|CE)\d", texto))
+
+
+# ── Exportación de movimientos a Excel ────────────────────────────────────
+_EXPORT_ENCABEZADOS = [
+    "Fecha", "Banco", "Descripción", "Referencia", "Abono",
+    "Cliente identificado", "Cuenta", "Sucursal",
+]
+_EXPORT_ANCHOS = [12, 12, 48, 20, 15, 32, 16, 22]
+
+
+def sucursal_export(m: Movimiento) -> str:
+    """Sucursal para exportar (WYSIWYG de un snapshot): declarada > por folio >
+    sugerida congelada."""
+    return (
+        getattr(m, "sucursal_declarada", None)
+        or getattr(m, "sucursal_por_folio", None)
+        or getattr(m, "sucursal_sugerida", None)
+        or ""
+    )
+
+
+def escribir_hoja_movimientos(ws, movimientos_lista, sucursal_fn) -> None:
+    """Escribe en `ws` la tabla de movimientos (encabezado + filas) con las
+    columnas hasta Sucursal. `sucursal_fn(m)` resuelve la sucursal por fila."""
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    ws.append(_EXPORT_ENCABEZADOS)
+    for celda in ws[1]:
+        celda.font = Font(bold=True, color="FFFFFF")
+        celda.fill = PatternFill("solid", fgColor="1B3A5B")  # NAVY
+    for m in movimientos_lista:
+        ws.append([
+            m.fecha.strftime("%d/%m/%Y") if m.fecha else "",
+            m.banco,
+            m.descripcion,
+            m.referencia,
+            round(m.abono, 2),
+            m.cliente_match or "",
+            m.cuenta_match or "",
+            sucursal_fn(m) or "",
+        ])
+    for i, w in enumerate(_EXPORT_ANCHOS, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    for fila_celdas in ws.iter_rows(min_row=2, min_col=5, max_col=5):
+        for celda in fila_celdas:
+            celda.number_format = "#,##0.00"
+    ws.freeze_panes = "A2"
+
+
+def nombre_hoja_excel(base: str, usados: set) -> str:
+    """Nombre de hoja válido (≤31 chars, sin \\ / * ? : [ ]) y único."""
+    limpio = re.sub(r"[\\/*?:\[\]]", "", base or "").strip()[:28] or "Hoja"
+    nombre, i = limpio, 2
+    while nombre in usados:
+        nombre = f"{limpio[:25]}_{i}"
+        i += 1
+    usados.add(nombre)
+    return nombre
+
+
 def abrir_archivo_con_app_predeterminada(ruta: str) -> None:
     sistema = platform.system()
     if sistema == "Darwin":
@@ -114,6 +184,7 @@ CLIENTES_PATH = os.path.join(BASE_DIR, "Catalogos", "Cuentas_Clientes", "Cliente
 FILTRO_TODOS = "Todos"
 FILTRO_IDENTIFICADOS = "Identificados"
 FILTRO_NO_IDENTIFICADOS = "No identificados"
+FILTRO_EXCLUIDOS = "Excluidos"
 FILTRO_SUCURSAL_TODAS = "Todas las sucursales"
 FILTRO_SUCURSAL_SIN = "No identificado"  # movimientos sin sucursal aún
 
@@ -294,7 +365,7 @@ def main(page: ft.Page) -> None:
     filtro_estado = CustomDropdown(
         label="Estado",
         value=FILTRO_TODOS,
-        options=[ft.dropdown.Option(o) for o in (FILTRO_TODOS, FILTRO_IDENTIFICADOS, FILTRO_NO_IDENTIFICADOS)],
+        options=[ft.dropdown.Option(o) for o in (FILTRO_TODOS, FILTRO_IDENTIFICADOS, FILTRO_NO_IDENTIFICADOS, FILTRO_EXCLUIDOS)],
         width=200,
         color=ft.Colors.ON_SURFACE,
         on_select=on_filtro_cambio,
@@ -361,12 +432,21 @@ def main(page: ft.Page) -> None:
 
     def estado_badge(m: Movimiento) -> ft.Container:
         if m.excluido:
+            if es_movimiento_portal_cliente(m):
+                etiqueta = "Excluido (portal)"
+                tip = "BBVA portal de clientes (CI/CE): ya está en SIPP; no se sube por el RPA."
+            elif es_traspaso(m):
+                etiqueta = "Excluido (traspaso)"
+                tip = "Traspaso a filiales: no es cobranza; no se sube por el RPA."
+            else:
+                etiqueta = "Excluido"
+                tip = "Movimiento excluido del RPA (no se sube a SIPP)."
             return ft.Container(
-                content=ft.Text("Excluido (traspaso)", color=ft.Colors.WHITE, size=11, no_wrap=True),
+                content=ft.Text(etiqueta, color=ft.Colors.WHITE, size=11, no_wrap=True),
                 bgcolor=ft.Colors.RED_400,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                 border_radius=12,
-                tooltip="Movimiento excluido del RPA (no se sube a SIPP). Ej.: Traspaso a Filiales.",
+                tooltip=tip,
             )
         if m.ya_subido:
             return ft.Container(
@@ -630,9 +710,11 @@ def main(page: ft.Page) -> None:
     def aplicar_filtros() -> list[Movimiento]:
         resultado = movimientos
         if filtro_estado.value == FILTRO_IDENTIFICADOS:
-            resultado = [m for m in resultado if m.identificado]
+            resultado = [m for m in resultado if m.identificado and not m.excluido]
         elif filtro_estado.value == FILTRO_NO_IDENTIFICADOS:
-            resultado = [m for m in resultado if not m.identificado]
+            resultado = [m for m in resultado if not m.identificado and not m.excluido]
+        elif filtro_estado.value == FILTRO_EXCLUIDOS:
+            resultado = [m for m in resultado if m.excluido]
 
         suc = filtro_sucursal.value
         if suc == FILTRO_SUCURSAL_SIN:
@@ -896,6 +978,7 @@ def main(page: ft.Page) -> None:
     historial_registros: list[dict] = cargar_historial(HISTORIAL_PATH)
     historial_id_actual: list[Optional[str]] = [None]
     historial_archivo_actual: list[str] = [""]
+    historial_seleccionados: set = set()  # ids marcados para exportar a Excel
 
     def historial_guardar_snapshot(nuevo: bool = False) -> None:
         """Crea (nuevo=True, al cargar un CSV) o actualiza el registro actual con
@@ -1032,12 +1115,18 @@ def main(page: ft.Page) -> None:
                      else "Marcar como subida a SIPP"),
             on_click=lambda _e, rid=r.get("id"), v=not subido: marcar_registro_subido(rid, v),
         )
+        checkbox_sel = ft.Checkbox(
+            value=r.get("id") in historial_seleccionados,
+            on_change=lambda e, rid=r.get("id"): _toggle_historial_sel(rid, e.control.value),
+            tooltip="Seleccionar para exportar a Excel",
+        )
         return ft.Container(
             padding=12,
             border_radius=8,
             bgcolor=ft.Colors.with_opacity(0.12 if es_actual else 0.04, NAVY),
             content=ft.Row(
                 [
+                    checkbox_sel,
                     ft.Icon(ft.Icons.RECEIPT_LONG, color=NAVY),
                     ft.Column(
                         [
@@ -1082,14 +1171,86 @@ def main(page: ft.Page) -> None:
                         color=ft.Colors.ON_SURFACE_VARIANT)
             ]
 
+    def _toggle_historial_sel(rid: str, valor: bool) -> None:
+        if valor:
+            historial_seleccionados.add(rid)
+        else:
+            historial_seleccionados.discard(rid)
+        n = len(historial_seleccionados)
+        boton_descargar_historial.disabled = n == 0
+        boton_descargar_historial.text = f"Descargar Excel ({n})" if n else "Descargar Excel"
+        page.update()
+
+    async def exportar_historial_excel(_e) -> None:
+        """Genera UN archivo Excel con una hoja por cada extracción seleccionada."""
+        seleccion = [r for r in historial_registros if r.get("id") in historial_seleccionados]
+        if not seleccion:
+            return
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)  # se crean hojas nombradas por extracción
+        usados: set = set()
+        total_movs = 0
+        for r in seleccion:
+            # Se incluyen TODOS los movimientos del snapshot, incluidos los
+            # marcados como "ya extraído"/duplicados (solo la subida a SIPP los
+            # excluye, no la exportación a Excel).
+            movs = [movimiento_desde_dict(d) for d in r.get("movimientos", [])]
+            total_movs += len(movs)
+            base = f"{r.get('banco', '')}-{(r.get('hora', '') or '').replace(':', '')}"
+            ws = wb.create_sheet(title=nombre_hoja_excel(base, usados))
+            escribir_hoja_movimientos(ws, movs, sucursal_export)
+        if not wb.sheetnames:
+            wb.create_sheet("Vacío")
+
+        nombre_def = f"historial_extracciones_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        destino = await file_picker.save_file(
+            dialog_title="Guardar historial en Excel",
+            file_name=nombre_def,
+            allowed_extensions=["xlsx"],
+        )
+        if not destino:
+            return
+        if not destino.lower().endswith(".xlsx"):
+            destino += ".xlsx"
+        try:
+            wb.save(destino)
+        except OSError as ex:
+            estado_text.value = f"No se pudo guardar el Excel: {ex}"
+            page.update()
+            return
+        estado_text.value = (
+            f"Exportadas {len(seleccion)} extracción(es) · {len(seleccion)} hoja(s) · "
+            f"{total_movs} movimiento(s) (incluye duplicados/ya extraídos) → {os.path.basename(destino)}."
+        )
+        page.pop_dialog()
+        page.update()
+
+    boton_descargar_historial = ft.Button(
+        "Descargar Excel",
+        icon=ft.Icons.GRID_ON,
+        disabled=True,
+        bgcolor=ft.Colors.GREEN_700,
+        color=ft.Colors.WHITE,
+        on_click=lambda e: page.run_task(exportar_historial_excel, e),
+    )
+
     dialogo_historial = ft.AlertDialog(
         modal=True,
         title=ft.Text("Historial de extracciones"),
         content=ft.Container(content=historial_lista, width=640, height=440),
-        actions=[ft.TextButton("Cerrar", on_click=lambda _e: page.pop_dialog())],
+        actions=[
+            boton_descargar_historial,
+            ft.TextButton("Cerrar", on_click=lambda _e: page.pop_dialog()),
+        ],
     )
 
     def abrir_historial(_e) -> None:
+        # Limpia la selección previa al reabrir.
+        historial_seleccionados.clear()
+        boton_descargar_historial.disabled = True
+        boton_descargar_historial.text = "Descargar Excel"
         _rellenar_lista_historial()
         mostrar_dialogo(dialogo_historial)
 
@@ -1127,12 +1288,18 @@ def main(page: ft.Page) -> None:
             historial_id_actual[0] = None
             ya_subidos = marcar_movimientos_ya_subidos()
 
-            # Traspasos a filiales: se excluyen del RPA por defecto (no son cobranza).
+            # Movimientos que NO deben subirse por el RPA (se excluyen y van en rojo):
+            #  - Traspasos a filiales (no son cobranza).
+            #  - BBVA: movimientos de portal de clientes (concepto CI/CE), ya en SIPP.
             traspasos = 0
+            portal = 0
             for m in movimientos:
                 if es_traspaso(m):
                     m.excluido = True
                     traspasos += 1
+                elif es_movimiento_portal_cliente(m):
+                    m.excluido = True
+                    portal += 1
 
             identificados_por_nombre = sum(1 for m in movimientos if m.identificado_por_nombre)
             nuevos = len(movimientos) - ya_subidos
@@ -1141,6 +1308,8 @@ def main(page: ft.Page) -> None:
                 mensaje += f" {ya_subidos} ya venían en un corte anterior (en gris, no se re-suben); {nuevos} nuevos."
             if traspasos:
                 mensaje += f" {traspasos} traspaso(s) a filiales (en rojo, excluidos del RPA)."
+            if portal:
+                mensaje += f" {portal} movimiento(s) de portal BBVA (CI/CE) en rojo, excluidos (ya en SIPP)."
             if identificados_por_nombre:
                 mensaje += f" {identificados_por_nombre} se identificaron por nombre."
             if agregadas:
@@ -2590,10 +2759,13 @@ def main(page: ft.Page) -> None:
             pagos_sipp_progreso_text.value = mensaje
             pagos_sipp_log_fn(mensaje, nivel)
 
-        confirmados = [p for p in pagos_contado if p.cliente_match and p.plaza and p.monto is not None and not p.en_bloque_bancario]
+        # La plaza es OPCIONAL: un pago sin plaza igual se envía para que el RPA
+        # verifique si ya es duplicado (y lo omita). Si no es duplicado y no trae
+        # plaza, el RPA lo salta con aviso (contado necesita sucursal para crearlo).
+        confirmados = [p for p in pagos_contado if p.cliente_match and p.monto is not None and not p.en_bloque_bancario]
         ok_rpa = True
         try:
-            enviados = await cargar_pagos_contado_en_sipp(
+            enviados, duplicados = await cargar_pagos_contado_en_sipp(
                 confirmados,
                 fecha_operacion_field.value or "",
                 usuario,
@@ -2603,9 +2775,15 @@ def main(page: ft.Page) -> None:
                 log_fn=log_fn,
                 enviar_automaticamente=auto,
             )
-            mensaje = f"Carga a SIPP (Pagos de Contado) lista: {enviados} movimiento(s) enviados."
+            nuevos = enviados - len(duplicados)
+            mensaje = f"Carga a SIPP (Pagos de Contado) lista: {nuevos} nuevo(s)"
+            if duplicados:
+                mensaje += f", {len(duplicados)} omitido(s) por duplicado"
+            mensaje += "."
             estado_o365_text.value = mensaje
             log_fn(mensaje, "ok")
+            if duplicados:
+                mostrar_dialogo_duplicados_contado(duplicados)
         except Exception as ex:
             ok_rpa = False
             estado_o365_text.value = f"Error al cargar Pagos de Contado en SIPP: {ex}"
@@ -2616,6 +2794,68 @@ def main(page: ft.Page) -> None:
             pagos_sipp_password_field.value = ""
             rpa_fin(ok_rpa)
             page.update()
+
+    def mostrar_dialogo_duplicados_contado(duplicados: list) -> None:
+        """Resumen visual de los pagos que el RPA omitió por ya estar subidos,
+        indicando en qué conciliación (folio) se encontró cada uno."""
+        filas = []
+        for d in duplicados:
+            suc = d.get("sucursal") or "—"
+            filas.append(
+                ft.Container(
+                    padding=10,
+                    border_radius=8,
+                    bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.ORANGE),
+                    content=ft.Row(
+                        [
+                            ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color=ORANGE),
+                            ft.Column(
+                                [
+                                    ft.Text(d.get("cliente", ""), weight=ft.FontWeight.BOLD,
+                                            color=ft.Colors.ON_SURFACE),
+                                    ft.Text(f"${d.get('monto', 0):,.2f}  ·  sucursal {suc}",
+                                            size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                                ],
+                                spacing=2, expand=True,
+                            ),
+                            ft.Container(
+                                content=ft.Text(f"Conciliación {d.get('folio', '?')}",
+                                                color=ft.Colors.WHITE, size=12, weight=ft.FontWeight.BOLD),
+                                bgcolor=NAVY,
+                                padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+                                border_radius=12,
+                            ),
+                        ],
+                        spacing=10,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                )
+            )
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Row(
+                [ft.Icon(ft.Icons.CONTENT_COPY, color=ORANGE),
+                 ft.Text("Pagos omitidos por duplicado")],
+                spacing=8,
+            ),
+            content=ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(
+                            f"{len(duplicados)} pago(s) ya estaban subidos en SIPP y se omitieron:",
+                            size=13,
+                        ),
+                        ft.Divider(),
+                        *filas,
+                    ],
+                    spacing=10, scroll=ft.ScrollMode.AUTO, tight=True,
+                ),
+                width=560,
+                height=min(140 + len(duplicados) * 72, 460),
+            ),
+            actions=[ft.TextButton("Entendido", on_click=lambda _e: page.pop_dialog())],
+        )
+        mostrar_dialogo(dlg)
 
     boton_pagos_sipp_cancelar = ft.TextButton("Cerrar", on_click=on_cancelar_pagos_sipp)
     boton_pagos_sipp_confirmar = ft.Button(
@@ -2650,10 +2890,10 @@ def main(page: ft.Page) -> None:
             estado_o365_text.value = "Indica la Fecha de Operación, arriba en Conciliación Bancaria."
             page.update()
             return
-        confirmados = [p for p in pagos_contado if p.cliente_match and p.plaza and p.monto is not None and not p.en_bloque_bancario]
+        confirmados = [p for p in pagos_contado if p.cliente_match and p.monto is not None and not p.en_bloque_bancario]
         if not confirmados:
             estado_o365_text.value = (
-                "Ningún pago tiene Cliente + Plaza + Monto confirmados todavía; revísalos en la tabla."
+                "Ningún pago tiene Cliente + Monto confirmados todavía; revísalos en la tabla."
             )
             page.update()
             return
@@ -2695,7 +2935,9 @@ def main(page: ft.Page) -> None:
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 ft.Divider(),
-                ft.Container(content=tabla_o365, expand=True),
+                # Altura fija: el buzón hace scroll INTERNO (no empuja la sección de
+                # extracción cuando hay muchos correos).
+                ft.Container(content=tabla_o365, height=380),
                 ft.Divider(),
                 ft.Text("Pagos de Contado (revisar antes de cargar a SIPP)", weight=ft.FontWeight.BOLD, size=16),
                 ft.Row(
@@ -3206,40 +3448,11 @@ def main(page: ft.Page) -> None:
             return
 
         import openpyxl
-        from openpyxl.styles import Font, PatternFill
-        from openpyxl.utils import get_column_letter
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Movimientos"
-        encabezados = [
-            "Fecha", "Banco", "Descripción", "Referencia", "Abono",
-            "Cliente identificado", "Cuenta", "Sucursal",
-        ]
-        ws.append(encabezados)
-        for celda in ws[1]:
-            celda.font = Font(bold=True, color="FFFFFF")
-            celda.fill = PatternFill("solid", fgColor="1B3A5B")  # NAVY
-
-        for m in filas:
-            ws.append([
-                m.fecha.strftime("%d/%m/%Y") if m.fecha else "",
-                m.banco,
-                m.descripcion,
-                m.referencia,
-                round(m.abono, 2),
-                m.cliente_match or "",
-                m.cuenta_match or "",
-                sucursal_efectiva(m) or "",
-            ])
-
-        anchos = [12, 12, 48, 20, 15, 32, 16, 22]
-        for i, w in enumerate(anchos, start=1):
-            ws.column_dimensions[get_column_letter(i)].width = w
-        for fila_celdas in ws.iter_rows(min_row=2, min_col=5, max_col=5):
-            for celda in fila_celdas:
-                celda.number_format = "#,##0.00"
-        ws.freeze_panes = "A2"
+        escribir_hoja_movimientos(ws, filas, sucursal_efectiva)
 
         banco = filas[0].banco or "movimientos"
         nombre_def = f"movimientos_{banco}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
