@@ -14,6 +14,7 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas_cuentas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
+from .dashboard_cobranza import construir_tab_dashboard
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from .historial import (
     cargar_historial,
@@ -3502,8 +3503,10 @@ def main(page: ft.Page) -> None:
         if tabs.selected_index == 1:
             page.run_task(actualizar_bandeja_o365)
 
+    tab_dashboard, contenido_dashboard = construir_tab_dashboard(page)
+
     tabs = ft.Tabs(
-        length=3,
+        length=4,
         selected_index=0,
         expand=True,
         on_change=on_tabs_change,
@@ -3515,11 +3518,12 @@ def main(page: ft.Page) -> None:
                         ft.Tab(label="Identificación Bancaria", icon=ft.Icons.ACCOUNT_BALANCE),
                         ft.Tab(label="Extracción de Contados", icon=ft.Icons.MAIL_OUTLINE),
                         ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
+                        tab_dashboard,
                     ],
                 ),
                 ft.TabBarView(
                     expand=True,
-                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos],
+                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard],
                 ),
             ],
         ),
