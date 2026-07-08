@@ -2,6 +2,7 @@
 o365_token.txt
 sipp_credenciales.json
 url.txt
+app/credentials/
 .venv/
 venv/
 __pycache__/
