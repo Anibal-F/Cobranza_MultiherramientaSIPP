@@ -96,12 +96,51 @@ def revisar_actualizaciones(base_dir: str) -> dict:
         return {"disponible": False, "error": str(ex)}
 
 
-def aplicar_actualizacion(base_dir: str) -> tuple[bool, str]:
-    """Aplica los cambios con `git pull --ff-only`. Devuelve (ok, salida)."""
+def _instalar_requirements(base_dir: str) -> tuple[bool, str]:
+    """`pip install -r requirements.txt` con el intérprete del propio venv de
+    la app (instalar_windows.bat crea el venv con `venv` estándar, así que pip
+    siempre está disponible ahí — no se asume `uv`)."""
+    kwargs = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = _CREATE_NO_WINDOW
     try:
-        r = _git(["pull", "--ff-only"], base_dir)
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=300,  # primeras instalaciones de paquetes nuevos pueden tardar
+            **kwargs,
+        )
         salida = (r.stdout + "\n" + r.stderr).strip()
         return (r.returncode == 0, salida)
+    except subprocess.TimeoutExpired:
+        return (False, "Tiempo de espera agotado instalando dependencias nuevas.")
+    except (OSError, subprocess.SubprocessError) as ex:
+        return (False, str(ex))
+
+
+def aplicar_actualizacion(base_dir: str) -> tuple[bool, str]:
+    """Aplica los cambios con `git pull --ff-only` y, si requirements.txt
+    cambió en esta actualización, instala las dependencias nuevas ANTES de
+    reiniciar — si no, la app relanzada truena al importar un paquete que
+    el código nuevo necesita pero esta máquina nunca instaló. Devuelve
+    (ok, salida)."""
+    try:
+        antes = _git(["rev-parse", "HEAD"], base_dir).stdout.strip()
+        r = _git(["pull", "--ff-only"], base_dir)
+        salida = (r.stdout + "\n" + r.stderr).strip()
+        if r.returncode != 0:
+            return (False, salida)
+
+        cambios = _git(["diff", "--name-only", antes, "HEAD"], base_dir).stdout.splitlines()
+        if "requirements.txt" in cambios:
+            ok_deps, salida_deps = _instalar_requirements(base_dir)
+            salida = f"{salida}\n{salida_deps}".strip()
+            if not ok_deps:
+                return (False, salida)
+
+        return (True, salida)
     except subprocess.TimeoutExpired:
         return (False, "Tiempo de espera agotado al descargar la actualización.")
     except (OSError, subprocess.SubprocessError) as ex:
