@@ -132,6 +132,44 @@ El script:
 
 El `.exe` final queda dentro de `build/windows/`.
 
+### macOS: instalación recomendada (sin build, con auto-actualización)
+
+Igual que en Windows, para desplegar en varias Mac conservando la
+**auto-actualización** por git, se corre la app desde el código
+(`python main.py`). Clona el repo en cada Mac y ejecuta desde la raíz:
+
+```bash
+./instalar_mac.command
+```
+
+(o doble clic en `instalar_mac.command` desde Finder — se abre una Terminal
+con el progreso).
+
+El script: instala/valida **Homebrew**, **Python 3.12**, **git** y
+**Tesseract OCR** (`brew`); fija el remoto `origin` a **HTTPS** (el repo es
+público → `git pull` sin credenciales); crea el `.venv`; instala
+`requirements.txt` y **Chromium** (Playwright); genera un icono `.icns` a
+partir de `assets/icon.png`; y genera el lanzador **`iniciar_cobranza.command`**
+(corre `.venv/bin/python3 main.py` desacoplado de la Terminal, que se cierra
+sola) junto con un **acceso directo** en el Escritorio, aplicándole a ambos
+el ícono de Grupo Petroil. Cada Mac se auto-actualiza desde GitHub al abrir
+la app.
+
+> Homebrew no se instala automáticamente (pide tu password de Mac); si falta,
+> el script te indica instalarlo desde https://brew.sh y volver a correrlo.
+
+> **Por qué `.command` y no un `.app`:** se probó envolver el lanzador en un
+> `.app` (como en Windows), pero macOS marca todo ejecutable creado
+> localmente con el atributo `com.apple.provenance` — que, a diferencia del
+> viejo `com.apple.quarantine`, no se puede quitar — y Gatekeeper lo rechaza
+> (`spctl` → `rejected`) aunque se firme ad-hoc, así que Finder no lo abre ni
+> con doble clic. Firmarlo de verdad requiere una cuenta de Apple Developer
+> (pago). Un `.command` no tiene ese problema: Terminal lo interpreta
+> directamente, sin pasar por la verificación de Gatekeeper para apps. El
+> ícono personalizado **sí** se puede aplicar sin tocar Gatekeeper — es solo
+> metadata de Finder (`NSWorkspace.setIcon`, vía `osascript -l JavaScript`),
+> no un ejecutable nuevo.
+
 El ícono se toma **automáticamente** de **`assets/icon.png`** (ya incluido;
 idealmente cuadrado y de alta resolución, p. ej. 512×512 o 1024×1024). En
 Windows, además, la ventana usa `assets/Logo_Petroil.ico` en tiempo de ejecución
