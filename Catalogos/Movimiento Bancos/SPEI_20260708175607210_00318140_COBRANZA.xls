@@ -1,0 +1,1494 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>xm05601</Author>
+  <LastAuthor>Gloria Garcia Sanchez</LastAuthor>
+  <Created>2013-02-15T15:50:06Z</Created>
+  <LastSaved>2026-07-09T00:10:46Z</LastSaved>
+  <Company>BBVA Bancomer, S.A.</Company>
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>8676</WindowHeight>
+  <WindowWidth>23040</WindowWidth>
+  <WindowTopX>32767</WindowTopX>
+  <WindowTopY>32767</WindowTopY>
+  <ProtectStructure>False</ProtectStructure>
+  <ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Arial"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="s62">
+   <NumberFormat ss:Format="Fixed"/>
+  </Style>
+  <Style ss:ID="s63">
+   <Alignment ss:Vertical="Bottom"/>
+   <Font ss:FontName="Arial" x:Family="Swiss" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="s64">
+   <Alignment ss:Vertical="Bottom"/>
+  </Style>
+  <Style ss:ID="s65">
+   <Alignment ss:Vertical="Bottom"/>
+   <NumberFormat ss:Format="Fixed"/>
+  </Style>
+  <Style ss:ID="s66">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Arial" x:Family="Swiss" ss:Bold="1"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Hoja1">
+  <Table ss:ExpandedColumnCount="16" ss:ExpandedRowCount="77" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="60" ss:DefaultRowHeight="13.2">
+   <Column ss:Width="111" ss:Span="1"/>
+   <Column ss:Index="3" ss:Width="155.39999999999998"/>
+   <Column ss:Width="84"/>
+   <Column ss:StyleID="s62" ss:Width="126.6"/>
+   <Column ss:Width="66"/>
+   <Column ss:Hidden="1" ss:AutoFitWidth="0" ss:Width="105.6"/>
+   <Column ss:Hidden="1" ss:AutoFitWidth="0" ss:Width="96"/>
+   <Column ss:Width="255"/>
+   <Column ss:Width="96.6"/>
+   <Column ss:Width="112.8"/>
+   <Column ss:Width="129" ss:Span="4"/>
+   <Row>
+    <Cell ss:StyleID="s63"><Data ss:Type="String">Cuenta</Data></Cell>
+    <Cell ss:StyleID="s63"><Data ss:Type="String">0100647012</Data></Cell>
+    <Cell ss:StyleID="s64"/>
+    <Cell ss:StyleID="s65"/>
+    <Cell ss:StyleID="s64"/>
+   </Row>
+   <Row>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Fecha</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Referencia numerica</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Concepto de codigo de leyenda</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Referencia</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Concepto de pago</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Importe</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Saldo</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Banco ordenante</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Nombre ordenante</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Cuenta ordenante</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Banco beneficiario</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Nombre beneficiario</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Cuenta beneficiario</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Clave de rastreo</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Estado del pago</Data></Cell>
+    <Cell ss:StyleID="s66"><Data ss:Type="String">Motivo de devolucion</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:48:55</Data></Cell>
+    <Cell><Data ss:Type="String">0000338</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0126652483  072</Data></Cell>
+    <Cell><Data ss:Type="String">F 125539</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">266500</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">2000837.26</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">MARIANO TOPETE MACEDO</Data></Cell>
+    <Cell><Data ss:Type="String">00072326005818459916</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085513863992</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:38:20</Data></Cell>
+    <Cell><Data ss:Type="String">8163907</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023610073146584243014</Data></Cell>
+    <Cell><Data ss:Type="String">2372237 8163907</Data></Cell>
+    <Cell><Data ss:Type="String">01023610073146584243</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">114000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1816837.26</Data></Cell>
+    <Cell><Data ss:Type="String">SANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">AUTO SERVICIO JIMA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00014741655103031579</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">20260708400140BET0000481639070</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:31:27</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOHSBC</Data></Cell>
+    <Cell><Data ss:Type="String">0126550994  021</Data></Cell>
+    <Cell><Data ss:Type="String">CLN-009 La Paz</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">18823</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1798014.26</Data></Cell>
+    <Cell><Data ss:Type="String">HSBC</Data></Cell>
+    <Cell><Data ss:Type="String">JUAN CARLOS AVILES COBIAN</Data></Cell>
+    <Cell><Data ss:Type="String">00021040040617494040</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">Abastecedora Combustibles Del Pacifico</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">HSBC610006</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:29:50</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOHSBC</Data></Cell>
+    <Cell><Data ss:Type="String">0126542169  021</Data></Cell>
+    <Cell><Data ss:Type="String">CLN-008 La Paz</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">18823</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1779191.26</Data></Cell>
+    <Cell><Data ss:Type="String">HSBC</Data></Cell>
+    <Cell><Data ss:Type="String">JUAN CARLOS AVILES COBIAN</Data></Cell>
+    <Cell><Data ss:Type="String">00021040040617494040</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">Abastecedora Combustibles Del Pacifico</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">HSBC608931</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:25:00</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024190388546599297072</Data></Cell>
+    <Cell><Data ss:Type="String">2363358 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01024190388546599297</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">214690.36</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1564500.9</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ESTACION DE SERVICIOS VALBEMO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072743001552327509</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513779880</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:20:10</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024190388446593206072</Data></Cell>
+    <Cell><Data ss:Type="String">2361001 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01024190388446593206</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">214098.5</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1350402.4</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ESTACION DE SERVICIOS VALBEMO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072743001552327509</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513761789</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:19:52</Data></Cell>
+    <Cell><Data ss:Type="String">0598239</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025300195546598239072</Data></Cell>
+    <Cell><Data ss:Type="String">2360859 0598239</Data></Cell>
+    <Cell><Data ss:Type="String">01025300195546598239</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">66000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1284402.3999999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">KILLER HUMBERTO LOPEZ GAXIOLA</Data></Cell>
+    <Cell><Data ss:Type="String">00072740005722554952</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PACIFICO</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513760725</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:17:29</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024190388346593290072</Data></Cell>
+    <Cell><Data ss:Type="String">2359606 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01024190388346593290</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">253348.46</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1031053.94</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ESTACION DE SERVICIOS VALBEMO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072743006807387189</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513752551</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:19:06</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI ENVIADO BMONEX</Data></Cell>
+    <Cell><Data ss:Type="String">0000230258  112</Data></Cell>
+    <Cell><Data ss:Type="String">TRASPASO A MONEX</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">-50000000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">51031053.939999998</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA MEXICO</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMB USTIBLES DEL PACIFI</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">BMONEX</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES</Data></Cell>
+    <Cell><Data ss:Type="String">00112180000027508759</Data></Cell>
+    <Cell><Data ss:Type="String">002601002607080000230258</Data></Cell>
+    <Cell><Data ss:Type="String">LIQUIDADO</Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:15:40</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024260154446589268072</Data></Cell>
+    <Cell><Data ss:Type="String">2358660 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">01024260154446589268</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">300000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">50731053.939999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">DIAM SERVICIOS SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072730002076812939</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513745992</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:14:06</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01024190388246598245072</Data></Cell>
+    <Cell><Data ss:Type="String">2357807 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01024190388246598245</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">253322.96</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">50470730.979999997</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ESTACION DE SERVICIOS VALBEMO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072743006807387189</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085513740292</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:12:16</Data></Cell>
+    <Cell><Data ss:Type="String">0274799</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017460006946581213058</Data></Cell>
+    <Cell><Data ss:Type="String">2356865 0274799</Data></Cell>
+    <Cell><Data ss:Type="String">01017460006946581213</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">250000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">50220730.979999997</Data></Cell>
+    <Cell><Data ss:Type="String">BANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS REVOLUCION S.A. DE C.V.</Data></Cell>
+    <Cell><Data ss:Type="String">00058730000149169182</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">058-08/07/2026/08-110YVNT661</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:10:07</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01019230010846571259072</Data></Cell>
+    <Cell><Data ss:Type="String">2355767 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01019230010846571259</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">435928.68</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">49784802.299999997</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">LAS CANICAS SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072767011794477995</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PACIFICO</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513725923</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:06:32</Data></Cell>
+    <Cell><Data ss:Type="String">0924362</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017450005746586222058</Data></Cell>
+    <Cell><Data ss:Type="String">2353931 0924362</Data></Cell>
+    <Cell><Data ss:Type="String">01017450005746586222</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">200000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">49584802.299999997</Data></Cell>
+    <Cell><Data ss:Type="String">BANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">GASOLINERA BRAVO S.A. DE C.V.</Data></Cell>
+    <Cell><Data ss:Type="String">00058730000149131657</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">058-08/07/2026/08-110YVNR601</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 17:02:57</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017610052846571276072</Data></Cell>
+    <Cell><Data ss:Type="String">2352035 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01017610052846571276</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">716110.67</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">48868691.630000003</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS EXPRES DE BACHIGUALATO S DE RL</Data></Cell>
+    <Cell><Data ss:Type="String">00072730002189522255</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513698870</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:53:35</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0126322039  072</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO 5000 LITROS</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">124265.8</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">48198040.829999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">CARLOS ARNOLDO MEZA JAUREGUI</Data></Cell>
+    <Cell><Data ss:Type="String">00072028012233390967</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR2202607085513664658</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:46:52</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01016690077846577271072</Data></Cell>
+    <Cell><Data ss:Type="String">2343564 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01016690077846577271</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">428905.7</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">47769135.130000003</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS AGSA SA DECV</Data></Cell>
+    <Cell><Data ss:Type="String">00072730012480908131</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085513639626</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:46:18</Data></Cell>
+    <Cell><Data ss:Type="String">0004231</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023520142346594231030</Data></Cell>
+    <Cell><Data ss:Type="String">2343253 0004231</Data></Cell>
+    <Cell><Data ss:Type="String">01023520142346594231</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">428408.44</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">47340726.689999998</Data></Cell>
+    <Cell><Data ss:Type="String">BAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">AUTOSERVICIO LA 700 SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00030741900002373148</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES D</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">BB4252989018384</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:45:14</Data></Cell>
+    <Cell><Data ss:Type="String">0000004</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">0126270951  002</Data></Cell>
+    <Cell><Data ss:Type="String">COMPRA 2500LTS DIESEL VHSA TAB</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">68000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">46772726.689999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">SERVIDIESEL MALDONADO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00002180700733268324</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">085909934770318962</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:39:52</Data></Cell>
+    <Cell><Data ss:Type="String">0121100</Data></Cell>
+    <Cell><Data ss:Type="String">CI01021290066746573224062</Data></Cell>
+    <Cell><Data ss:Type="String">2339890 0121100</Data></Cell>
+    <Cell><Data ss:Type="String">01021290066746573224</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">520389.66</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">45996573.869999997</Data></Cell>
+    <Cell><Data ss:Type="String">AFIRME</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS SINALOA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00062730001611270196</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PAC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">260708163948501174029341253690</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:38:25</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022140054946574244072</Data></Cell>
+    <Cell><Data ss:Type="String">2339194 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01022140054946574244</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">213601.07</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">45782972.799999997</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS EXPRESS GUPA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072730012476079977</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR1202607085513609370</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:36:10</Data></Cell>
+    <Cell><Data ss:Type="String">0194991</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023500219946598226072</Data></Cell>
+    <Cell><Data ss:Type="String">2337955 0194991</Data></Cell>
+    <Cell><Data ss:Type="String">01023500219946598226</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">321165.02</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">45461807.780000001</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS CADIEZ SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072741010832062629</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR2202607085513601182</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:32:19</Data></Cell>
+    <Cell><Data ss:Type="String">8137813</Data></Cell>
+    <Cell><Data ss:Type="String">CI01019190023946571209014</Data></Cell>
+    <Cell><Data ss:Type="String">2335884 8137813</Data></Cell>
+    <Cell><Data ss:Type="String">01019190023946571209</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">432977.54</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">44963830.240000002</Data></Cell>
+    <Cell><Data ss:Type="String">SANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">RAMIRO CARO ARMENTA</Data></Cell>
+    <Cell><Data ss:Type="String">00014744655044716154</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">20260708400140BET0000481378130</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 16:26:58</Data></Cell>
+    <Cell><Data ss:Type="String">0592805</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">0126161736  058</Data></Cell>
+    <Cell><Data ss:Type="String">Transferencia de TRASLADOS Y ALMACENES E</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">22994.99</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">44935835.25</Data></Cell>
+    <Cell><Data ss:Type="String">BANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">TRASLADOS Y ALMACENES EL AGUILA S.A. DE</Data></Cell>
+    <Cell><Data ss:Type="String">00058580467709800111</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">058-08/07/2026/08-046YVNB219</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 15:29:58</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSCOTIABANK</Data></Cell>
+    <Cell><Data ss:Type="String">0125814476  044</Data></Cell>
+    <Cell><Data ss:Type="String">Facturas 125334 y 36</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">25392.12</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">44129964.079999998</Data></Cell>
+    <Cell><Data ss:Type="String">SCOTIABANK</Data></Cell>
+    <Cell><Data ss:Type="String">DOMINGUEZ BERNAL MILKA EDITH</Data></Cell>
+    <Cell><Data ss:Type="String">00044320010025621705</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">de combustibles del Pacific Ab</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">2026070840044B36L0000477017971</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 15:25:30</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029350106246585228030</Data></Cell>
+    <Cell><Data ss:Type="String">2294073 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">01029350106246585228</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">76000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">44053964.079999998</Data></Cell>
+    <Cell><Data ss:Type="String">BAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">GASOLINERA UDI SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00030730900024325473</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">BB2231455020798</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 15:11:40</Data></Cell>
+    <Cell><Data ss:Type="String">8097216</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">0125695911  014</Data></Cell>
+    <Cell><Data ss:Type="String">01031880250946577242</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">201609.21</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">43852354.869999997</Data></Cell>
+    <Cell><Data ss:Type="String">SANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">AUTOSERVICIOS DE COMBUSTION Y LUBRICACIO</Data></Cell>
+    <Cell><Data ss:Type="String">00014098220006985703</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">20260708400140BET0000480972160</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 15:04:59</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI ENVIADO BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0000194334  072</Data></Cell>
+    <Cell><Data ss:Type="String">TRASPASO A BANORTE</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">-27000000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">70852354.870000005</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA MEXICO</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMB USTIBLES DEL PACIFI</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES</Data></Cell>
+    <Cell><Data ss:Type="String">00072744005029394112</Data></Cell>
+    <Cell><Data ss:Type="String">002601002607080000194334</Data></Cell>
+    <Cell><Data ss:Type="String">LIQUIDADO</Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 15:00:25</Data></Cell>
+    <Cell><Data ss:Type="String">2317850</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">0125623890  030</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO DE COMBUSTIBLE</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1500000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">69171796.760000005</Data></Cell>
+    <Cell><Data ss:Type="String">BAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">GASOLINERA VAZQUEZ SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00030560900046247013</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">BB2317850020718</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 14:17:44</Data></Cell>
+    <Cell><Data ss:Type="String">4273302</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">0125358985  030</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO COMBUSTIBLE</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">475180.89</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">66472547.68</Data></Cell>
+    <Cell><Data ss:Type="String">BAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE ES</Data></Cell>
+    <Cell><Data ss:Type="String">00030730900031576192</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PACIFICO</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">BB42733020754</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 14:10:41</Data></Cell>
+    <Cell><Data ss:Type="String">0194986</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029930071446587284072</Data></Cell>
+    <Cell><Data ss:Type="String">2243489 0194986</Data></Cell>
+    <Cell><Data ss:Type="String">01029930071446587284</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">175126.9</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">66297420.780000001</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS LA GLORIA DE GUAMUCHIL SA DE C</Data></Cell>
+    <Cell><Data ss:Type="String">00072740001693986718</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085513064871</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 14:08:58</Data></Cell>
+    <Cell><Data ss:Type="String">0194987</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029930071546583245072</Data></Cell>
+    <Cell><Data ss:Type="String">2242567 0194987</Data></Cell>
+    <Cell><Data ss:Type="String">01029930071546583245</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">216349.04</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">66081071.740000002</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS LA GLORIA DE GUAMUCHIL SA DE C</Data></Cell>
+    <Cell><Data ss:Type="String">00072740001693986718</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085513058960</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 14:07:42</Data></Cell>
+    <Cell><Data ss:Type="String">0266026</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOHSBC</Data></Cell>
+    <Cell><Data ss:Type="String">0125293670  021</Data></Cell>
+    <Cell><Data ss:Type="String">073829</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">501263.2</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">65579808.539999999</Data></Cell>
+    <Cell><Data ss:Type="String">HSBC</Data></Cell>
+    <Cell><Data ss:Type="String">SUPPLEO BUNKERING, S. DE R.L. DE C.V.</Data></Cell>
+    <Cell><Data ss:Type="String">00021180040642660262</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PA</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">HSBC466092</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 14:06:10</Data></Cell>
+    <Cell><Data ss:Type="String">0577201</Data></Cell>
+    <Cell><Data ss:Type="String">CI01030860207046577201072</Data></Cell>
+    <Cell><Data ss:Type="String">2240253 0577201</Data></Cell>
+    <Cell><Data ss:Type="String">01030860207046577201</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">432348.45</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">65147460.090000004</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIO GAMO DE DURANGO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072190005744128453</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085513047516</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:49:41</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0125176362  072</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO 8300 LITROS</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">206281.22</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">59968902.359999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">CARLOS ARNOLDO MEZA JAUREGUI</Data></Cell>
+    <Cell><Data ss:Type="String">00072028012233390967</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR2202607085512983446</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:45:56</Data></Cell>
+    <Cell><Data ss:Type="String">0515564</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0125151433  072</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO A PROVEEDOR</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">363.71</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">59722839.649999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">OPERADORA DE SERVICIOS PAQUETEXPRESS SAP</Data></Cell>
+    <Cell><Data ss:Type="String">00072743005928532911</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512967608</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:32:02</Data></Cell>
+    <Cell><Data ss:Type="String">0514464</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0125058782  072</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO A PROVEEDOR</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">814170.6</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">58180585.270000003</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">OPERADORA DE SERVICIOS PAQUETEXPRESS SAP</Data></Cell>
+    <Cell><Data ss:Type="String">00072743005928033711</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512911287</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:25:08</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">0125014132  002</Data></Cell>
+    <Cell><Data ss:Type="String">1111111111</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">402154.79</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">43011392.75</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">ERGON ASFALTOS MEXICO S DE RL DE C</Data></Cell>
+    <Cell><Data ss:Type="String">00002650039367328514</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">085901241783718961</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:18:21</Data></Cell>
+    <Cell><Data ss:Type="String">0190028</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017390002146580244072</Data></Cell>
+    <Cell><Data ss:Type="String">2206229 0190028</Data></Cell>
+    <Cell><Data ss:Type="String">01017390002146580244</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">215412.36</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">42795980.390000001</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">GASOLINERA RINDEMAS SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072730008173788083</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512858344</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:12:20</Data></Cell>
+    <Cell><Data ss:Type="String">0190026</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017390002046587225072</Data></Cell>
+    <Cell><Data ss:Type="String">2199417 0190026</Data></Cell>
+    <Cell><Data ss:Type="String">01017390002046587225</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">215587.69</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">41114446.32</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">GASOLINERA RINDEMAS SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072730008173788083</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512835307</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 13:04:29</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124881768  072</Data></Cell>
+    <Cell><Data ss:Type="String">ant fco</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">70150</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">40933449.060000002</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">POLISERVICIOS LA T DE BACUM SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072767001831139915</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512802157</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:59:10</Data></Cell>
+    <Cell><Data ss:Type="String">0601515</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">0124847942  002</Data></Cell>
+    <Cell><Data ss:Type="String">300053000025762026001</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">313399.94</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">40597249.280000001</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">TRANSPORTES EMMA S DE RL DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00002730092305145315</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMB DEL PACIFICO S</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">19F4318B53EA6769</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:55:51</Data></Cell>
+    <Cell><Data ss:Type="String">0194956</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029910215546572286072</Data></Cell>
+    <Cell><Data ss:Type="String">2187602 0194956</Data></Cell>
+    <Cell><Data ss:Type="String">01029910215546572286</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">216195.28</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">40381054</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIO DEL RIO EVORA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072740005707063688</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512770137</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:54:50</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022960414346588219030</Data></Cell>
+    <Cell><Data ss:Type="String">2186839 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">01022960414346588219</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">40000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">40341054</Data></Cell>
+    <Cell><Data ss:Type="String">BAJIO</Data></Cell>
+    <Cell><Data ss:Type="String">MULTISERVICIOS 3M SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00030730900026955278</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">petroil bancomer</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">BB2308290020753</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:53:30</Data></Cell>
+    <Cell><Data ss:Type="String">0194947</Data></Cell>
+    <Cell><Data ss:Type="String">CI01029910215446572273072</Data></Cell>
+    <Cell><Data ss:Type="String">2185854 0194947</Data></Cell>
+    <Cell><Data ss:Type="String">01029910215446572273</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">215909.71</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">40125144.289999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIO DEL RIO EVORA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072740005707063688</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512761064</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:50:39</Data></Cell>
+    <Cell><Data ss:Type="String">0000087</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124794818  072</Data></Cell>
+    <Cell><Data ss:Type="String">Transferencia</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">2149416</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">37919216.289999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">MOLINERA DE MEXICO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072580001919007036</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">42644264202607085512750322</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:49:18</Data></Cell>
+    <Cell><Data ss:Type="String">8012885</Data></Cell>
+    <Cell><Data ss:Type="String">CI01045600013046573254014</Data></Cell>
+    <Cell><Data ss:Type="String">2182810 8012885</Data></Cell>
+    <Cell><Data ss:Type="String">01045600013046573254</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">3085355</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">34833861.289999999</Data></Cell>
+    <Cell><Data ss:Type="String">SANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIO J Y J SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00014320655055441803</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">20260708400140BET0000480128850</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:43:08</Data></Cell>
+    <Cell><Data ss:Type="String">0190011</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017960001046586258072</Data></Cell>
+    <Cell><Data ss:Type="String">2178462 0190011</Data></Cell>
+    <Cell><Data ss:Type="String">01017960001046586258</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">251753.83</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">34582107.460000001</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">AGRICOLA Y COMERCIAL SAN KISSTOLO SA DE</Data></Cell>
+    <Cell><Data ss:Type="String">00072730010041152027</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512721831</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:40:12</Data></Cell>
+    <Cell><Data ss:Type="String">0190010</Data></Cell>
+    <Cell><Data ss:Type="String">CI01017960000946588287072</Data></Cell>
+    <Cell><Data ss:Type="String">2176372 0190010</Data></Cell>
+    <Cell><Data ss:Type="String">01017960000946588287</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">251677.4</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">34330430.060000002</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">AGRICOLA Y COMERCIAL SAN KISSTOLO SA DE</Data></Cell>
+    <Cell><Data ss:Type="String">00072730010041152027</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512709767</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:31:04</Data></Cell>
+    <Cell><Data ss:Type="String">8072026</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124662368  072</Data></Cell>
+    <Cell><Data ss:Type="String">Pago a proveedor ABASTECEDORA</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">91225.66</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">34239204.399999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">AUTO EXPRESS NOR Y CARIBE SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072580011199749298</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">42644264202607085512675893</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:30:45</Data></Cell>
+    <Cell><Data ss:Type="String">0026189</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOVE POR MAS</Data></Cell>
+    <Cell><Data ss:Type="String">0124660311  113</Data></Cell>
+    <Cell><Data ss:Type="String">SOS70070</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">149710</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">34089494.399999999</Data></Cell>
+    <Cell><Data ss:Type="String">VE POR MAS</Data></Cell>
+    <Cell><Data ss:Type="String">SEPEC OILFIELD SERVICES</Data></Cell>
+    <Cell><Data ss:Type="String">00113180000002115399</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PA CIFI</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">VPMFT2618977ZZH</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:27:15</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124637698  072</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO 8900 LITROS</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">221193.12</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">33868301.280000001</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">CARLOS ARNOLDO MEZA JAUREGUI</Data></Cell>
+    <Cell><Data ss:Type="String">00072028012233390967</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR2202607085512661283</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:23:22</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">0124612298  002</Data></Cell>
+    <Cell><Data ss:Type="String">20573 17316 OBR0005 ABASTDECOMBUSTIBLES</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">543000.01</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">33325301.27</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">CONS DE CAMINOS Y PROYECTOS INTERE</Data></Cell>
+    <Cell><Data ss:Type="String">00002537005000114242</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA ,COMBUSTIBLES /DEL PACIFICO</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">085902640764318969</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:16:25</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">0124566136  002</Data></Cell>
+    <Cell><Data ss:Type="String">20130</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">107460.77</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">33217840.5</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">PLANEACION Y EJECUCION LOGISTICA S</Data></Cell>
+    <Cell><Data ss:Type="String">00002180081900704770</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABAST. DE COMB. DEL PACIF</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">085905246310318965</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 12:06:01</Data></Cell>
+    <Cell><Data ss:Type="String">0260708</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124501997  072</Data></Cell>
+    <Cell><Data ss:Type="String">FHS102611</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">430444.96</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">32711658.32</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ARMANDO EMMANUEL VILLA DOMINGUEZ</Data></Cell>
+    <Cell><Data ss:Type="String">00072760011736741822</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512581870</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:51:25</Data></Cell>
+    <Cell><Data ss:Type="String">7985165</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">0124414233  014</Data></Cell>
+    <Cell><Data ss:Type="String">FHS102564</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">215419.49</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">24693831.640000001</Data></Cell>
+    <Cell><Data ss:Type="String">SANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">ALMA DELIA MILLAN LOPEZ</Data></Cell>
+    <Cell><Data ss:Type="String">00014760655109164609</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL  PACIFI</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">20260708400140BET0000479851650</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:47:03</Data></Cell>
+    <Cell><Data ss:Type="String">7982202</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOSANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">0124387258  014</Data></Cell>
+    <Cell><Data ss:Type="String">LIQ FHS102565</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">84383.19</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">24609448.449999999</Data></Cell>
+    <Cell><Data ss:Type="String">SANTANDER</Data></Cell>
+    <Cell><Data ss:Type="String">ALMA DELIA MILLAN LOPEZ</Data></Cell>
+    <Cell><Data ss:Type="String">00014760655109164609</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL  PACIFI</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">20260708400140BET0000479822020</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:43:08</Data></Cell>
+    <Cell><Data ss:Type="String">0103163</Data></Cell>
+    <Cell><Data ss:Type="String">CI01030680093946572205002</Data></Cell>
+    <Cell><Data ss:Type="String">2136784 0103163</Data></Cell>
+    <Cell><Data ss:Type="String">01030680093946572205</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">400000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">22712675.489999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">HERMOL GASOLINERA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00002760819200053810</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">085902244254318962</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:40:06</Data></Cell>
+    <Cell><Data ss:Type="String">0032226</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124346256  072</Data></Cell>
+    <Cell><Data ss:Type="String">Pago F 87394</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">20400</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">22473365.329999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">INTERNATIONAL FOOD GRADE TRANSPORT S DE</Data></Cell>
+    <Cell><Data ss:Type="String">00072320011299292096</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PASI9FIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512488560</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:34:39</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124314305  072</Data></Cell>
+    <Cell><Data ss:Type="String">pago 1000 litros</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">24853.16</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">21372457.969999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">CARLOS ARNOLDO MEZA JAUREGUI</Data></Cell>
+    <Cell><Data ss:Type="String">00072028012233390967</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR2202607085512469889</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:22:14</Data></Cell>
+    <Cell><Data ss:Type="String">0593238</Data></Cell>
+    <Cell><Data ss:Type="String">CI01025290132046593238072</Data></Cell>
+    <Cell><Data ss:Type="String">2123206 0593238</Data></Cell>
+    <Cell><Data ss:Type="String">01025290132046593238</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">100000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">20978955.059999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ANA YARALDINE LOPEZ GAXIOLA</Data></Cell>
+    <Cell><Data ss:Type="String">00072740005723467226</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PACIFICO</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512425232</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 11:19:29</Data></Cell>
+    <Cell><Data ss:Type="String">0260708</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">0124224840  058</Data></Cell>
+    <Cell><Data ss:Type="String">FGP047277</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">88057.79</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">20890897.27</Data></Cell>
+    <Cell><Data ss:Type="String">BANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String"> JOSE REFUGIO MARQUEZ CAMACHO</Data></Cell>
+    <Cell><Data ss:Type="String">00058020999850100109</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">abastecedora combustible pacif</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">058-08/07/2026/08-099YVIG278</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:48:57</Data></Cell>
+    <Cell><Data ss:Type="String">0000807</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0124056058  072</Data></Cell>
+    <Cell><Data ss:Type="String">PAGO GASOLINAS GRUPO GARCIA MONTANO SA</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1290487.7</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">19037016.32</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">GRUPO GARCIA MONTANO SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072020005079947877</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512312523</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:42:53</Data></Cell>
+    <Cell><Data ss:Type="String">0194603</Data></Cell>
+    <Cell><Data ss:Type="String">CI01022780168446598238072</Data></Cell>
+    <Cell><Data ss:Type="String">2099456 0194603</Data></Cell>
+    <Cell><Data ss:Type="String">01022780168446598238</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">215458.27</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">18605771.399999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">COMBUSTIBLES Y LUBRICANTES DE LOS MOCHIS</Data></Cell>
+    <Cell><Data ss:Type="String">00072743001575204793</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085512292713</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:41:52</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01027750180346576220062</Data></Cell>
+    <Cell><Data ss:Type="String">2098811 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01027750180346576220</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">251348.85</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">18354422.550000001</Data></Cell>
+    <Cell><Data ss:Type="String">AFIRME</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS ARANDI SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00062730001611176847</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA  DE COMBUSTIBLES EL PA</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">260708104152501086050341173497</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:40:56</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01042890105046573289072</Data></Cell>
+    <Cell><Data ss:Type="String">2098347 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01042890105046573289</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">6998802.0999999996</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">11355620.449999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS LAS SALVIAS SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072744003297709968</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLE DEL PACIFICO</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR1202607085512286514</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:30:58</Data></Cell>
+    <Cell><Data ss:Type="String">0126656</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">0123959693  058</Data></Cell>
+    <Cell><Data ss:Type="String">Pago factura FMT041675</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">5918</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">10999702.449999999</Data></Cell>
+    <Cell><Data ss:Type="String">BANREGIO</Data></Cell>
+    <Cell><Data ss:Type="String">ROLANA EXPORTACIONES S.A. DE C.V.</Data></Cell>
+    <Cell><Data ss:Type="String">00058580569674000122</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">DIESEL PETROIL</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">058-08/07/2026/08-056YVHO765</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:22:27</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI ENVIADO BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0000107840  072</Data></Cell>
+    <Cell><Data ss:Type="String">TRASPASO A BANORTE</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">-40000000</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">49999702.450000003</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA MEXICO</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMB USTIBLES DEL PACIFI</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES</Data></Cell>
+    <Cell><Data ss:Type="String">00072744005029394112</Data></Cell>
+    <Cell><Data ss:Type="String">002601002607080000107840</Data></Cell>
+    <Cell><Data ss:Type="String">LIQUIDADO</Data></Cell>
+    <Cell><Data ss:Type="String"> </Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 10:11:21</Data></Cell>
+    <Cell><Data ss:Type="String">0194913</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023500219846598213002</Data></Cell>
+    <Cell><Data ss:Type="String">2082003 0194913</Data></Cell>
+    <Cell><Data ss:Type="String">01023500219846598213</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">376211</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">49623491.450000003</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS CADIEZ SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00002741001774519248</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">085901391774318966</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 09:33:19</Data></Cell>
+    <Cell><Data ss:Type="String">0080726</Data></Cell>
+    <Cell><Data ss:Type="String">CI01019210031846572204002</Data></Cell>
+    <Cell><Data ss:Type="String">2061651 0080726</Data></Cell>
+    <Cell><Data ss:Type="String">01019210031846572204</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">540440.52</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">48252556.119999997</Data></Cell>
+    <Cell><Data ss:Type="String">BANAMEX</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS COSTA RICA SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00002730044175270905</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">PETROIL</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">085901082984318965</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 09:33:01</Data></Cell>
+    <Cell><Data ss:Type="String">0194937</Data></Cell>
+    <Cell><Data ss:Type="String">CI01023680192746595292072</Data></Cell>
+    <Cell><Data ss:Type="String">2061530 0194937</Data></Cell>
+    <Cell><Data ss:Type="String">01023680192746595292</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">320273.68</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">47932282.439999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">SERVICIOS FALOMIR SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072741010832062713</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">7875APR2202607085512061986</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 09:08:30</Data></Cell>
+    <Cell><Data ss:Type="String">0000001</Data></Cell>
+    <Cell><Data ss:Type="String">CI01015610185246575246072</Data></Cell>
+    <Cell><Data ss:Type="String">2051703 0000001</Data></Cell>
+    <Cell><Data ss:Type="String">01015610185246575246</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">409912.26</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">47087981.32</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">AUTOSERVICIO BIENESTAR SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072743001791447651</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085511995045</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 08:55:21</Data></Cell>
+    <Cell><Data ss:Type="String">1621947</Data></Cell>
+    <Cell><Data ss:Type="String">CI01050000064946573212072</Data></Cell>
+    <Cell><Data ss:Type="String">2046805 1621947</Data></Cell>
+    <Cell><Data ss:Type="String">01050000064946573212</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">402856.13</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">46685125.189999998</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">COMBUSTIBLES Y LUBRICANTES VHC II SA DE</Data></Cell>
+    <Cell><Data ss:Type="String">00072041003255395606</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012914002016219475</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085511965304</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 08:36:00</Data></Cell>
+    <Cell><Data ss:Type="String">0000808</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOBANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">0123416090  072</Data></Cell>
+    <Cell><Data ss:Type="String">01076900007746576281</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">725169.28</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">45959955.909999996</Data></Cell>
+    <Cell><Data ss:Type="String">BANORTE</Data></Cell>
+    <Cell><Data ss:Type="String">PSKL COMBUSTIBLES SA DE CV</Data></Cell>
+    <Cell><Data ss:Type="String">00072744012571660374</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL PACIFIC</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">8846APR2202607085511915922</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">2026-07-08 04:42:40</Data></Cell>
+    <Cell><Data ss:Type="String">2911975</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI RECIBIDOCITI MEXICO</Data></Cell>
+    <Cell><Data ss:Type="String">0123007355  124</Data></Cell>
+    <Cell><Data ss:Type="String">AMEXCO SE 7462911975</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">1044998.32</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">44205826.450000003</Data></Cell>
+    <Cell><Data ss:Type="String">CITI MEXICO</Data></Cell>
+    <Cell><Data ss:Type="String">AMERICAN EXPRESS CO (MEXICO) SA DECV</Data></Cell>
+    <Cell><Data ss:Type="String">00124180002346330665</Data></Cell>
+    <Cell><Data ss:Type="String">BBVA BANCOMER</Data></Cell>
+    <Cell><Data ss:Type="String">ABASTECEDORA DE COMBUSTIBLES DEL</Data></Cell>
+    <Cell><Data ss:Type="String">00012744001006470123</Data></Cell>
+    <Cell><Data ss:Type="String">DE0604878FF12FA5</Data></Cell>
+    <Cell><Data ss:Type="String">ABONADA</Data></Cell>
+    <Cell><Data ss:Type="String">                                     40N</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0"/>
+    <Footer x:Margin="0"/>
+    <PageMargins x:Bottom="0.984251969" x:Left="0.78740157499999996"
+     x:Right="0.78740157499999996" x:Top="0.984251969"/>
+   </PageSetup>
+   <Selected/>
+   <Panes>
+    <Pane>
+     <Number>3</Number>
+     <ActiveCol>6</ActiveCol>
+     <RangeSelection>C7:C8</RangeSelection>
+    </Pane>
+   </Panes>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+ <Worksheet ss:Name="Hoja2">
+  <Table ss:ExpandedColumnCount="1" ss:ExpandedRowCount="1" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="60" ss:DefaultRowHeight="13.2">
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0"/>
+    <Footer x:Margin="0"/>
+    <PageMargins x:Bottom="0.984251969" x:Left="0.78740157499999996"
+     x:Right="0.78740157499999996" x:Top="0.984251969"/>
+   </PageSetup>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+ <Worksheet ss:Name="Hoja3">
+  <Table ss:ExpandedColumnCount="1" ss:ExpandedRowCount="1" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="60" ss:DefaultRowHeight="13.2">
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0"/>
+    <Footer x:Margin="0"/>
+    <PageMargins x:Bottom="0.984251969" x:Left="0.78740157499999996"
+     x:Right="0.78740157499999996" x:Top="0.984251969"/>
+   </PageSetup>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>

@@ -76,6 +76,10 @@ class Movimiento:
     # folio/monto neto. Se captura en SIPP como "Interés Factoraje".
     factoraje_interes: Optional[float] = None
     factoraje_folio_pdf: Optional[str] = None
+    # BBVA: True si el movimiento proviene del archivo de "movimientos externos"
+    # (SPEI de otros bancos). Estos son cobros reales a subir a SIPP, así que NO
+    # se les aplica la exclusión de portal de clientes (CI/CE) del archivo interno.
+    bbva_externo: bool = False
 
     @property
     def identificado(self) -> bool:
