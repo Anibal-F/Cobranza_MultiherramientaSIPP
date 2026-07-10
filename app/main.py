@@ -3595,6 +3595,48 @@ def main(page: ft.Page) -> None:
         on_click=lambda e: page.run_task(exportar_grid_excel, e),
     )
 
+    def _leyenda_item(color, texto: str) -> ft.Control:
+        """Muestra de color (fiel al tinte de la fila) + descripción, para la
+        leyenda de colores del grid."""
+        return ft.Row(
+            [
+                ft.Container(
+                    width=14,
+                    height=14,
+                    bgcolor=color,
+                    border_radius=3,
+                    border=ft.Border.all(1, ft.Colors.with_opacity(0.25, ft.Colors.ON_SURFACE)),
+                ),
+                ft.Text(texto, size=11, color=ft.Colors.ON_SURFACE_VARIANT),
+            ],
+            spacing=6,
+            tight=True,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+    # Los tintes coinciden con color_fila(): mismo hue, un poco más opaco para que
+    # la muestra sea legible fuera de una fila completa.
+    leyenda_colores = ft.Row(
+        [
+            ft.Text("Colores:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+            _leyenda_item(
+                ft.Colors.with_opacity(0.30, ft.Colors.RED),
+                "Excluido del RPA (traspaso a filiales / portal BBVA)",
+            ),
+            _leyenda_item(
+                ft.Colors.with_opacity(0.30, ft.Colors.AMBER),
+                "Folio pendiente de buscar en SIPP",
+            ),
+            _leyenda_item(
+                ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE),
+                "Ya subido a SIPP (corte anterior, no se re-sube)",
+            ),
+        ],
+        spacing=20,
+        wrap=True,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
     contenido_conciliacion = ft.Container(
         content=ft.Column(
             [
@@ -3604,6 +3646,7 @@ def main(page: ft.Page) -> None:
                     spacing=16,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
+                leyenda_colores,
                 ft.Container(content=tabla_contenedor, expand=True),
             ],
             spacing=12,
