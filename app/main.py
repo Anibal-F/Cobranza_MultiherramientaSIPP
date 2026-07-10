@@ -14,7 +14,7 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas_cuentas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
-from .dashboard_cobranza import construir_tab_dashboard
+from .dashboard import construir_tab_dashboard
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from .historial import (
     cargar_historial,
