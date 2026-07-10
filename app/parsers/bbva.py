@@ -1,16 +1,27 @@
 """Parser del estado de cuenta de BBVA.
 
-El archivo llega con extensión .xls pero NO es un Excel binario (BIFF): es
-**SpreadsheetML** (XML de Excel 2003, `<?mso-application progid="Excel.Sheet"?>`).
-openpyxl no lo lee; se parsea con xml.etree (nativo).
+BBVA descarga los movimientos en DOS archivos distintos (banca en línea), ambos
+en formato **SpreadsheetML** (XML de Excel 2003, `<?mso-application
+progid="Excel.Sheet"?>`) con extensión .xls. openpyxl no los lee; se parsean con
+xml.etree (nativo).
 
-La hoja trae una fila 'Cuenta | <número>', luego el encabezado:
-    Fecha Operación | Concepto | Referencia | Referencia Ampliada | Cargo | Abono | Saldo
-y después los movimientos. Se procesan solo los ABONOS (cobros).
+1. Layout INTERNO ("movimientos del mismo banco"): pagos/transferencias hechas
+   desde otra cuenta BBVA. Encabezado:
+       Fecha Operación | Concepto | Referencia | Referencia Ampliada | Cargo | Abono | Saldo
+
+2. Layout EXTERNO ("movimientos de otros bancos"): SPEI recibidos de bancos que
+   NO son BBVA. Encabezado (columnas SPEI):
+       Fecha | Referencia numerica | Concepto de codigo de leyenda | Referencia |
+       Concepto de pago | Importe | Saldo | Banco ordenante | Nombre ordenante |
+       Cuenta ordenante | Banco beneficiario | Nombre beneficiario |
+       Cuenta beneficiario | Clave de rastreo | Estado del pago | Motivo de devolucion
+
+En ambos se procesan solo los ABONOS/importes positivos (cobros); cargos,
+comisiones y SPEI enviados (importe negativo) se ignoran.
 """
 
 import xml.etree.ElementTree as ET
-from datetime import date, datetime
+from datetime import datetime
 
 from ..models import Movimiento
 from ..textutils import normalizar
@@ -18,9 +29,17 @@ from ..textutils import normalizar
 BANCO = "BBVA"
 _NS = "urn:schemas-microsoft-com:office:spreadsheet"
 
-# Marcadores del encabezado (normalizados). Identifican la tabla y distinguen el
-# archivo de BBVA de otros .xls/.xml.
-_HEADERS_TABLA = {"FECHA OPERACION", "CONCEPTO", "ABONO"}
+# Etiquetas de los dos layouts, para que la UI pueda ofrecer subir el archivo
+# complementario ("se detectó el interno, ¿desea subir el externo?").
+LAYOUT_INTERNO = "interno"
+LAYOUT_EXTERNO = "externo"
+
+# Marcadores del encabezado (normalizados) que identifican la tabla y distinguen
+# cada layout de BBVA de otros .xls/.xml. Los dos conjuntos son disjuntos: el
+# interno tiene 'FECHA OPERACION'/'ABONO'; el externo tiene 'IMPORTE'/'CUENTA
+# ORDENANTE', que el interno no trae.
+_HEADERS_INTERNO = {"FECHA OPERACION", "CONCEPTO", "ABONO"}
+_HEADERS_EXTERNO = {"FECHA", "IMPORTE", "CUENTA ORDENANTE"}
 
 
 def _q(tag: str) -> str:
@@ -43,6 +62,8 @@ def _monto(valor) -> float:
 
 
 def _fecha(valor):
+    """Ambos layouts traen la fecha como 'YYYY-MM-DD' (el externo con hora:
+    'YYYY-MM-DD HH:MM:SS'); se toman los primeros 10 caracteres."""
     if not valor:
         return None
     texto = str(valor).strip()[:10]
@@ -77,37 +98,54 @@ def _filas(path: str) -> list[list]:
     return filas
 
 
-def _buscar_encabezado(filas: list[list]) -> int | None:
+def _detectar_layout(filas: list[list]) -> tuple[str | None, int | None]:
+    """Devuelve (layout, índice de la fila de encabezado) o (None, None)."""
     for i, fila in enumerate(filas):
         claves = {_key(v) for v in fila if v is not None}
-        if _HEADERS_TABLA.issubset(claves):
-            return i
-    return None
+        if _HEADERS_INTERNO.issubset(claves):
+            return LAYOUT_INTERNO, i
+        if _HEADERS_EXTERNO.issubset(claves):
+            return LAYOUT_EXTERNO, i
+    return None, None
+
+
+def layout(path: str) -> str | None:
+    """Etiqueta del layout de BBVA del archivo (LAYOUT_INTERNO/LAYOUT_EXTERNO) o
+    None si no es un archivo de BBVA. Lo usa la UI para ofrecer el complemento."""
+    try:
+        return _detectar_layout(_filas(path))[0]
+    except Exception:
+        return None
 
 
 def detect(path: str) -> bool:
     if not path.lower().endswith((".xls", ".xml")):
         return False
     try:
-        return _buscar_encabezado(_filas(path)) is not None
+        return _detectar_layout(_filas(path))[0] is not None
     except Exception:
         return False
 
 
-def parse(path: str) -> list[Movimiento]:
-    filas = _filas(path)
-    enc = _buscar_encabezado(filas)
-    if enc is None:
-        return []
-
-    encabezados = [_key(v) for v in filas[enc]]
-
+def _columna(encabezados: list[str]):
     def col(nombre: str) -> int | None:
         try:
             return encabezados.index(nombre)
         except ValueError:
             return None
 
+    return col
+
+
+def _celda(fila: list, i: int | None) -> str:
+    if i is None or i >= len(fila) or fila[i] is None:
+        return ""
+    return str(fila[i]).strip()
+
+
+def _parse_interno(filas: list[list], enc: int) -> list[Movimiento]:
+    encabezados = [_key(v) for v in filas[enc]]
+    col = _columna(encabezados)
     c_fecha = col("FECHA OPERACION")
     c_concepto = col("CONCEPTO")
     c_ref = col("REFERENCIA")
@@ -116,20 +154,15 @@ def parse(path: str) -> list[Movimiento]:
     c_abono = col("ABONO")
     c_saldo = col("SALDO")
 
-    def g(fila: list, i: int | None) -> str:
-        if i is None or i >= len(fila) or fila[i] is None:
-            return ""
-        return str(fila[i]).strip()
-
     movimientos: list[Movimiento] = []
     for fila in filas[enc + 1:]:
-        abono = _monto(g(fila, c_abono))
+        abono = _monto(_celda(fila, c_abono))
         if abono <= 0:
             continue  # solo cobros (abonos); cargos/comisiones se ignoran
 
-        concepto = g(fila, c_concepto)
-        ampliada = g(fila, c_amp)
-        referencia = g(fila, c_ref)
+        concepto = _celda(fila, c_concepto)
+        ampliada = _celda(fila, c_amp)
+        referencia = _celda(fila, c_ref)
         descripcion = " ".join(x for x in (concepto, ampliada) if x)
 
         # Compensaciones por desfase de SPEI: ajustes internos, no cobros.
@@ -139,16 +172,85 @@ def parse(path: str) -> list[Movimiento]:
         movimientos.append(
             Movimiento(
                 banco=BANCO,
-                fecha=_fecha(g(fila, c_fecha)),
+                fecha=_fecha(_celda(fila, c_fecha)),
                 descripcion=descripcion,
                 referencia=referencia,
                 concepto=concepto,
-                cargo=_monto(g(fila, c_cargo)),
+                cargo=_monto(_celda(fila, c_cargo)),
                 abono=abono,
-                saldo=_monto(g(fila, c_saldo)) or None,
+                saldo=_monto(_celda(fila, c_saldo)) or None,
                 # Concepto + Referencia (cuenta ordenante) + Referencia Ampliada
                 # (folios FMZ/FLM, banco, etc.) para el match por cuenta/folio.
                 texto_busqueda=" ".join(x for x in (concepto, referencia, ampliada) if x),
             )
         )
     return movimientos
+
+
+def _parse_externo(filas: list[list], enc: int) -> list[Movimiento]:
+    encabezados = [_key(v) for v in filas[enc]]
+    col = _columna(encabezados)
+    c_fecha = col("FECHA")
+    c_leyenda = col("CONCEPTO DE CODIGO DE LEYENDA")
+    c_ref = col("REFERENCIA")
+    c_conc_pago = col("CONCEPTO DE PAGO")
+    c_importe = col("IMPORTE")
+    c_saldo = col("SALDO")
+    c_banco_ord = col("BANCO ORDENANTE")
+    c_nombre_ord = col("NOMBRE ORDENANTE")
+    c_cuenta_ord = col("CUENTA ORDENANTE")
+    c_clave = col("CLAVE DE RASTREO")
+
+    movimientos: list[Movimiento] = []
+    for fila in filas[enc + 1:]:
+        # Solo abonos: el importe negativo son SPEI ENVIADOS (traspasos de salida).
+        importe = _monto(_celda(fila, c_importe))
+        if importe <= 0:
+            continue
+
+        leyenda = _celda(fila, c_leyenda)
+        concepto_pago = _celda(fila, c_conc_pago)
+        nombre_ord = _celda(fila, c_nombre_ord)
+        cuenta_ord = _celda(fila, c_cuenta_ord)
+        banco_ord = _celda(fila, c_banco_ord)
+        clave = _celda(fila, c_clave)
+
+        # Concepto = leyenda ("SPEI RECIBIDO BANORTE") + concepto de pago (lo que
+        # teclea el cliente: "F 125539", "CLN-009 La Paz"), para que la
+        # identificación por folio (FLM/FMZ) tenga todo el texto disponible.
+        concepto = " ".join(x for x in (leyenda, concepto_pago) if x)
+        descripcion = " ".join(x for x in (leyenda, nombre_ord, concepto_pago) if x)
+
+        movimientos.append(
+            Movimiento(
+                banco=BANCO,
+                fecha=_fecha(_celda(fila, c_fecha)),
+                # La clave de rastreo es el identificador SPEI estable (único por
+                # transacción); es lo que el buzón H2H de SIPP muestra para los
+                # movimientos interbancarios, así que se usa como referencia para
+                # emparejar en la previsualización.
+                referencia=clave,
+                descripcion=descripcion,
+                concepto=concepto,
+                cargo=0.0,
+                abono=importe,
+                saldo=_monto(_celda(fila, c_saldo)) or None,
+                # Cuenta ordenante (CLABE 18) + nombre + banco ordenante + folios
+                # + clave de rastreo → match por cuenta/folio/nombre.
+                texto_busqueda=" ".join(
+                    x for x in (concepto, cuenta_ord, nombre_ord, banco_ord, clave) if x
+                ),
+                bbva_externo=True,
+            )
+        )
+    return movimientos
+
+
+def parse(path: str) -> list[Movimiento]:
+    filas = _filas(path)
+    tipo, enc = _detectar_layout(filas)
+    if tipo == LAYOUT_INTERNO:
+        return _parse_interno(filas, enc)
+    if tipo == LAYOUT_EXTERNO:
+        return _parse_externo(filas, enc)
+    return []

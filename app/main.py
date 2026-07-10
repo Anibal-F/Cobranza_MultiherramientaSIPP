@@ -40,7 +40,7 @@ from .ingresos_diversos import (
 from .factoraje import extraer_factoraje
 from .mailbox_o365 import CorreoResumen, descargar_adjuntos, listar_correos, obtener_cuenta, obtener_cuerpo
 from .pagos_contado import PagoContadoExtraido, completar_con_adjunto, extraer_pago_contado
-from .parsers import detectar_banco, parsear_archivo
+from .parsers import bbva, detectar_banco, parsear_archivo
 from .rpa_folios import buscar_y_aplicar_folios, extraer_folio, extraer_folios_pendientes
 
 EXTENSIONES_IMAGEN = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
@@ -90,6 +90,10 @@ def es_movimiento_portal_cliente(m: Movimiento) -> bool:
     portal de clientes y YA están capturados en SIPP; subirlos por el RPA los
     duplicaría, así que se excluyen (como los traspasos)."""
     if (m.banco or "").upper() != "BBVA":
+        return False
+    # El archivo de movimientos EXTERNOS son cobros SPEI de otros bancos (no del
+    # portal BBVA): no se excluyen aunque su leyenda traiga códigos "CI...".
+    if getattr(m, "bbva_externo", False):
         return False
     texto = (m.concepto or m.descripcion or "").strip().upper()
     return bool(re.match(r"^(CI|CE)\d", texto))
@@ -1255,18 +1259,31 @@ def main(page: ft.Page) -> None:
         _rellenar_lista_historial()
         mostrar_dialogo(dialogo_historial)
 
-    def procesar_csv_path(ruta_temporal: str, nombre_archivo: Optional[str] = None) -> None:
+    def procesar_csv_path(
+        ruta_temporal: str, nombre_archivo: Optional[str] = None, agregar: bool = False
+    ) -> None:
         """Detecta el banco, parsea y matchea el CSV en ruta_temporal, actualizando
         movimientos/catálogo/estado. Reutilizado por la carga manual de archivo y
         por la descarga de adjuntos del buzón O365. Si el archivo es válido, se
         conserva su ruta (ultima_ruta_csv) para poder volver a subirlo en SIPP
-        (Ingresos Diversos) sin que el usuario tenga que volver a elegirlo."""
+        (Ingresos Diversos) sin que el usuario tenga que volver a elegirlo.
+
+        Con `agregar=True` NO reemplaza la extracción actual: parsea el archivo y
+        anexa sus movimientos a los ya cargados (BBVA descarga los movimientos en
+        dos archivos —internos/externos— que se unifican en un solo grid), volviendo
+        a correr el match y la deduplicación sobre la lista combinada."""
         nonlocal movimientos
         estado_text.value = "Procesando..."
         page.update()
         try:
             banco = detectar_banco(ruta_temporal)
             if banco is None:
+                if agregar:
+                    estado_text.value = (
+                        "El archivo adicional no se reconoció; se conserva la extracción actual."
+                    )
+                    page.update()
+                    return
                 estado_text.value = "No se reconoció el formato del archivo (se esperaba Santander o BanRegio)."
                 banco_detectado_text.value = ""
                 movimientos = []
@@ -1275,8 +1292,13 @@ def main(page: ft.Page) -> None:
                 page.update()
                 return
 
-            banco_detectado_text.value = f"Banco detectado: {banco}"
-            movimientos = parsear_archivo(ruta_temporal, banco)
+            movs_nuevos = parsear_archivo(ruta_temporal, banco)
+            if agregar:
+                # BBVA: unificar internos + externos en un solo grid.
+                movimientos = movimientos + movs_nuevos
+            else:
+                banco_detectado_text.value = f"Banco detectado: {banco}"
+                movimientos = movs_nuevos
             match_movimientos(movimientos, catalogo)
 
             propuestas = match_movimientos_por_nombre(movimientos, clientes_normalizados)
@@ -1285,8 +1307,10 @@ def main(page: ft.Page) -> None:
             catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
 
             # Nueva extracción: deduplicar contra extracciones previas del mismo
-            # banco (cortes acumulativos) para no re-procesar/duplicar.
-            historial_id_actual[0] = None
+            # banco (cortes acumulativos) para no re-procesar/duplicar. Al AGREGAR
+            # el archivo complementario se conserva el mismo registro de historial.
+            if not agregar:
+                historial_id_actual[0] = None
             ya_subidos = marcar_movimientos_ya_subidos()
 
             # Movimientos que NO deben subirse por el RPA (se excluyen y van en rojo):
@@ -1304,7 +1328,13 @@ def main(page: ft.Page) -> None:
 
             identificados_por_nombre = sum(1 for m in movimientos if m.identificado_por_nombre)
             nuevos = len(movimientos) - ya_subidos
-            mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
+            if agregar:
+                mensaje = (
+                    f"Archivo adicional unificado: {len(movs_nuevos)} movimiento(s) agregado(s). "
+                    f"Total en el grid: {len(movimientos)}."
+                )
+            else:
+                mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
             if ya_subidos:
                 mensaje += f" {ya_subidos} ya venían en un corte anterior (en gris, no se re-suben); {nuevos} nuevos."
             if traspasos:
@@ -1316,12 +1346,22 @@ def main(page: ft.Page) -> None:
             if agregadas:
                 mensaje += f" Se agregaron {len(agregadas)} cuenta(s) nueva(s) al catálogo."
             estado_text.value = mensaje
-            ultima_ruta_csv[0] = ruta_temporal
-            historial_archivo_actual[0] = nombre_archivo or os.path.basename(ruta_temporal)
-            historial_guardar_snapshot(nuevo=True)
+            if agregar:
+                # Conservar la ruta del primer archivo; sumar el nombre del segundo.
+                base_nombre = historial_archivo_actual[0] or ""
+                nuevo_nombre = nombre_archivo or os.path.basename(ruta_temporal)
+                historial_archivo_actual[0] = (
+                    f"{base_nombre} + {nuevo_nombre}" if base_nombre else nuevo_nombre
+                )
+                historial_guardar_snapshot(nuevo=False)
+            else:
+                ultima_ruta_csv[0] = ruta_temporal
+                historial_archivo_actual[0] = nombre_archivo or os.path.basename(ruta_temporal)
+                historial_guardar_snapshot(nuevo=True)
         except Exception as ex:
             estado_text.value = f"Error al procesar el archivo: {ex}"
-            movimientos = []
+            if not agregar:
+                movimientos = []
 
         # El estado de cuenta solo tiene sentido con un CSV ya cargado.
         boton_cargar_estado_cuenta.disabled = not movimientos
@@ -1329,6 +1369,86 @@ def main(page: ft.Page) -> None:
         refrescar_tabla()
 
     file_picker = ft.FilePicker()
+
+    # Layout de BBVA del archivo cargado (interno/externo), para ofrecer subir el
+    # complementario una sola vez y validar que el segundo sea el opuesto.
+    bbva_layout_actual: list[Optional[str]] = [None]
+
+    def _volcar_a_temporal(archivo) -> str:
+        """Vuelca los bytes del archivo elegido a un temporal, conservando la
+        extensión original (.csv, .xlsx de BanBajío, .xls de BBVA) para que la
+        detección de banco y la subida a SIPP reciban el formato correcto. En modo
+        web la API solo entrega los bytes (path es None), por eso el volcado."""
+        nombre_lower = archivo.name.lower()
+        if nombre_lower.endswith(".xlsx"):
+            sufijo = ".xlsx"
+        elif nombre_lower.endswith(".xls"):
+            sufijo = ".xls"
+        else:
+            sufijo = ".csv"
+        with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
+            tmp.write(archivo.bytes or b"")
+            return tmp.name
+
+    _BBVA_LAYOUT_DESC = {
+        bbva.LAYOUT_INTERNO: "movimientos internos (mismo banco BBVA)",
+        bbva.LAYOUT_EXTERNO: "movimientos externos (otros bancos)",
+    }
+
+    async def on_agregar_complemento_bbva(_e) -> None:
+        page.pop_dialog()
+        archivos = await file_picker.pick_files(
+            file_type=ft.FilePickerFileType.CUSTOM,
+            allowed_extensions=["xls", "xml"],
+            allow_multiple=False,
+            with_data=True,
+        )
+        if not archivos:
+            return
+        archivo = archivos[0]
+        ruta_temporal = _volcar_a_temporal(archivo)
+        layout_nuevo = bbva.layout(ruta_temporal)
+        if layout_nuevo is None:
+            estado_text.value = "El archivo adicional no es un archivo de BBVA; no se agregó."
+            os.unlink(ruta_temporal)
+            page.update()
+            return
+        if layout_nuevo == bbva_layout_actual[0]:
+            estado_text.value = (
+                f"El archivo adicional es del MISMO tipo que el ya cargado "
+                f"({_BBVA_LAYOUT_DESC.get(layout_nuevo, layout_nuevo)}); elige el complementario."
+            )
+            os.unlink(ruta_temporal)
+            page.update()
+            return
+        procesar_csv_path(ruta_temporal, nombre_archivo=archivo.name, agregar=True)
+        # Ya se unificaron ambos; se limpia el marcador para no volver a ofrecer.
+        bbva_layout_actual[0] = None
+
+    dialogo_complemento_bbva = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Unificar archivos de BBVA"),
+        content=ft.Text("", width=460),
+        actions=[
+            ft.TextButton("No, continuar", on_click=lambda _e: page.pop_dialog()),
+            ft.FilledButton("Sí, agregar", on_click=on_agregar_complemento_bbva),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    def ofrecer_complemento_bbva(layout_actual: Optional[str]) -> None:
+        """Si el archivo recién cargado es de BBVA, ofrece agregar el archivo
+        complementario (interno↔externo) para unificar ambos en un solo grid."""
+        bbva_layout_actual[0] = layout_actual
+        if layout_actual not in _BBVA_LAYOUT_DESC:
+            return
+        otro = bbva.LAYOUT_EXTERNO if layout_actual == bbva.LAYOUT_INTERNO else bbva.LAYOUT_INTERNO
+        dialogo_complemento_bbva.content.value = (
+            f"Se detectó el archivo de {_BBVA_LAYOUT_DESC[layout_actual]} de BBVA.\n\n"
+            f"Para unificar la conciliación, ¿desea agregar el archivo de "
+            f"{_BBVA_LAYOUT_DESC[otro]}?"
+        )
+        mostrar_dialogo(dialogo_complemento_bbva)
 
     async def on_click_cargar(_e) -> None:
         archivos = await file_picker.pick_files(
@@ -1345,26 +1465,19 @@ def main(page: ft.Page) -> None:
         archivo_nombre_text.color = ft.Colors.ON_SURFACE
         page.update()
 
-        # En modo web la API solo entrega los bytes del archivo (path es None);
-        # se vuelca a un temporal para reutilizar los parsers basados en path.
-        # No se borra al terminar: se conserva para poder subirlo también a
+        # Se conserva el temporal al terminar: sirve para volver a subirlo a
         # "Ingresos Diversos" en SIPP (ver ultima_ruta_csv).
         if ultima_ruta_csv[0] and os.path.exists(ultima_ruta_csv[0]):
             os.unlink(ultima_ruta_csv[0])
-        # Conservar la extensión original (.csv, .xlsx de BanBajío, .xls de BBVA)
-        # para que la detección de banco y la subida a SIPP reciban el formato
-        # correcto.
-        nombre_lower = archivo.name.lower()
-        if nombre_lower.endswith(".xlsx"):
-            sufijo = ".xlsx"
-        elif nombre_lower.endswith(".xls"):
-            sufijo = ".xls"
-        else:
-            sufijo = ".csv"
-        with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
-            tmp.write(archivo.bytes or b"")
-            ruta_temporal = tmp.name
+        ruta_temporal = _volcar_a_temporal(archivo)
         procesar_csv_path(ruta_temporal, nombre_archivo=archivo.name)
+
+        # BBVA parte los movimientos en dos archivos (internos/externos): si se
+        # cargó uno válido, ofrecer unificar con el complementario.
+        if movimientos:
+            ofrecer_complemento_bbva(bbva.layout(ruta_temporal))
+        else:
+            bbva_layout_actual[0] = None
 
     boton_cargar = ft.Button(
         "Cargar archivo bancario (.csv)",
@@ -3482,6 +3595,48 @@ def main(page: ft.Page) -> None:
         on_click=lambda e: page.run_task(exportar_grid_excel, e),
     )
 
+    def _leyenda_item(color, texto: str) -> ft.Control:
+        """Muestra de color (fiel al tinte de la fila) + descripción, para la
+        leyenda de colores del grid."""
+        return ft.Row(
+            [
+                ft.Container(
+                    width=14,
+                    height=14,
+                    bgcolor=color,
+                    border_radius=3,
+                    border=ft.Border.all(1, ft.Colors.with_opacity(0.25, ft.Colors.ON_SURFACE)),
+                ),
+                ft.Text(texto, size=11, color=ft.Colors.ON_SURFACE_VARIANT),
+            ],
+            spacing=6,
+            tight=True,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+    # Los tintes coinciden con color_fila(): mismo hue, un poco más opaco para que
+    # la muestra sea legible fuera de una fila completa.
+    leyenda_colores = ft.Row(
+        [
+            ft.Text("Colores:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+            _leyenda_item(
+                ft.Colors.with_opacity(0.30, ft.Colors.RED),
+                "Excluido del RPA (traspaso a filiales / portal BBVA)",
+            ),
+            _leyenda_item(
+                ft.Colors.with_opacity(0.30, ft.Colors.AMBER),
+                "Folio pendiente de buscar en SIPP",
+            ),
+            _leyenda_item(
+                ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE),
+                "Ya subido a SIPP (corte anterior, no se re-sube)",
+            ),
+        ],
+        spacing=20,
+        wrap=True,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
     contenido_conciliacion = ft.Container(
         content=ft.Column(
             [
@@ -3491,6 +3646,7 @@ def main(page: ft.Page) -> None:
                     spacing=16,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
+                leyenda_colores,
                 ft.Container(content=tabla_contenedor, expand=True),
             ],
             spacing=12,
