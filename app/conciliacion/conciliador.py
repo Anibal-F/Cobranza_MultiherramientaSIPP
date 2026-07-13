@@ -74,4 +74,20 @@ def conciliar(
         solo_banco=solo_banco,
         solo_sistema=solo_sistema,
         devoluciones_cheque=devoluciones,
+        posibles_repetidos_sistema=_posibles_repetidos(mov_sistema),
     )
+
+
+def _posibles_repetidos(sistema: list[MovimientoConciliacion]) -> list[MovimientoConciliacion]:
+    """Movimientos del sistema que se repiten entre sí: misma referencia,
+    descripción, importe Y misma fecha (mismo día). Devuelve TODOS los miembros de
+    cada grupo con 2+ movimientos (para revisarlos como posibles duplicados)."""
+    grupos: dict[tuple, list[MovimientoConciliacion]] = defaultdict(list)
+    for s in sistema:
+        clave = (normalizar(s.referencia), normalizar(s.descripcion), round(s.importe, 2), s.fecha)
+        grupos[clave].append(s)
+    repetidos: list[MovimientoConciliacion] = []
+    for miembros in grupos.values():
+        if len(miembros) >= 2:
+            repetidos.extend(miembros)
+    return repetidos
