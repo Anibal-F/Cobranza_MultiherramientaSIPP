@@ -16,6 +16,7 @@ from .clientes import cargar_clientes, preparar_clientes_normalizados
 from .conciliacion.vista import construir_tab_conciliaciones
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
 from .dashboard import construir_tab_dashboard
+from .rdc import construir_tab_rdc
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from .historial import (
     cargar_historial,
@@ -3688,9 +3689,10 @@ def main(page: ft.Page) -> None:
 
     tab_dashboard, contenido_dashboard = construir_tab_dashboard(page)
     tab_conciliaciones, contenido_conciliaciones = construir_tab_conciliaciones(page)
+    tab_rdc, contenido_rdc = construir_tab_rdc(page)
 
     tabs = ft.Tabs(
-        length=5,
+        length=6,
         selected_index=0,
         expand=True,
         on_change=on_tabs_change,
@@ -3704,11 +3706,12 @@ def main(page: ft.Page) -> None:
                         ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
                         tab_dashboard,
                         tab_conciliaciones,
+                        tab_rdc,
                     ],
                 ),
                 ft.TabBarView(
                     expand=True,
-                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard, contenido_conciliaciones],
+                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard, contenido_conciliaciones, contenido_rdc],
                 ),
             ],
         ),

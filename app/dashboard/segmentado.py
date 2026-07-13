@@ -14,9 +14,12 @@ from .componentes import (
     construir_donut,
     construir_ranked_list,
     construir_tabla,
+    escribir_hoja_excel,
     estado_vacio,
+    guardar_workbook,
     hero_tile,
     mostrar_dialogo,
+    nombre_hoja_valido,
 )
 from .consultas import (
     consultar_no_identificado,
@@ -139,6 +142,10 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     estado_text = ft.Text("", size=12, color=ft.Colors.RED_600)
     progress = ft.ProgressRing(width=16, height=16, visible=False, stroke_width=2)
 
+    # En Flet 0.85 el FilePicker es un servicio: se crea y se usa directamente
+    # (NO se agrega a page.overlay; hacerlo provoca "Unknown control: FilePicker").
+    file_picker = ft.FilePicker()
+
     # Banda superior de KPIs (hero) y grid de secciones. ResponsiveRow reparte el
     # ancho disponible en columnas (col por hijo) → los componentes se
     # redimensionan para ocupar TODO el ancho de la ventana.
@@ -195,9 +202,54 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
 
         progress.visible = False
         boton_rango.disabled = False
+        boton_exportar.disabled = False
         cuerpo.opacity = 1.0
         if any(isinstance(r, Exception) for r in resultados):
             estado_text.value = "Algunas secciones no se pudieron consultar (ver detalle en cada tarjeta)."
+        page.update()
+
+    async def exportar_excel(_e) -> None:
+        """Descarga un Excel con una hoja 'Resumen' (KPIs del periodo) + una
+        hoja por sección (Empresa, Tipo de negocio, Sucursal, Sucursal
+        Gasolineras, Otras empresas), con los mismos filtros que ya aplica
+        esta vista (Asociados/Distribuidora, excluye pagos entre filiales,
+        GAS/Autotanque/sin sucursal — ver botón ⓘ)."""
+        boton_exportar.disabled = True
+        page.update()
+
+        fecha_inicio, fecha_fin = rango_sel[0]
+        *resultados_secciones, total_no_identificado = resultados_actuales[0]
+
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        ws_resumen = wb.active
+        ws_resumen.title = "Resumen"
+        res_empresa = resultados_secciones[0] if resultados_secciones else []
+        res_gas = resultados_secciones[3] if len(resultados_secciones) > 3 else []
+        escribir_hoja_excel(
+            ws_resumen,
+            ["Indicador", "Total"],
+            [
+                ["Periodo", f"{fecha_inicio.strftime('%d/%m/%Y')} – {fecha_fin.strftime('%d/%m/%Y')}"],
+                ["Ingresos identificados", round(_total_seguro(res_empresa), 2)],
+                ["Gaseras", round(_total_seguro(res_gas), 2)],
+                ["Sin identificar", round(total_no_identificado if isinstance(total_no_identificado, (int, float)) else 0, 2)],
+            ],
+        )
+
+        usados: set = {"Resumen"}
+        for (titulo_s, _subtitulo_s, _consulta, _vista), resultado in zip(_SECCIONES, resultados_secciones):
+            ws = wb.create_sheet(nombre_hoja_valido(titulo_s, usados))
+            if isinstance(resultado, Exception):
+                escribir_hoja_excel(ws, ["Error"], [[f"No se pudo consultar: {resultado}"]])
+            else:
+                escribir_hoja_excel(ws, ["Categoría", "Total"], [[et, round(val, 2)] for et, val in resultado])
+
+        nombre_def = f"dashboard_segmentado_{fecha_inicio:%Y%m%d}_{fecha_fin:%Y%m%d}.xlsx"
+        ok, mensaje = await guardar_workbook(page, file_picker, wb, nombre_def)
+        boton_exportar.disabled = False
+        estado_text.value = mensaje
         page.update()
 
     def on_cambiar_rango(e) -> None:
@@ -292,8 +344,16 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
         on_click=_abrir_info,
     )
 
+    boton_exportar = ft.IconButton(
+        icon=ft.Icons.DOWNLOAD,
+        icon_size=18,
+        tooltip="Descargar Excel (resumen + una hoja por sección)",
+        disabled=True,
+        on_click=lambda e: page.run_task(exportar_excel, e),
+    )
+
     barra_herramientas = ft.Row(
-        [boton_rango, progress, estado_text, ft.Container(expand=True), boton_info, boton_vista],
+        [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info, boton_vista],
         spacing=12,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
