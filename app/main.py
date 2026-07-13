@@ -13,6 +13,7 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 
 from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas_cuentas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
+from .conciliacion.vista import construir_tab_conciliaciones
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
 from .dashboard import construir_tab_dashboard
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
@@ -204,6 +205,12 @@ def main(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.LIGHT
     page.theme = ft.Theme(color_scheme_seed=NAVY, use_material3=True)
     page.dark_theme = ft.Theme(color_scheme_seed=NAVY, use_material3=True)
+    # Español (México) para los componentes nativos como el selector de fechas
+    # (nombres de meses, días y botones del diálogo del DateRangePicker).
+    page.locale_configuration = ft.LocaleConfiguration(
+        supported_locales=[ft.Locale("es", "MX"), ft.Locale("en", "US")],
+        current_locale=ft.Locale("es", "MX"),
+    )
 
     def mostrar_dialogo(dialogo: ft.AlertDialog) -> None:
         """Muestra el diálogo de forma idempotente y a prueba de estados colgados.
@@ -3660,9 +3667,10 @@ def main(page: ft.Page) -> None:
             page.run_task(actualizar_bandeja_o365)
 
     tab_dashboard, contenido_dashboard = construir_tab_dashboard(page)
+    tab_conciliaciones, contenido_conciliaciones = construir_tab_conciliaciones(page)
 
     tabs = ft.Tabs(
-        length=4,
+        length=5,
         selected_index=0,
         expand=True,
         on_change=on_tabs_change,
@@ -3675,11 +3683,12 @@ def main(page: ft.Page) -> None:
                         ft.Tab(label="Extracción de Contados", icon=ft.Icons.MAIL_OUTLINE),
                         ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
                         tab_dashboard,
+                        tab_conciliaciones,
                     ],
                 ),
                 ft.TabBarView(
                     expand=True,
-                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard],
+                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard, contenido_conciliaciones],
                 ),
             ],
         ),
