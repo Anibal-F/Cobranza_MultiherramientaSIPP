@@ -24,13 +24,16 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 
 from .componentes import (
     construir_timeline,
+    escribir_hoja_excel,
     estado_vacio,
+    guardar_workbook,
     mostrar_dialogo,
     placeholder_carga,
 )
 from .consultas import (
     LIMITE_FILAS_DETALLE,
     consultar_catalogo,
+    consultar_detalle_completo_periodo,
     consultar_detalle_movimientos,
     consultar_serie_temporal,
 )
@@ -60,6 +63,10 @@ class Explorador:
 
     def __init__(self, page: ft.Page):
         self.page = page
+        # En Flet 0.85 el FilePicker es un servicio: se crea y se usa
+        # directamente (NO se agrega a page.overlay; hacerlo provoca "Unknown
+        # control: FilePicker").
+        self.file_picker = ft.FilePicker()
         hoy = date.today()
         # --- Filtros compartidos por Timeline y Detalle ---
         self.rango: tuple[date, date] = (hoy.replace(day=1), hoy)
@@ -330,6 +337,19 @@ class Explorador:
         self.periodo = e.control.selected[0] if e.control.selected else "mensual"
         self._recargar()  # la agrupación (mes/semana) vive en la query
 
+    def _etiqueta_periodo_excel(self, periodo: date) -> str:
+        return periodo.strftime("%b %Y") if self.periodo == "mensual" else f"Sem {periodo.strftime('%d %b %Y')}"
+
+    def _texto_filtros_activos(self) -> str:
+        fi, ff = self.rango
+        return (
+            f"Rango: {fi.strftime('%d/%m/%Y')} - {ff.strftime('%d/%m/%Y')} | "
+            f"Empresa: {', '.join(self.empresas) if self.empresas else 'todas'} | "
+            f"Sucursal: {', '.join(self.sucursales) if self.sucursales else 'todas'} | "
+            f"Tipo de negocio: {', '.join(self.tipos_negocio) if self.tipos_negocio else 'todos'} | "
+            f"Filial: {ETIQUETAS_FILIAL[self.filial]}"
+        )
+
     def _panel_timeline(self) -> ft.Control:
         selector_periodo = ft.SegmentedButton(
             segments=[
@@ -343,6 +363,43 @@ class Explorador:
             cuerpo = placeholder_carga()
         else:
             cuerpo = construir_timeline(self.serie, self._dark(), self.periodo)
+
+        estado_exportar = ft.Text("", size=11, color=ft.Colors.ON_SURFACE_VARIANT)
+
+        async def _exportar(_e) -> None:
+            boton_exportar.disabled = True
+            estado_exportar.value = "Generando Excel…"
+            self.page.update()
+
+            import openpyxl
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Timeline"
+            escribir_hoja_excel(
+                ws,
+                ["Periodo", "Total"],
+                [[self._etiqueta_periodo_excel(periodo), round(total, 2)] for periodo, total in self.serie],
+                fila_inicio=3,
+            )
+            ws.cell(row=1, column=1, value=self._texto_filtros_activos())
+            ws.cell(row=2, column=1, value=f"Agrupación: {'mensual' if self.periodo == 'mensual' else 'semanal'}")
+
+            fi, ff = self.rango
+            nombre_def = f"dashboard_timeline_{fi:%Y%m%d}_{ff:%Y%m%d}.xlsx"
+            ok, mensaje = await guardar_workbook(self.page, self.file_picker, wb, nombre_def)
+            boton_exportar.disabled = False
+            estado_exportar.value = mensaje
+            self.page.update()
+
+        boton_exportar = ft.IconButton(
+            icon=ft.Icons.DOWNLOAD,
+            icon_size=18,
+            tooltip="Descargar Excel del timeline (con los filtros actuales)",
+            disabled=not self.serie,
+            on_click=lambda e: self.page.run_task(_exportar, e),
+        )
+
         return ft.Container(
             content=ft.Column(
                 [
@@ -352,6 +409,7 @@ class Explorador:
                                     color=ft.Colors.ON_SURFACE),
                             ft.Container(expand=True),  # Row sin wrap: aquí expand sí es válido
                             selector_periodo,
+                            boton_exportar,
                         ],
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
@@ -360,6 +418,7 @@ class Explorador:
                         "— ver el botón ⓘ arriba para el detalle de filtros y transformaciones.",
                         size=11, color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
+                    estado_exportar,
                     cuerpo,
                 ],
                 spacing=12, expand=True, scroll=ft.ScrollMode.AUTO,
@@ -487,11 +546,72 @@ class Explorador:
                 on_submit=aplicar, on_blur=aplicar,
             )
 
+        estado_exportar = ft.Text("", size=11, color=ft.Colors.ON_SURFACE_VARIANT)
+
+        async def _exportar(_e) -> None:
+            """A diferencia de la tabla en pantalla (que respeta los filtros
+            del panel y el tope de LIMITE_FILAS_DETALLE), la descarga es un
+            volcado completo del periodo: solo el filtro de fecha, sin
+            empresa/sucursal/tipo de negocio/filial y sin límite de filas."""
+            boton_exportar.disabled = True
+            estado_exportar.value = "Consultando el periodo completo (sin filtros de empresa/sucursal/tipo/filial)…"
+            self.page.update()
+
+            fi, ff = self.rango
+            try:
+                filas_export = await consultar_detalle_completo_periodo(fi, ff)
+            except Exception as error:  # noqa: BLE001 - se muestra en estado_exportar
+                boton_exportar.disabled = False
+                estado_exportar.value = f"No se pudo consultar BigQuery: {error}"
+                self.page.update()
+                return
+
+            import openpyxl
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Detalle"
+            ws.cell(row=1, column=1,
+                    value=f"Periodo: {fi.strftime('%d/%m/%Y')} - {ff.strftime('%d/%m/%Y')} "
+                          "(sin filtros de empresa/sucursal/tipo de negocio/filial)")
+            encabezados = list(filas_export[0].keys()) if filas_export else []
+            escribir_hoja_excel(
+                ws, encabezados,
+                [[fila.get(col) for col in encabezados] for fila in filas_export],
+                fila_inicio=3,
+            )
+            if "fh_Envio" in encabezados:
+                col_fecha = encabezados.index("fh_Envio") + 1
+                for fila_celdas in ws.iter_rows(min_row=4, min_col=col_fecha, max_col=col_fecha):
+                    for celda in fila_celdas:
+                        celda.number_format = "dd/mm/yyyy"
+
+            nombre_def = f"dashboard_detalle_{fi:%Y%m%d}_{ff:%Y%m%d}.xlsx"
+            ok, mensaje = await guardar_workbook(self.page, self.file_picker, wb, nombre_def)
+            boton_exportar.disabled = False
+            estado_exportar.value = mensaje or f"{len(filas_export)} registro(s) exportados."
+            self.page.update()
+
+        boton_exportar = ft.IconButton(
+            icon=ft.Icons.DOWNLOAD,
+            icon_size=18,
+            tooltip="Descargar Excel del periodo completo (solo filtro de fecha, sin los demás filtros)",
+            on_click=lambda e: self.page.run_task(_exportar, e),
+        )
+
         return ft.Container(
             content=ft.Column(
                 [
-                    ft.Text("Detalle de movimientos", size=16, weight=ft.FontWeight.W_600,
-                            color=ft.Colors.ON_SURFACE),
+                    ft.Row(
+                        [
+                            ft.Text("Detalle de movimientos", size=16, weight=ft.FontWeight.W_600,
+                                    color=ft.Colors.ON_SURFACE),
+                            ft.Container(expand=True),
+                            boton_exportar,
+                        ],
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    estado_exportar,
                     banner,
                     ft.Row(
                         [

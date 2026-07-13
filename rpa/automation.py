@@ -389,6 +389,7 @@ class RPAAutomation:
         base_url: Optional[str] = None,
         empresa_sipp: str = "ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
         sucursal_sipp: str = "CORPORATIVO",
+        contador_fn: Optional[Callable] = None,
     ):
         self.username = username
         self.password = password
@@ -403,6 +404,76 @@ class RPAAutomation:
         self._base_navegacion = ""  # origen SIPP para navegar pestañas nuevas
         self.skipped: List[str] = []
         self.not_found: List[str] = []
+        # Conteos de lo que el RPA REALMENTE hizo (no de lo que se le pidió). La UI
+        # los pinta como resumen para que el usuario no tenga que leer el log crudo:
+        # los mensajes técnicos (reintentos, volcados de HTML) iban en naranja/rojo y
+        # se leían como "falló" aunque la carga hubiera salido bien.
+        self.contadores: dict = {}
+        self._contador_fn = contador_fn
+        # Navegador que algunos flujos dejan ABIERTO al terminar (para que el usuario
+        # adjunte el soporte y envíe en SIPP). Se guardan para poder cerrarlo desde la
+        # UI: antes no se cerraba nunca ni se hacía playwright.stop(), así que la
+        # ventana se quedaba girando y el proceso quedaba vivo.
+        self._playwright = None
+        self._browser = None
+
+    @property
+    def navegador_abierto(self) -> bool:
+        return self._browser is not None
+
+    async def cerrar_navegador(self) -> None:
+        """Cierra el navegador dejado abierto y libera el proceso de Playwright.
+        Idempotente: se puede llamar aunque ya esté cerrado."""
+        browser, playwright = self._browser, self._playwright
+        self._browser = self._playwright = None
+        if browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright is not None:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+    async def traer_al_frente(self) -> None:
+        """Trae al frente la pestaña del navegador dejado abierto."""
+        if self._browser is None:
+            return
+        try:
+            for contexto in self._browser.contexts:
+                for pagina in contexto.pages:
+                    await pagina.bring_to_front()
+                    return
+        except Exception:
+            pass
+
+    def contar(self, clave: str, n: int = 1) -> None:
+        """Suma n al contador `clave` y notifica a la UI para refrescar el resumen."""
+        self.contadores[clave] = self.contadores.get(clave, 0) + n
+        if self._contador_fn is not None:
+            try:
+                self._contador_fn(dict(self.contadores))
+            except Exception:
+                pass
+
+    def _opciones_contexto(self) -> dict:
+        """Opciones de tamaño del contexto del navegador.
+
+        En modo VISIBLE se usa `no_viewport`: al lanzar con --start-maximized y a la
+        vez fijar viewport=1440x900, la VENTANA queda maximizada pero la PÁGINA se
+        renderiza a 1440x900 dentro de ella. Al redimensionar o hacer zoom, el
+        contenido se corta y los botones de SIPP (Aceptar/Guardar) quedan fuera de
+        vista. Sin viewport fijo, la página toma el tamaño real de la ventana y es
+        responsiva.
+
+        En HEADLESS no hay ventana real de la cual tomar el tamaño, así que ahí sí se
+        fija un viewport amplio (si no, Chromium usa uno pequeño por defecto y los
+        modales de SIPP no caben)."""
+        if self.headless:
+            return {"viewport": {"width": 1600, "height": 1000}}
+        return {"no_viewport": True}
 
     def log(self, mensaje: str, nivel: str = "info") -> None:
         """Envía el mensaje al callback de la UI y además a la terminal: los
@@ -436,7 +507,7 @@ class RPAAutomation:
                 args=["--start-maximized"],
             )
             context = await browser.new_context(
-                viewport={"width": 1440, "height": 900},
+                **self._opciones_contexto(),
                 locale="es-MX",
             )
             page = await context.new_page()
@@ -705,7 +776,7 @@ class RPAAutomation:
                 args=["--start-maximized"],
             )
             context = await browser.new_context(
-                viewport={"width": 1440, "height": 900},
+                **self._opciones_contexto(),
                 locale="es-MX",
             )
             page = await context.new_page()
@@ -830,6 +901,7 @@ class RPAAutomation:
         cuenta_bancaria_nombre: str,
         fecha_operacion_ddmmyyyy: str,
         ruta_csv: str,
+        a_eliminar: Optional[List[Tuple]] = None,
     ) -> None:
         """
         Abre su propia sesión (login + selección de empresa/sucursal), navega a
@@ -848,7 +920,7 @@ class RPAAutomation:
             args=["--start-maximized"],
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
+            **self._opciones_contexto(),
             locale="es-MX",
         )
         page = await context.new_page()
@@ -885,7 +957,7 @@ class RPAAutomation:
         self.log(f"  [paso] subiendo archivo bancario: {os.path.basename(ruta_csv)}...", "info")
         await archivo_input.set_input_files(ruta_csv)
 
-        await self._asignar_clientes_preview(page, movimientos)
+        await self._asignar_clientes_preview(page, movimientos, a_eliminar)
 
         try:
             await self._agregar_movimientos_archivo_banco(page)
@@ -894,6 +966,8 @@ class RPAAutomation:
             self.log(f"  No se pudo completar el guardado de la conciliación: {exc}", "error")
             await self._volcar_html(page, "ingdiv_guardar")
         # Browser deliberadamente abierto para que el usuario adjunte soporte y envíe.
+        # Se retiene para que la UI pueda cerrarlo desde el modal de confirmación.
+        self._playwright, self._browser = playwright, browser
 
     # ──────────────────────────────────────────────────────
     # BBVA: Ingresos Diversos vía buzón Host-to-Host (H2H) + respaldo manual.
@@ -908,16 +982,20 @@ class RPAAutomation:
         fecha_operacion_ddmmyyyy: str,
         fecha_inicio_ddmmyyyy: str,
         fecha_fin_ddmmyyyy: str,
+        a_eliminar: Optional[List[Tuple]] = None,
     ) -> int:
         """`movimientos`: tuplas (referencia, abono, cliente, sucursal, forzar,
-        tipos, concepto). No guarda y envía: deja el navegador abierto para revisar
+        tipos, concepto). `a_eliminar`: tuplas (referencia, abono) de los movimientos
+        que NO deben subirse (ya extraídos en un corte anterior / excluidos); el
+        buzón H2H los trae de todos modos, así que se eliminan en la
+        previsualización. No guarda y envía: deja el navegador abierto para revisar
         y adjuntar el soporte. Devuelve cuántos movimientos se procesaron."""
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(
             headless=self.headless, slow_mo=30, args=["--start-maximized"]
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900}, locale="es-MX"
+            **self._opciones_contexto(), locale="es-MX"
         )
         page = await context.new_page()
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
@@ -939,7 +1017,7 @@ class RPAAutomation:
         # 1) Buzón H2H → previsualización → identificar con los datos del .xls.
         no_encontrados = list(movimientos)  # si el H2H no trae nada, todo es manual
         if await self._traer_movimientos_h2h(page, fecha_inicio_ddmmyyyy, fecha_fin_ddmmyyyy):
-            no_encontrados = await self._asignar_clientes_preview(page, movimientos)
+            no_encontrados = await self._asignar_clientes_preview(page, movimientos, a_eliminar)
             try:
                 await self._agregar_movimientos_archivo_banco(page)
             except Exception as exc:
@@ -980,6 +1058,8 @@ class RPAAutomation:
         except Exception as exc:
             self.log(f"  No se pudo guardar la conciliación: {exc}", "error")
             await self._volcar_html(page, "bbva_h2h_guardar")
+        # Browser abierto para adjuntar el soporte; se retiene para que la UI lo cierre.
+        self._playwright, self._browser = playwright, browser
         return len(movimientos)
 
     async def _traer_movimientos_h2h(
@@ -1046,35 +1126,102 @@ class RPAAutomation:
             await self._volcar_html(page, "bbva_h2h_buzon")
             return False
 
-    async def _asignar_clientes_preview(self, page: Page, movimientos) -> list:
-        """En el modal 'Previsualización de datos en Archivo Bancario' (mismo para
-        el flujo CSV 'Subir Excel' y el flujo H2H de BBVA), asigna a cada fila su
-        cliente/sucursal y marca Ant./Cnt. según los candidatos `movimientos`
-        (tuplas ref, abono, cliente, sucursal, forzar, tipos). Devuelve la lista de
-        candidatos que NO se encontraron en la previsualización (para respaldo)."""
-        self.log("  [paso] esperando modal de previsualización (Datos Banco)...", "info")
-        await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
-        await page.wait_for_timeout(500)
+    async def _leer_filas_preview(self, page: Page) -> List[Tuple[str, Optional[float]]]:
+        """Snapshot de (referencia, importe) de TODAS las filas del modal.
 
-        # Se cuentan los movimientos por sus lápices #EditarMovimiento_i (uno por
-        # movimiento). NO se usa "tbody tr": la columna "Importe Sucursales" trae
-        # tablas anidadas cuyas <tr> también matchean y rompen la lectura por
-        # índice (td.nth(3) inexistente → timeout).
+        Se recorren por sus lápices #EditarMovimiento_i (uno por movimiento). NO se
+        usa "tbody tr": la columna "Importe Sucursales" trae tablas anidadas cuyas
+        <tr> también matchean y rompen la lectura por índice (td.nth(3) inexistente
+        → timeout). Por eso se leen SOLO los <td> directos (xpath=./td)."""
         lapices = page.locator("#modal-bodymodalDatosBanco [id^='EditarMovimiento_']")
         total_filas = await lapices.count()
-        self.log(f"{total_filas} movimiento(s) en la previsualización.", "info")
-
-        # Snapshot de (referencia, importe) de TODAS las filas antes de editar
-        # ninguna: editar una fila re-renderiza la tabla y rompe las lecturas
-        # posteriores. Se leen SOLO los <td> directos de la fila del movimiento
-        # (xpath=./td) para ignorar los <td> de las tablas anidadas.
-        filas_datos: List[Tuple[str, Optional[float]]] = []
+        filas: List[Tuple[str, Optional[float]]] = []
         for i in range(total_filas):
             fila = page.locator(f"#EditarMovimiento_{i}").locator("xpath=ancestor::tr[1]")
             celdas = fila.locator("xpath=./td")
             ref = (await celdas.nth(2).inner_text()).strip()
             imp = _parsear_importe(await celdas.nth(3).inner_text())
-            filas_datos.append((ref, imp))
+            filas.append((ref, imp))
+        return filas
+
+    async def _eliminar_filas_preview(self, page: Page, a_eliminar: List[Tuple]) -> int:
+        """Elimina del modal las filas que NO deben subirse a SIPP: las ya extraídas
+        en un corte anterior (ya_subido) y las excluidas (traspasos a filiales,
+        portal BBVA). En el flujo CSV esas filas ya vienen quitadas del archivo, así
+        que esto es una red de seguridad; en el flujo H2H de BBVA (que no sube
+        archivo, sino que jala del buzón por rango de fechas) es el ÚNICO punto donde
+        se pueden omitir.
+
+        Las filas se borran de MAYOR a MENOR índice: al eliminar una, Angular
+        re-renderiza y re-indexa el resto, así que ir en reversa mantiene válidos los
+        #EditarMovimiento_i de las filas que aún faltan por borrar."""
+        if not a_eliminar:
+            return 0
+
+        filas_datos = await self._leer_filas_preview(page)
+        pendientes = list(a_eliminar)
+        objetivos: List[Tuple[int, str]] = []
+        for i, (ref, imp) in enumerate(filas_datos):
+            mov = _emparejar_movimiento(pendientes, ref, imp)
+            if mov is not None:
+                pendientes.remove(mov)
+                objetivos.append((i, ref))
+
+        if not objetivos:
+            self.log(
+                f"  Ninguna de las {len(a_eliminar)} fila(s) a omitir apareció en la "
+                "previsualización (ya venían fuera del archivo).",
+                "info",
+            )
+            return 0
+
+        eliminadas = 0
+        for i, ref in reversed(objetivos):
+            try:
+                fila = page.locator(f"#EditarMovimiento_{i}").locator("xpath=ancestor::tr[1]")
+                boton = fila.locator("button.btn-eliminar15p").first
+                await boton.scroll_into_view_if_needed()
+                # dispatch_event dispara el ng-click directo aunque el botón traiga
+                # la clase ng-hide por los ng-show de SIPP.
+                await boton.dispatch_event("click")
+                await page.wait_for_timeout(350)
+                eliminadas += 1
+                self.contar("omitidos")
+                self.log(f"  Fila {i + 1} ({ref}): eliminada (ya extraída / excluida).", "info")
+            except Exception as exc:
+                self.contar("errores")
+                self.log(f"  No se pudo eliminar la fila {i + 1} ({ref}): {exc}", "warn")
+
+        self.log(
+            f"{eliminadas}/{len(objetivos)} fila(s) omitida(s) eliminadas de la previsualización.",
+            "ok" if eliminadas == len(objetivos) else "warn",
+        )
+        return eliminadas
+
+    async def _asignar_clientes_preview(self, page: Page, movimientos, a_eliminar=None) -> list:
+        """En el modal 'Previsualización de datos en Archivo Bancario' (mismo para
+        el flujo CSV 'Subir Excel' y el flujo H2H de BBVA), asigna a cada fila su
+        cliente/sucursal y marca Ant./Cnt. según los candidatos `movimientos`
+        (tuplas ref, abono, cliente, sucursal, forzar, tipos). Antes de asignar,
+        elimina las filas de `a_eliminar` (ya extraídas / excluidas) para que no se
+        suban. Devuelve la lista de candidatos que NO se encontraron en la
+        previsualización (para respaldo)."""
+        self.log("  [paso] esperando modal de previsualización (Datos Banco)...", "info")
+        await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
+        await page.wait_for_timeout(500)
+
+        # Primero se quitan las filas que no deben subirse; así el snapshot de
+        # abajo ya refleja la tabla final y los índices no se mueven después.
+        if a_eliminar:
+            await self._eliminar_filas_preview(page, a_eliminar)
+            await page.wait_for_timeout(300)
+
+        # Snapshot de (referencia, importe) de TODAS las filas antes de editar
+        # ninguna: editar una fila re-renderiza la tabla y rompe las lecturas
+        # posteriores.
+        filas_datos = await self._leer_filas_preview(page)
+        total_filas = len(filas_datos)
+        self.log(f"{total_filas} movimiento(s) en la previsualización.", "info")
 
         pendientes = list(movimientos)
         asignados = 0
@@ -1090,6 +1237,7 @@ class RPAAutomation:
                 # Sin movimiento identificado: se deja SIN cliente (vacía). No la
                 # editamos; se guardará tal cual para captura/identificación manual.
                 omitidas += 1
+                self.contar("sin_cliente")
                 self.log(
                     f"  Fila {i + 1}/{total_filas} ({referencia_modal}): sin cliente identificado, se deja vacía.",
                     "warn",
@@ -1224,12 +1372,14 @@ class RPAAutomation:
                     await self._marcar_ant_cnt_preview(fila, tipos_mov)
 
                 asignados += 1
+                self.contar("identificados")
                 self.log(
                     f"  Fila {i + 1} ({referencia_modal}): cliente '{cliente_asignado}', "
                     f"sucursal '{etiqueta_suc}' [{origen_suc}].",
                     "ok",
                 )
             except Exception as exc:
+                self.contar("errores")
                 self.log(f"  Error llenando fila {i + 1} ({referencia_modal}): {exc}", "error")
                 await self._volcar_html(page, f"ingdiv_fila_{i + 1}")
 
@@ -1365,7 +1515,7 @@ class RPAAutomation:
             headless=self.headless, slow_mo=40, args=["--start-maximized"]
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900}, locale="es-MX"
+            **self._opciones_contexto(), locale="es-MX"
         )
         page = await context.new_page()
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
@@ -1467,9 +1617,11 @@ class RPAAutomation:
                     " if (m) m.classList.add('ng-hide'); }"
                 )
             await page.wait_for_timeout(150)
+            self.contar("capturados_manual")
             self.log(f"  Movimiento {i + 1} agregado.", "ok")
             return True
         except Exception as exc:
+            self.contar("errores")
             self.log(f"  Error agregando movimiento {i + 1} en '{paso}': {exc}", "error")
             await self._volcar_html(page, f"ingdiv_manual_{i + 1}")
             # Cerrar el modal para no bloquear el siguiente movimiento.
@@ -1601,7 +1753,7 @@ class RPAAutomation:
             args=["--start-maximized"],
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
+            **self._opciones_contexto(),
             locale="es-MX",
         )
         page = await context.new_page()
@@ -1941,8 +2093,10 @@ class RPAAutomation:
                 if ruta_comprobante:
                     comprobantes.append(ruta_comprobante)
                 agregados += 1
+                self.contar("capturados_manual")
                 self.log(f"  Movimiento {i + 1} agregado: cliente '{cliente}', plaza '{plaza}'.", "ok")
             except Exception as exc:
+                self.contar("errores")
                 self.log(
                     f"  Error agregando movimiento {i + 1} en el paso '{paso}': {exc}",
                     "error",
@@ -2141,7 +2295,7 @@ class RPAAutomation:
         browser = await playwright.chromium.launch(
             headless=self.headless, slow_mo=8, args=["--start-maximized"]
         )
-        context = await browser.new_context(viewport={"width": 1440, "height": 900}, locale="es-MX")
+        context = await browser.new_context(**self._opciones_contexto(), locale="es-MX")
         page = await context.new_page()
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
 

@@ -14,7 +14,7 @@ from .pagos_contado import PagoContadoExtraido
 _BANCOS_CAPTURA_MANUAL = {"BANBAJIO"}
 
 
-def _rpa(usuario, password, empresa: Empresa, headless, log_fn) -> RPAAutomation:
+def _rpa(usuario, password, empresa: Empresa, headless, log_fn, contador_fn=None) -> RPAAutomation:
     return RPAAutomation(
         usuario,
         password,
@@ -22,6 +22,7 @@ def _rpa(usuario, password, empresa: Empresa, headless, log_fn) -> RPAAutomation
         log_fn=log_fn,
         empresa_sipp=empresa.sipp_empresa,
         sucursal_sipp=empresa.sipp_sucursal,
+        contador_fn=contador_fn,
     )
 
 
@@ -53,6 +54,8 @@ async def cargar_ingresos_diversos_en_sipp(
     headless: bool = False,
     log_fn: Callable = print,
     sucursal_resolver: Optional[Callable] = None,
+    contador_fn: Optional[Callable] = None,
+    rpa_out: Optional[list] = None,
 ) -> int:
     """Sube ruta_csv a "Ingresos Diversos - Agregar" en SIPP y asigna, en el
     modal de previsualización, el cliente ya identificado en la app a cada
@@ -124,7 +127,25 @@ async def cargar_ingresos_diversos_en_sipp(
             )
         )
 
-    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
+    # Movimientos que NO deben llegar a SIPP, por dos motivos distintos:
+    #   - excluido:  traspasos a filiales / portal BBVA (no son cobranza).
+    #   - ya_subido: ya venían en un corte anterior YA subido; re-subirlos duplica.
+    # Antes solo se saltaban de `candidatos` (no se les asignaba cliente), pero el
+    # archivo/buzón sí los cargaba a SIPP. Ahora además se quitan del CSV y, si aun
+    # así aparecen en la previsualización (siempre en BBVA H2H, que no sube archivo),
+    # se eliminan ahí con el botón "Eliminar Movimiento".
+    omitidos = [
+        m
+        for m in movimientos
+        if getattr(m, "excluido", False) or getattr(m, "ya_subido", False)
+    ]
+    a_eliminar = [(m.referencia, m.abono) for m in omitidos]
+
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn, contador_fn)
+    # Se expone la instancia a la UI: estos flujos dejan el navegador abierto para que
+    # el usuario adjunte el soporte, y el modal de confirmación ofrece cerrarlo.
+    if rpa_out is not None:
+        rpa_out.append(automatizacion)
 
     if es_bbva:
         # BBVA no tiene "Subir Excel": se usa el buzón H2H (que cae en la misma
@@ -136,7 +157,8 @@ async def cargar_ingresos_diversos_en_sipp(
         else:
             fecha_ini = fecha_fin = fecha_operacion_ddmmyyyy
         await automatizacion.cargar_ingresos_diversos_bbva_h2h(
-            candidatos_bbva, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, fecha_ini, fecha_fin
+            candidatos_bbva, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, fecha_ini,
+            fecha_fin, a_eliminar,
         )
         return len(candidatos_bbva)
 
@@ -146,15 +168,15 @@ async def cargar_ingresos_diversos_en_sipp(
         )
         return len(manuales)
 
-    # Los movimientos excluidos (traspasos a filiales) NO deben ni siquiera
-    # importarse en SIPP: se genera un CSV sin esas filas. Si no hay excluidos, se
-    # usa el archivo original tal cual.
-    excluidos = [m for m in movimientos if getattr(m, "excluido", False)]
-    ruta_a_subir = _csv_sin_excluidos(ruta_csv, excluidos, log_fn)
+    # Los movimientos omitidos (excluidos + ya extraídos en un corte anterior) NO
+    # deben ni siquiera importarse en SIPP: se genera un CSV sin esas filas. Si no
+    # hay nada que omitir, se usa el archivo original tal cual.
+    ruta_a_subir = _csv_sin_omitidos(ruta_csv, omitidos, log_fn)
 
     try:
         await automatizacion.cargar_ingresos_diversos(
-            candidatos, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, ruta_a_subir
+            candidatos, cuenta_bancaria_nombre, fecha_operacion_ddmmyyyy, ruta_a_subir,
+            a_eliminar,
         )
     finally:
         if ruta_a_subir != ruta_csv:
@@ -165,29 +187,33 @@ async def cargar_ingresos_diversos_en_sipp(
     return len(candidatos)
 
 
-def _csv_sin_excluidos(ruta_csv: str, excluidos: list, log_fn: Callable) -> str:
+def _csv_sin_omitidos(ruta_csv: str, omitidos: list, log_fn: Callable) -> str:
     """Devuelve la ruta de un CSV temporal igual al original pero SIN las filas de
-    los movimientos excluidos (se identifican por su referencia en la línea). Si no
-    hay nada que excluir o no se pudo escribir, devuelve la ruta original."""
+    los movimientos omitidos —excluidos (traspasos) y ya extraídos en un corte
+    anterior—, que se identifican por su referencia dentro de la línea. Si no hay
+    nada que omitir o no se pudo escribir, devuelve la ruta original.
+
+    Lo que no se pueda quitar aquí (sin referencia utilizable, o archivo no-CSV) se
+    elimina después en el modal de previsualización (ver `a_eliminar`)."""
     referencias = {
         (getattr(m, "referencia", "") or "").strip()
-        for m in excluidos
+        for m in omitidos
         if len((getattr(m, "referencia", "") or "").strip()) >= 4
     }
     if not referencias:
-        if excluidos:
+        if omitidos:
             log_fn(
-                f"Aviso: {len(excluidos)} movimiento(s) excluido(s) sin referencia utilizable; "
-                "no se pudieron quitar del CSV (se subirán sin cliente).",
+                f"Aviso: {len(omitidos)} movimiento(s) a omitir sin referencia utilizable; "
+                "no se pudieron quitar del CSV (se intentarán eliminar en la previsualización).",
                 "warn",
             )
         return ruta_csv
     # Solo se puede filtrar por líneas de texto un .csv. Los .xlsx (BanBajío) son
-    # binarios: no se reescriben aquí (los excluidos ya se saltan de candidatos).
+    # binarios: no se reescriben aquí (se eliminan en la previsualización).
     if not ruta_csv.lower().endswith(".csv"):
         log_fn(
-            "Aviso: el archivo no es .csv; los movimientos excluidos no se quitan "
-            "del archivo subido (solo no se les asigna cliente).",
+            "Aviso: el archivo no es .csv; los movimientos omitidos no se quitan del "
+            "archivo subido (se intentarán eliminar en la previsualización).",
             "warn",
         )
         return ruta_csv
@@ -203,10 +229,14 @@ def _csv_sin_excluidos(ruta_csv: str, excluidos: list, log_fn: Callable) -> str:
             conservadas.append(linea)
         if quitadas == 0:
             return ruta_csv
-        fd, ruta_tmp = tempfile.mkstemp(suffix=".csv", prefix="mh_sin_excluidos_")
+        fd, ruta_tmp = tempfile.mkstemp(suffix=".csv", prefix="mh_sin_omitidos_")
         with os.fdopen(fd, "w", encoding="utf-8-sig", newline="") as f:
             f.writelines(conservadas)
-        log_fn(f"CSV filtrado: se quitaron {quitadas} fila(s) excluida(s) antes de subir a SIPP.", "info")
+        log_fn(
+            f"CSV filtrado: se quitaron {quitadas} fila(s) omitida(s) —excluidas / ya "
+            "extraídas— antes de subir a SIPP.",
+            "info",
+        )
         return ruta_tmp
     except OSError as ex:
         log_fn(f"No se pudo generar el CSV filtrado ({ex}); se sube el original.", "warn")
@@ -222,6 +252,7 @@ async def cargar_pagos_contado_en_sipp(
     headless: bool = False,
     log_fn: Callable = print,
     enviar_automaticamente: bool = False,
+    contador_fn: Optional[Callable] = None,
 ) -> int:
     """Agrega, vía el modal "Agregar Movimientos" de SIPP, cada pago de
     contado ya confirmado (con cliente, plaza y monto) en `pagos`. Agrupa los
@@ -264,7 +295,7 @@ async def cargar_pagos_contado_en_sipp(
     ]
     total = sum(len(datos) for _, datos, _ in grupos_lista)
 
-    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn, contador_fn)
     duplicados = await automatizacion.cargar_pagos_contado(
         grupos_lista, fecha_operacion_ddmmyyyy, enviar_automaticamente
     )

@@ -13,8 +13,10 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 
 from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas_cuentas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
+from .conciliacion.vista import construir_tab_conciliaciones
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
 from .dashboard import construir_tab_dashboard
+from .rdc import construir_tab_rdc
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from .historial import (
     cargar_historial,
@@ -88,12 +90,11 @@ def es_traspaso(m: Movimiento) -> bool:
 def es_movimiento_portal_cliente(m: Movimiento) -> bool:
     """BBVA: los movimientos cuyo concepto empieza con 'CI' o 'CE' provienen del
     portal de clientes y YA están capturados en SIPP; subirlos por el RPA los
-    duplicaría, así que se excluyen (como los traspasos)."""
+    duplicaría, así que se excluyen (como los traspasos).
+
+    Aplica a los DOS archivos de BBVA: tanto el de movimientos internos (RSM) como
+    el de externos (SPEI), donde la leyenda del SPEI también trae esos códigos."""
     if (m.banco or "").upper() != "BBVA":
-        return False
-    # El archivo de movimientos EXTERNOS son cobros SPEI de otros bancos (no del
-    # portal BBVA): no se excluyen aunque su leyenda traiga códigos "CI...".
-    if getattr(m, "bbva_externo", False):
         return False
     texto = (m.concepto or m.descripcion or "").strip().upper()
     return bool(re.match(r"^(CI|CE)\d", texto))
@@ -204,6 +205,12 @@ def main(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.LIGHT
     page.theme = ft.Theme(color_scheme_seed=NAVY, use_material3=True)
     page.dark_theme = ft.Theme(color_scheme_seed=NAVY, use_material3=True)
+    # Español (México) para los componentes nativos como el selector de fechas
+    # (nombres de meses, días y botones del diálogo del DateRangePicker).
+    page.locale_configuration = ft.LocaleConfiguration(
+        supported_locales=[ft.Locale("es", "MX"), ft.Locale("en", "US")],
+        current_locale=ft.Locale("es", "MX"),
+    )
 
     def mostrar_dialogo(dialogo: ft.AlertDialog) -> None:
         """Muestra el diálogo de forma idempotente y a prueba de estados colgados.
@@ -227,18 +234,70 @@ def main(page: ft.Page) -> None:
     # navegador. El usuario puede activar "Ver navegador" para depurar.
     ver_navegador_ref = [False]
 
+    # Cómo se pinta cada contador del RPA en el resumen: (etiqueta, ícono, color).
+    # El orden define el orden de los chips.
+    _CONTADORES_RPA = {
+        "identificados": ("identificado(s)", ft.Icons.CHECK_CIRCLE, ft.Colors.GREEN_700),
+        "capturados_manual": ("capturado(s)", ft.Icons.ADD_CIRCLE, ft.Colors.GREEN_700),
+        "omitidos": ("omitido(s)", ft.Icons.REMOVE_CIRCLE, ft.Colors.ON_SURFACE_VARIANT),
+        "sin_cliente": ("sin cliente", ft.Icons.HELP, ORANGE),
+        "errores": ("error(es)", ft.Icons.ERROR, ft.Colors.RED_600),
+    }
+
+    def _chips_contadores(contadores: dict) -> list[ft.Control]:
+        """Chips de resumen (solo los contadores con valor > 0)."""
+        chips: list[ft.Control] = []
+        for clave, (etiqueta, icono, color) in _CONTADORES_RPA.items():
+            n = contadores.get(clave, 0)
+            if not n:
+                continue
+            chips.append(
+                ft.Row(
+                    [
+                        ft.Icon(icono, size=15, color=color),
+                        ft.Text(f"{n} {etiqueta}", size=12, weight=ft.FontWeight.BOLD, color=color),
+                    ],
+                    spacing=4,
+                    tight=True,
+                )
+            )
+        return chips
+
     def crear_panel_log_rpa(altura: int = 190):
-        """Crea un panel de log flotante para un flujo RPA: un ListView que va
-        acumulando el progreso en vivo. Devuelve (panel, log_fn, reset)."""
+        """Panel de avance de un flujo RPA. Muestra un RESUMEN de conteos en vivo
+        (lo que el RPA realmente hizo) y deja el log crudo COLAPSADO detrás de un
+        botón: los mensajes técnicos (reintentos de click, volcados de HTML) salen
+        en naranja/rojo y el usuario los leía como "falló el RPA" aunque la carga
+        hubiera terminado bien.
+
+        Devuelve (panel, log_fn, reset, contador_fn)."""
         lista = ft.ListView(spacing=1, auto_scroll=True, expand=True)
-        panel = ft.Container(
+        log_contenedor = ft.Container(
             content=lista,
             height=altura,
             border_radius=8,
             padding=8,
             bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
-            visible=False,
+            visible=False,  # colapsado por defecto
         )
+        resumen_row = ft.Row([], spacing=14, wrap=True)
+
+        def toggle_log(_e) -> None:
+            log_contenedor.visible = not log_contenedor.visible
+            boton_log.text = (
+                "Ocultar detalle técnico" if log_contenedor.visible else "Ver detalle técnico"
+            )
+            page.update()
+
+        boton_log = ft.TextButton(
+            "Ver detalle técnico", icon=ft.Icons.CODE, on_click=toggle_log,
+            style=ft.ButtonStyle(color=ft.Colors.ON_SURFACE_VARIANT),
+        )
+
+        panel = ft.Column(
+            [resumen_row, boton_log, log_contenedor], tight=True, spacing=4, visible=False
+        )
+
         colores = {
             "error": ft.Colors.RED_400,
             "warn": ft.Colors.ORANGE_700,
@@ -255,11 +314,19 @@ def main(page: ft.Page) -> None:
                 del lista.controls[0]
             page.update()
 
+        def contador_fn(contadores: dict) -> None:
+            panel.visible = True
+            resumen_row.controls = _chips_contadores(contadores)
+            page.update()
+
         def reset() -> None:
             lista.controls.clear()
+            resumen_row.controls.clear()
+            log_contenedor.visible = False
+            boton_log.text = "Ver detalle técnico"
             panel.visible = False
 
-        return panel, log_fn, reset
+        return panel, log_fn, reset, contador_fn
 
     def crear_check_ver_navegador() -> ft.Checkbox:
         return ft.Checkbox(
@@ -306,6 +373,102 @@ def main(page: ft.Page) -> None:
         )
         fab_rpa.visible = True
         page.update()
+
+    # ── Modal de confirmación al terminar un RPA ──────────────────────────
+    # Cierra el ciclo con un veredicto claro ("terminó y esto hizo"), en vez de
+    # dejar al usuario interpretando el log técnico.
+    resultado_icono = ft.Icon(ft.Icons.CHECK_CIRCLE, size=44, color=ft.Colors.GREEN_600)
+    resultado_titulo = ft.Text("", size=17, weight=ft.FontWeight.BOLD)
+    resultado_mensaje = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
+    resultado_chips = ft.Column([], spacing=6, tight=True)
+
+    # Acción a ejecutar al cerrar el modal de resultado (p. ej. encadenar el detalle
+    # de duplicados de Pagos de Contado, en vez de apilar dos diálogos).
+    resultado_al_cerrar: list = [None]
+    # RPA cuyo navegador quedó abierto, para poder cerrarlo desde este modal.
+    resultado_rpa_ref: list = [None]
+
+    def _finalizar_resultado() -> None:
+        page.pop_dialog()
+        siguiente = resultado_al_cerrar[0]
+        resultado_al_cerrar[0] = None
+        if siguiente is not None:
+            siguiente()
+
+    def _cerrar_resultado_rpa(_e) -> None:
+        _finalizar_resultado()
+
+    async def _cerrar_navegador_rpa(_e) -> None:
+        rpa = resultado_rpa_ref[0]
+        resultado_rpa_ref[0] = None
+        _finalizar_resultado()
+        if rpa is not None:
+            await rpa.cerrar_navegador()
+
+    async def _ir_a_soporte_rpa(_e) -> None:
+        rpa = resultado_rpa_ref[0]
+        _finalizar_resultado()
+        if rpa is not None:
+            await rpa.traer_al_frente()
+
+    dialogo_resultado_rpa = ft.AlertDialog(
+        modal=True,
+        content=ft.Column(
+            [
+                ft.Row([resultado_icono], alignment=ft.MainAxisAlignment.CENTER),
+                ft.Row([resultado_titulo], alignment=ft.MainAxisAlignment.CENTER),
+                resultado_mensaje,
+                ft.Divider(height=1),
+                resultado_chips,
+            ],
+            tight=True,
+            spacing=10,
+            width=430,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        actions=[ft.FilledButton("Entendido", on_click=_cerrar_resultado_rpa)],
+        actions_alignment=ft.MainAxisAlignment.CENTER,
+    )
+
+    def mostrar_resultado_rpa(
+        ok: bool, titulo: str, mensaje: str, contadores: dict, al_cerrar=None, rpa=None
+    ) -> None:
+        """Muestra el modal de cierre del RPA con el veredicto y los conteos de lo
+        que realmente hizo. `contadores` viene de RPAAutomation.contadores.
+        `al_cerrar` se ejecuta al dar "Entendido" (para encadenar otro diálogo).
+
+        Si `rpa` dejó el navegador abierto (para adjuntar el soporte en SIPP), el
+        modal ofrece cerrarlo o traerlo al frente, en vez de dejarlo colgado."""
+        resultado_al_cerrar[0] = al_cerrar
+        navegador_abierto = rpa is not None and getattr(rpa, "navegador_abierto", False)
+        resultado_rpa_ref[0] = rpa if navegador_abierto else None
+        if navegador_abierto:
+            dialogo_resultado_rpa.actions = [
+                ft.TextButton("Ir a adjuntar soporte", on_click=_ir_a_soporte_rpa),
+                ft.FilledButton("Cerrar navegador", on_click=_cerrar_navegador_rpa),
+            ]
+        else:
+            dialogo_resultado_rpa.actions = [
+                ft.FilledButton("Entendido", on_click=_cerrar_resultado_rpa)
+            ]
+        resultado_icono.name = ft.Icons.CHECK_CIRCLE if ok else ft.Icons.ERROR
+        resultado_icono.color = ft.Colors.GREEN_600 if ok else ft.Colors.RED_600
+        resultado_titulo.value = titulo
+        resultado_titulo.color = ft.Colors.GREEN_700 if ok else ft.Colors.RED_700
+        resultado_mensaje.value = mensaje
+        filas = [
+            ft.Row([c], alignment=ft.MainAxisAlignment.START)
+            for c in _chips_contadores(contadores or {})
+        ]
+        resultado_chips.controls = filas
+        resultado_chips.visible = bool(filas)
+        # Si el modal de credenciales/avance sigue abierto, se cierra para que el
+        # resultado quede al frente (no se apilan dos diálogos).
+        try:
+            page.pop_dialog()
+        except Exception:
+            pass
+        mostrar_dialogo(dialogo_resultado_rpa)
 
     catalogo = cargar_catalogo(CATALOGO_PATH)
     clientes_normalizados = preparar_clientes_normalizados(cargar_clientes(CLIENTES_PATH))
@@ -1293,6 +1456,16 @@ def main(page: ft.Page) -> None:
                 return
 
             movs_nuevos = parsear_archivo(ruta_temporal, banco)
+
+            # BBVA ACUMULADO (RSMACUM/SPEIACUM): trae varios días porque recoge el
+            # dinero caído fuera de horario. Solo interesan hoy y el día hábil
+            # anterior; lo previo ya se concilió en cortes pasados. Los archivos
+            # diarios (un solo día) no se tocan.
+            corte_acum = None
+            omitidos_corte: list[Movimiento] = []
+            if banco == "BBVA":
+                movs_nuevos, omitidos_corte, corte_acum = bbva.recortar_acumulado(movs_nuevos)
+
             if agregar:
                 # BBVA: unificar internos + externos en un solo grid.
                 movimientos = movimientos + movs_nuevos
@@ -1335,6 +1508,17 @@ def main(page: ft.Page) -> None:
                 )
             else:
                 mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
+            if corte_acum is not None and omitidos_corte:
+                fechas_om = sorted({m.fecha for m in omitidos_corte if m.fecha})
+                rango = (
+                    fechas_om[0].strftime("%d/%m")
+                    if len(fechas_om) == 1
+                    else f"{fechas_om[0].strftime('%d/%m')}–{fechas_om[-1].strftime('%d/%m')}"
+                )
+                mensaje += (
+                    f" Acumulado: corte al {corte_acum.strftime('%d/%m/%Y')} (día hábil anterior); "
+                    f"se omitieron {len(omitidos_corte)} movimiento(s) previos ({rango})."
+                )
             if ya_subidos:
                 mensaje += f" {ya_subidos} ya venían en un corte anterior (en gris, no se re-suben); {nuevos} nuevos."
             if traspasos:
@@ -1608,7 +1792,7 @@ def main(page: ft.Page) -> None:
     sipp_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
     sipp_recordar_check = ft.Checkbox(label="Recordar credenciales en este equipo")
     sipp_progreso_text = ft.Text("")
-    sipp_log_panel, sipp_log_fn, sipp_log_reset = crear_panel_log_rpa()
+    sipp_log_panel, sipp_log_fn, sipp_log_reset, sipp_contador_fn = crear_panel_log_rpa()
     sipp_ver_navegador_check = crear_check_ver_navegador()
 
     async def on_cancelar_sipp(_e) -> None:
@@ -1757,7 +1941,7 @@ def main(page: ft.Page) -> None:
     factoraje_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
     factoraje_info_text = ft.Text("")
     factoraje_tabla = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO, tight=True)
-    factoraje_log_panel, factoraje_log_fn, factoraje_log_reset = crear_panel_log_rpa()
+    factoraje_log_panel, factoraje_log_fn, factoraje_log_reset, factoraje_contador_fn = crear_panel_log_rpa()
     factoraje_ver_navegador_check = crear_check_ver_navegador()
     boton_cargar_pdf_factoraje = ft.Button(
         "Cargar PDF de intereses",
@@ -2044,7 +2228,7 @@ def main(page: ft.Page) -> None:
     ingresos_div_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
     ingresos_div_recordar_check = ft.Checkbox(label="Recordar credenciales en este equipo")
     ingresos_div_progreso_text = ft.Text("")
-    ingresos_div_log_panel, ingresos_div_log_fn, ingresos_div_log_reset = crear_panel_log_rpa()
+    ingresos_div_log_panel, ingresos_div_log_fn, ingresos_div_log_reset, ingresos_div_contador_fn = crear_panel_log_rpa()
 
     def on_cancelar_ingresos_div(_e) -> None:
         page.pop_dialog()
@@ -2073,8 +2257,19 @@ def main(page: ft.Page) -> None:
             ingresos_div_progreso_text.value = mensaje
             ingresos_div_log_fn(mensaje, nivel)
 
+        # Los contadores del RPA se van pintando como chips de resumen y, al final,
+        # alimentan el modal de confirmación.
+        contadores_rpa: dict = {}
+
+        def contador_fn(contadores: dict) -> None:
+            contadores_rpa.clear()
+            contadores_rpa.update(contadores)
+            ingresos_div_contador_fn(contadores)
+
         cuenta_nombre = nombre_cuenta_bancaria(cuenta_bancaria_dropdown.value or "")
         ok_rpa = True
+        error_rpa = ""
+        rpa_out: list = []  # el RPA se expone aquí para poder cerrar su navegador
         try:
             enviados = await cargar_ingresos_diversos_en_sipp(
                 movimientos,
@@ -2088,6 +2283,8 @@ def main(page: ft.Page) -> None:
                 headless=False,  # deja el navegador abierto para revisar/guardar
                 log_fn=log_fn,
                 sucursal_resolver=sucursal_efectiva,  # WYSIWYG: la del grid
+                contador_fn=contador_fn,
+                rpa_out=rpa_out,
             )
             mensaje = (
                 f"Carga a SIPP (Ingresos Diversos) lista: {enviados} movimiento(s) identificado(s) "
@@ -2103,12 +2300,32 @@ def main(page: ft.Page) -> None:
             ok_rpa = False
             estado_text.value = f"Error al cargar Ingresos Diversos en SIPP: {ex}"
             log_fn(f"Error: {ex}", "error")
+            error_rpa = str(ex)
         finally:
             boton_ingresos_div_confirmar.disabled = False
             boton_ingresos_div_cancelar.disabled = False
             ingresos_div_password_field.value = ""
             rpa_fin(ok_rpa)
             page.update()
+
+        rpa_usado = rpa_out[0] if rpa_out else None
+        if ok_rpa:
+            mostrar_resultado_rpa(
+                True,
+                "Carga completada",
+                "La conciliación quedó guardada en SIPP. El navegador sigue abierto por "
+                "si quieres adjuntar el soporte y enviarla; si no, ciérralo.",
+                contadores_rpa,
+                rpa=rpa_usado,
+            )
+        else:
+            mostrar_resultado_rpa(
+                False,
+                "La carga falló",
+                f"No se pudo completar la carga en SIPP: {error_rpa}",
+                contadores_rpa,
+                rpa=rpa_usado,
+            )
 
     boton_ingresos_div_cancelar = ft.TextButton("Cerrar", on_click=on_cancelar_ingresos_div)
     boton_ingresos_div_confirmar = ft.Button(
@@ -2836,7 +3053,7 @@ def main(page: ft.Page) -> None:
     pagos_sipp_password_field = ft.TextField(label="Contraseña SIPP", password=True, can_reveal_password=True)
     pagos_sipp_recordar_check = ft.Checkbox(label="Recordar credenciales en este equipo")
     pagos_sipp_progreso_text = ft.Text("")
-    pagos_sipp_log_panel, pagos_sipp_log_fn, pagos_sipp_log_reset = crear_panel_log_rpa()
+    pagos_sipp_log_panel, pagos_sipp_log_fn, pagos_sipp_log_reset, pagos_sipp_contador_fn = crear_panel_log_rpa()
     pagos_sipp_ver_navegador_check = crear_check_ver_navegador()
 
     def on_cancelar_pagos_sipp(_e) -> None:
@@ -2873,11 +3090,21 @@ def main(page: ft.Page) -> None:
             pagos_sipp_progreso_text.value = mensaje
             pagos_sipp_log_fn(mensaje, nivel)
 
+        contadores_rpa: dict = {}
+
+        def contador_fn(contadores: dict) -> None:
+            contadores_rpa.clear()
+            contadores_rpa.update(contadores)
+            pagos_sipp_contador_fn(contadores)
+
         # La plaza es OPCIONAL: un pago sin plaza igual se envía para que el RPA
         # verifique si ya es duplicado (y lo omita). Si no es duplicado y no trae
         # plaza, el RPA lo salta con aviso (contado necesita sucursal para crearlo).
         confirmados = [p for p in pagos_contado if p.cliente_match and p.monto is not None and not p.en_bloque_bancario]
         ok_rpa = True
+        error_rpa = ""
+        resumen_final = ""
+        duplicados_final: list = []
         try:
             enviados, duplicados = await cargar_pagos_contado_en_sipp(
                 confirmados,
@@ -2888,6 +3115,7 @@ def main(page: ft.Page) -> None:
                 headless=headless,
                 log_fn=log_fn,
                 enviar_automaticamente=auto,
+                contador_fn=contador_fn,
             )
             nuevos = enviados - len(duplicados)
             mensaje = f"Carga a SIPP (Pagos de Contado) lista: {nuevos} nuevo(s)"
@@ -2896,10 +3124,19 @@ def main(page: ft.Page) -> None:
             mensaje += "."
             estado_o365_text.value = mensaje
             log_fn(mensaje, "ok")
+            duplicados_final = list(duplicados or [])
+            resumen_final = (
+                "Los pagos se enviaron automáticamente en SIPP."
+                if auto
+                else "Quedó una pestaña por cuenta abierta en el navegador para que las revises y envíes."
+            )
             if duplicados:
-                mostrar_dialogo_duplicados_contado(duplicados)
+                resumen_final += (
+                    f" Se omitieron {len(duplicados)} pago(s) que ya estaban en SIPP."
+                )
         except Exception as ex:
             ok_rpa = False
+            error_rpa = str(ex)
             estado_o365_text.value = f"Error al cargar Pagos de Contado en SIPP: {ex}"
             log_fn(f"Error: {ex}", "error")
         finally:
@@ -2908,6 +3145,27 @@ def main(page: ft.Page) -> None:
             pagos_sipp_password_field.value = ""
             rpa_fin(ok_rpa)
             page.update()
+
+        if ok_rpa:
+            mostrar_resultado_rpa(
+                True,
+                "Carga completada",
+                resumen_final,
+                contadores_rpa,
+                # El detalle de duplicados se encadena al cerrar (no se apilan modales).
+                al_cerrar=(
+                    (lambda: mostrar_dialogo_duplicados_contado(duplicados_final))
+                    if duplicados_final
+                    else None
+                ),
+            )
+        else:
+            mostrar_resultado_rpa(
+                False,
+                "La carga falló",
+                f"No se pudo completar la carga en SIPP: {error_rpa}",
+                contadores_rpa,
+            )
 
     def mostrar_dialogo_duplicados_contado(duplicados: list) -> None:
         """Resumen visual de los pagos que el RPA omitió por ya estar subidos,
@@ -3660,9 +3918,11 @@ def main(page: ft.Page) -> None:
             page.run_task(actualizar_bandeja_o365)
 
     tab_dashboard, contenido_dashboard = construir_tab_dashboard(page)
+    tab_conciliaciones, contenido_conciliaciones = construir_tab_conciliaciones(page)
+    tab_rdc, contenido_rdc = construir_tab_rdc(page)
 
     tabs = ft.Tabs(
-        length=4,
+        length=6,
         selected_index=0,
         expand=True,
         on_change=on_tabs_change,
@@ -3675,11 +3935,13 @@ def main(page: ft.Page) -> None:
                         ft.Tab(label="Extracción de Contados", icon=ft.Icons.MAIL_OUTLINE),
                         ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
                         tab_dashboard,
+                        tab_conciliaciones,
+                        tab_rdc,
                     ],
                 ),
                 ft.TabBarView(
                     expand=True,
-                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard],
+                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard, contenido_conciliaciones, contenido_rdc],
                 ),
             ],
         ),

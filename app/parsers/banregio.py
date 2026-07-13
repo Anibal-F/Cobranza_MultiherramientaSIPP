@@ -4,6 +4,8 @@ from ..models import Movimiento
 from .base import clean_text, parse_date_dmy_slash, parse_money
 
 BANCO = "BANREGIO"
+# Si True, se lista en el selector de Conciliaciones Bancarias (ver santander.py).
+EN_CONCILIACION = True
 
 
 def _find_header_index(rows: list[list[str]]) -> int:

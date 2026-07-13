@@ -66,6 +66,12 @@ def match_movimientos(movimientos: list[Movimiento], catalogo: list[ClienteCuent
     indexado: list[tuple[str, ClienteCuenta]] = []
     rfc_indexado: list[tuple[str, ClienteCuenta]] = []
     for c in catalogo:
+        # El catálogo trae cuentas SIN nombre de cliente. Indexarlas no sirve (no
+        # identifican a nadie) y además hace daño: ganan el match por cuenta —que
+        # corta en la primera coincidencia— dejando el movimiento con cliente ""
+        # y bloqueando el match por nombre, que se salta los ya identificados.
+        if not (c.cliente or "").strip():
+            continue
         for numero in _CUENTA_DIGITOS_RE.findall(c.cuenta or ""):
             indexado.append((numero, c))
         rfc = _rfc_valido(getattr(c, "rfc", ""))

@@ -83,4 +83,8 @@ class Movimiento:
 
     @property
     def identificado(self) -> bool:
-        return self.cliente_match is not None
+        # Truthiness, no `is not None`: el catálogo trae cuentas con el nombre de
+        # cliente VACÍO. Con `is not None`, un cliente "" contaba como identificado
+        # (badge verde) aunque el grid mostrara "-", y el movimiento se enviaba al
+        # RPA, que terminaba buscando "" en el combo de clientes de SIPP.
+        return bool(self.cliente_match)
