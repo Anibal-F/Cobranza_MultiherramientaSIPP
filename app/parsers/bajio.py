@@ -20,6 +20,8 @@ from ..textutils import normalizar
 from .base import parse_date_dmy_slash, parse_money
 
 BANCO = "BANBAJIO"
+# Si True, se lista en el selector de Conciliaciones Bancarias (ver santander.py).
+EN_CONCILIACION = True
 
 # Marcadores del encabezado de la tabla (normalizados): identifican la fila de
 # columnas y, a la vez, distinguen el archivo de BanBajío de otros .xlsx.
