@@ -67,10 +67,14 @@ class ResultadoConciliacion:
     conciliados: list[tuple[MovimientoConciliacion, MovimientoConciliacion]] = field(default_factory=list)
     # En el archivo del banco pero NO en el sistema (SP: tipos 3/5).
     solo_banco: list[MovimientoConciliacion] = field(default_factory=list)
-    # En el sistema pero NO en el archivo del banco (SP: tipos 2/4).
+    # En el sistema pero NO en el archivo del banco (SP: tipos 2/4). Se calcula
+    # pero ya no se muestra en la UI (se reemplazó por "posibles repetidos").
     solo_sistema: list[MovimientoConciliacion] = field(default_factory=list)
     # Devoluciones de cheque, apartadas ANTES de comparar (leyenda configurable).
     devoluciones_cheque: list[MovimientoConciliacion] = field(default_factory=list)
+    # Movimientos del sistema que se repiten entre sí (misma referencia, descripción
+    # e importe): posibles duplicados capturados en el sistema.
+    posibles_repetidos_sistema: list[MovimientoConciliacion] = field(default_factory=list)
 
     @property
     def resumen(self) -> dict[str, int]:
@@ -80,4 +84,5 @@ class ResultadoConciliacion:
             "solo_banco": len(self.solo_banco),
             "solo_sistema": len(self.solo_sistema),
             "devoluciones_cheque": len(self.devoluciones_cheque),
+            "posibles_repetidos_sistema": len(self.posibles_repetidos_sistema),
         }

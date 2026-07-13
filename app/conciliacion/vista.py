@@ -30,6 +30,7 @@ _COLOR_CONCILIADOS = "#1baf7a"
 _COLOR_SOLO_BANCO = "#eda100"
 _COLOR_SOLO_SISTEMA = "#2a78d6"
 _COLOR_CHEQUES = "#e34948"
+_COLOR_REPETIDOS = "#7e57c2"
 
 
 _MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -73,9 +74,11 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     # el movimiento del día previo, no el de hoy que aún no cierra).
     ayer = hoy - timedelta(days=1)
     rango_sel: list[tuple[date, date]] = [(ayer, ayer)]
-    archivo_sel: list[str | None] = [None]        # ruta temporal del .xlsx del banco
+    # Archivos de banco cargados: uno o varios, cada uno con su selector de banco.
+    # Cada entrada: {"path","nombre","dropdown","fila"}.
+    archivos_banco: list[dict] = []
+    lista_archivos = ft.Column(spacing=6)         # UI: un renglón por archivo cargado
     archivo_sistema: list[str | None] = [None]    # ruta temporal del Excel de Ingresos Diversos
-    nombre_archivo = ft.Text("", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
     nombre_sistema = ft.Text("", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
 
     # El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
@@ -99,7 +102,8 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     # --- Encabezado y barra de herramientas -------------------------------------
     titulo = ft.Text("Conciliación Bancaria", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
     subtitulo = ft.Text(
-        "Compara el estado de cuenta del banco (.xlsx) contra los movimientos del sistema.",
+        "Agrega uno o varios estados de cuenta (elige el banco de cada uno) y compáralos "
+        "contra los movimientos del sistema.",
         size=12,
         color=ft.Colors.ON_SURFACE_VARIANT,
     )
@@ -137,44 +141,78 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         on_click=lambda _e: page.show_dialog(date_range_picker),
     )
 
+    def _opciones_banco() -> list:
+        # "Auto-detectar" + bancos habilitados. Forzar un banco es útil cuando dos
+        # formatos comparten encabezados o la autodetección no basta.
+        return [ft.dropdown.Option(key="", text="Auto-detectar")] + [
+            ft.dropdown.Option(key=n, text=n.title()) for n in nombres_bancos()
+        ]
+
+    def _actualizar_boton() -> None:
+        boton_conciliar.disabled = not archivos_banco
+
+    def _agregar_archivo(ruta: str, nombre: str) -> None:
+        dd = ft.Dropdown(value="", width=190, label="Banco", options=_opciones_banco())
+        entrada: dict = {"path": ruta, "nombre": nombre, "dropdown": dd}
+
+        def _quitar(_e) -> None:
+            archivos_banco.remove(entrada)
+            lista_archivos.controls.remove(entrada["fila"])
+            _actualizar_boton()
+            page.update()
+
+        fila = ft.Row(
+            [
+                ft.Icon(ft.Icons.INSERT_DRIVE_FILE_OUTLINED, size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Container(content=ft.Text(nombre, size=12, tooltip=nombre), width=260),
+                dd,
+                ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18, tooltip="Quitar archivo", on_click=_quitar),
+            ],
+            spacing=10,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+        entrada["fila"] = fila
+        archivos_banco.append(entrada)
+        lista_archivos.controls.append(fila)
+
     async def on_cargar_archivo(_e) -> None:
         archivos = await file_picker.pick_files(
-            dialog_title="Selecciona el estado de cuenta del banco",
+            dialog_title="Selecciona los estados de cuenta de los bancos",
             file_type=ft.FilePickerFileType.CUSTOM,
             allowed_extensions=EXTENSIONES,  # xlsx/xlsm/xls/xml/csv
-            allow_multiple=False,
+            allow_multiple=True,
             with_data=True,
         )
         if not archivos:
             return
-        archivo = archivos[0]
-        # En modo web/escritorio: si viene con bytes, volcarlos a un temporal
-        # CONSERVANDO la extensión original (la detección de algunos bancos —p. ej.
-        # BBVA .xls SpreadsheetML— depende de ella).
-        if archivo.path and os.path.exists(archivo.path):
-            archivo_sel[0] = archivo.path
-        else:
-            sufijo = os.path.splitext(archivo.name)[1] or ".xlsx"
-            with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
-                tmp.write(archivo.bytes or b"")
-                archivo_sel[0] = tmp.name
-        nombre_archivo.value = archivo.name
-        boton_conciliar.disabled = False
+        for archivo in archivos:
+            # En modo web: volcar bytes a un temporal CONSERVANDO la extensión (la
+            # detección de algunos bancos —p. ej. BBVA .xls SpreadsheetML— depende de ella).
+            if archivo.path and os.path.exists(archivo.path):
+                ruta = archivo.path
+            else:
+                sufijo = os.path.splitext(archivo.name)[1] or ".xlsx"
+                with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
+                    tmp.write(archivo.bytes or b"")
+                    ruta = tmp.name
+            _agregar_archivo(ruta, archivo.name)
+        _actualizar_boton()
+        page.update()
+
+    def _limpiar_archivos(_e=None) -> None:
+        archivos_banco.clear()
+        lista_archivos.controls.clear()
+        _actualizar_boton()
         page.update()
 
     boton_cargar = ft.OutlinedButton(
-        content=ft.Row([ft.Icon(ft.Icons.UPLOAD_FILE, size=16), ft.Text("Cargar Excel bancario", size=13)], spacing=8, tight=True),
+        content=ft.Row([ft.Icon(ft.Icons.UPLOAD_FILE, size=16), ft.Text("Agregar archivos bancarios", size=13)], spacing=8, tight=True),
         style=ft.ButtonStyle(padding=ft.Padding(left=12, right=12, top=6, bottom=6)),
         on_click=on_cargar_archivo,
     )
-    # Selector de banco: "Auto-detectar" por defecto; forzar un banco es útil cuando
-    # dos formatos comparten encabezados (Banorte / BX / Ve por Más).
-    banco_dropdown = ft.Dropdown(
-        label="Banco",
-        value="",
-        width=190,
-        options=[ft.dropdown.Option(key="", text="Auto-detectar")]
-        + [ft.dropdown.Option(key=n, text=n.title()) for n in nombres_bancos()],
+    boton_limpiar = ft.TextButton(
+        content=ft.Row([ft.Icon(ft.Icons.CLEAR_ALL, size=16), ft.Text("Limpiar todos", size=13)], spacing=6, tight=True),
+        on_click=_limpiar_archivos,
     )
     boton_conciliar = ft.FilledButton(
         content=ft.Row([ft.Icon(ft.Icons.COMPARE_ARROWS, size=16), ft.Text("Conciliar", size=13)], spacing=8, tight=True),
@@ -235,12 +273,8 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     # wrap=True se renderiza como un recuadro gris enorme y descoloca los botones.)
     barra = ft.Column(
         [
-            ft.Row(
-                [boton_cargar, banco_dropdown, nombre_archivo],
-                spacing=12,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                wrap=True,
-            ),
+            ft.Row([boton_cargar, boton_limpiar], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            lista_archivos,
             ft.Row(
                 [
                     ft.Text("Comparar contra:", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -325,24 +359,39 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
         )
 
+    def _banco(m: MovimientoConciliacion) -> str:
+        # origen "BANCO:BBVA" -> "BBVA"
+        return m.origen.split(":", 1)[1] if ":" in m.origen else m.origen
+
     def _render(res: ResultadoConciliacion) -> None:
-        cols_mov = [("Fecha", 90.0), ("Descripción", DataColumnSize.L), ("Referencia", 150.0), ("Importe", 120.0)]
-        cols_conc = [("Fecha", 90.0), ("Descripción (banco)", DataColumnSize.L), ("Referencia", 150.0),
-                     ("Importe banco", 120.0), ("Importe sistema", 120.0)]
+        # Se antepone "Banco" en las tablas del lado banco (útil al combinar varios).
+        cols_mov = [("Banco", 100.0), ("Fecha", 90.0), ("Descripción", DataColumnSize.L),
+                    ("Referencia", 150.0), ("Importe", 120.0)]
+        cols_conc = [("Banco", 100.0), ("Fecha", 90.0), ("Descripción (banco)", DataColumnSize.L),
+                     ("Referencia", 150.0), ("Importe banco", 120.0), ("Importe sistema", 120.0)]
 
         filas_conc = [
-            [_fmt_fecha(b.fecha), b.descripcion, b.referencia, _fmt_importe(b.importe), _fmt_importe(s.importe)]
+            [_banco(b), _fmt_fecha(b.fecha), b.descripcion, b.referencia, _fmt_importe(b.importe), _fmt_importe(s.importe)]
             for b, s in res.conciliados
         ]
-        filas_banco = [[_fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.solo_banco]
-        filas_sistema = [[_fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.solo_sistema]
-        filas_cheques = [[_fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.devoluciones_cheque]
+        filas_banco = [[_banco(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.solo_banco]
+        filas_cheques = [[_banco(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.devoluciones_cheque]
+        # Repetidos: se antepone la "Conciliación" (columna del reporte de Ingresos
+        # Diversos, guardada en raw). Para el origen nube aún no hay tabla -> vacío.
+        cols_repetidos = [("Conciliación", 110.0), ("Fecha", 90.0), ("Descripción", DataColumnSize.L),
+                          ("Referencia", 150.0), ("Importe", 120.0)]
+        filas_repetidos = [
+            [str(m.raw.get("CONCILIACION") or ""), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)]
+            for m in res.posibles_repetidos_sistema
+        ]
 
         total_conc = sum(b.importe for b, _ in res.conciliados)
+        # Nota: "En sistema, no en banco" se calcula pero ya no se muestra; en su
+        # lugar va "Posibles repetidos en sistema" (mismos ref+descripción+importe).
         secciones.controls = [
             seccion_resultado("Movimientos conciliados", _COLOR_CONCILIADOS, ft.Icons.CHECK_CIRCLE_OUTLINE, cols_conc, filas_conc, total_conc),
             seccion_resultado("En banco, no en sistema", _COLOR_SOLO_BANCO, ft.Icons.ACCOUNT_BALANCE_OUTLINED, cols_mov, filas_banco, sum(m.importe for m in res.solo_banco)),
-            seccion_resultado("En sistema, no en banco", _COLOR_SOLO_SISTEMA, ft.Icons.DNS_OUTLINED, cols_mov, filas_sistema, sum(m.importe for m in res.solo_sistema)),
+            seccion_resultado("Posibles repetidos en sistema", _COLOR_REPETIDOS, ft.Icons.CONTENT_COPY, cols_repetidos, filas_repetidos, sum(m.importe for m in res.posibles_repetidos_sistema)),
             seccion_resultado("Devoluciones de cheque", _COLOR_CHEQUES, ft.Icons.MONEY_OFF, cols_mov, filas_cheques, sum(m.importe for m in res.devoluciones_cheque)),
         ]
         page.update()
@@ -376,37 +425,55 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         )
         page.show_dialog(dialogo)
 
+    def _mostrar_lista(titulo: str, lineas: list[str]) -> None:
+        """Diálogo simple con una lista de avisos (p. ej. archivos no procesados)."""
+        cuerpo = ft.Column(
+            [ft.Text(l, size=13, color=ft.Colors.ON_SURFACE) for l in lineas],
+            scroll=ft.ScrollMode.AUTO, tight=True, spacing=6,
+        )
+        dialogo = ft.AlertDialog(
+            title=ft.Text(titulo),
+            content=ft.Container(content=cuerpo, width=560),
+            actions=[ft.TextButton("Cerrar", on_click=lambda _e: page.pop_dialog())],
+        )
+        page.show_dialog(dialogo)
+
     async def on_conciliar(_e=None) -> None:
-        if not archivo_sel[0]:
-            _avisar("Primero carga el Excel del banco.")
+        if not archivos_banco:
+            _avisar("Agrega al menos un archivo de banco.")
             return
         progress.visible = True
         estado_text.value = ""
         boton_conciliar.disabled = True
         page.update()
         try:
-            # 1. Detectar (o forzar) el banco y normalizar sus movimientos. Usa el
-            #    sistema de parsers unificado (mismo que identificación bancaria).
-            nombre_forzado = banco_dropdown.value or None
-            nombre_banco, mov_banco, estado = await asyncio.to_thread(
-                normalizar_banco, archivo_sel[0], nombre_forzado
-            )
-            if estado == "no_reconocido":
-                _avisar(
-                    "No se reconoció el formato del archivo. Verifica que sea un estado de "
-                    "cuenta de un banco soportado; si el banco no está en la lista, comunícate "
-                    "con el equipo de sistemas para validar el formato."
+            # 1. Normalizar cada archivo con su banco (elegido o autodetectado) y
+            #    combinar todos los movimientos. Los archivos con problema se listan.
+            mov_banco: list[MovimientoConciliacion] = []
+            problemas: list[str] = []
+            resumen: list[str] = []
+            for entrada in archivos_banco:
+                forzado = entrada["dropdown"].value or None
+                nombre, movs, estado = await asyncio.to_thread(
+                    normalizar_banco, entrada["path"], forzado
                 )
-                return
-            if estado == "no_habilitado":
-                _avisar(
-                    f"El archivo parece de {nombre_banco}, pero ese banco aún no está "
-                    "habilitado para conciliaciones. Comunícate con el equipo de sistemas "
-                    "para validar el formato del banco."
-                )
-                return
+                if estado == "no_reconocido":
+                    problemas.append(
+                        f"• {entrada['nombre']}: no se reconoció el formato. Si el banco no está "
+                        "en la lista, comunícate con sistemas para validarlo (o elígelo manualmente)."
+                    )
+                elif estado == "no_habilitado":
+                    problemas.append(
+                        f"• {entrada['nombre']}: parece de {nombre}, pero ese banco aún no está "
+                        "habilitado. Comunícate con sistemas para validar el formato."
+                    )
+                else:
+                    mov_banco.extend(movs)
+                    resumen.append(f"{nombre} ({len(movs)})")
+
             if not mov_banco:
-                _avisar(f"El archivo de {nombre_banco} no tiene movimientos (abonos) que conciliar.", error=False)
+                _mostrar_lista("Ningún archivo se pudo procesar", problemas or ["Sin movimientos que conciliar."])
+                return
 
             # 2. Traer los movimientos del sistema según el origen elegido.
             if origen_group.value == "excel":
@@ -421,12 +488,14 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 mov_sistema = [MovimientoConciliacion.desde_sistema(c) for c in crudos]
                 origen_txt = "nube"
 
-            # 3. Conciliar y renderizar.
+            # 3. Conciliar (todos los bancos juntos) y renderizar.
             resultado = conciliar(mov_banco, mov_sistema)
             _render(resultado)
-            estado_text.value = f"Banco: {nombre_banco} · {len(mov_banco)} mov. · Sistema ({origen_txt}): {len(mov_sistema)} mov."
+            estado_text.value = f"Bancos: {', '.join(resumen)} · Sistema ({origen_txt}): {len(mov_sistema)} mov."
+            if problemas:
+                _mostrar_lista("Algunos archivos no se procesaron", problemas)
         except FileNotFoundError:
-            _avisar("No se encontró el archivo cargado. Vuelve a cargarlo.")
+            _avisar("No se encontró alguno de los archivos cargados. Vuelve a cargarlo.")
         except Exception as ex:  # noqa: BLE001 — se reporta al usuario, no debe tumbar la UI
             _mostrar_error(f"Error al conciliar: {ex}")
         finally:
