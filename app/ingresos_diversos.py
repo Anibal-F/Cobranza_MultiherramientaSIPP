@@ -14,7 +14,7 @@ from .pagos_contado import PagoContadoExtraido
 _BANCOS_CAPTURA_MANUAL = {"BANBAJIO"}
 
 
-def _rpa(usuario, password, empresa: Empresa, headless, log_fn) -> RPAAutomation:
+def _rpa(usuario, password, empresa: Empresa, headless, log_fn, contador_fn=None) -> RPAAutomation:
     return RPAAutomation(
         usuario,
         password,
@@ -22,6 +22,7 @@ def _rpa(usuario, password, empresa: Empresa, headless, log_fn) -> RPAAutomation
         log_fn=log_fn,
         empresa_sipp=empresa.sipp_empresa,
         sucursal_sipp=empresa.sipp_sucursal,
+        contador_fn=contador_fn,
     )
 
 
@@ -53,6 +54,8 @@ async def cargar_ingresos_diversos_en_sipp(
     headless: bool = False,
     log_fn: Callable = print,
     sucursal_resolver: Optional[Callable] = None,
+    contador_fn: Optional[Callable] = None,
+    rpa_out: Optional[list] = None,
 ) -> int:
     """Sube ruta_csv a "Ingresos Diversos - Agregar" en SIPP y asigna, en el
     modal de previsualización, el cliente ya identificado en la app a cada
@@ -138,7 +141,11 @@ async def cargar_ingresos_diversos_en_sipp(
     ]
     a_eliminar = [(m.referencia, m.abono) for m in omitidos]
 
-    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn, contador_fn)
+    # Se expone la instancia a la UI: estos flujos dejan el navegador abierto para que
+    # el usuario adjunte el soporte, y el modal de confirmación ofrece cerrarlo.
+    if rpa_out is not None:
+        rpa_out.append(automatizacion)
 
     if es_bbva:
         # BBVA no tiene "Subir Excel": se usa el buzón H2H (que cae en la misma
@@ -245,6 +252,7 @@ async def cargar_pagos_contado_en_sipp(
     headless: bool = False,
     log_fn: Callable = print,
     enviar_automaticamente: bool = False,
+    contador_fn: Optional[Callable] = None,
 ) -> int:
     """Agrega, vía el modal "Agregar Movimientos" de SIPP, cada pago de
     contado ya confirmado (con cliente, plaza y monto) en `pagos`. Agrupa los
@@ -287,7 +295,7 @@ async def cargar_pagos_contado_en_sipp(
     ]
     total = sum(len(datos) for _, datos, _ in grupos_lista)
 
-    automatizacion = _rpa(usuario, password, empresa, headless, log_fn)
+    automatizacion = _rpa(usuario, password, empresa, headless, log_fn, contador_fn)
     duplicados = await automatizacion.cargar_pagos_contado(
         grupos_lista, fecha_operacion_ddmmyyyy, enviar_automaticamente
     )

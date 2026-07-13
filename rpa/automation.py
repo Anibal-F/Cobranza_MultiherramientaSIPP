@@ -389,6 +389,7 @@ class RPAAutomation:
         base_url: Optional[str] = None,
         empresa_sipp: str = "ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
         sucursal_sipp: str = "CORPORATIVO",
+        contador_fn: Optional[Callable] = None,
     ):
         self.username = username
         self.password = password
@@ -403,6 +404,76 @@ class RPAAutomation:
         self._base_navegacion = ""  # origen SIPP para navegar pestañas nuevas
         self.skipped: List[str] = []
         self.not_found: List[str] = []
+        # Conteos de lo que el RPA REALMENTE hizo (no de lo que se le pidió). La UI
+        # los pinta como resumen para que el usuario no tenga que leer el log crudo:
+        # los mensajes técnicos (reintentos, volcados de HTML) iban en naranja/rojo y
+        # se leían como "falló" aunque la carga hubiera salido bien.
+        self.contadores: dict = {}
+        self._contador_fn = contador_fn
+        # Navegador que algunos flujos dejan ABIERTO al terminar (para que el usuario
+        # adjunte el soporte y envíe en SIPP). Se guardan para poder cerrarlo desde la
+        # UI: antes no se cerraba nunca ni se hacía playwright.stop(), así que la
+        # ventana se quedaba girando y el proceso quedaba vivo.
+        self._playwright = None
+        self._browser = None
+
+    @property
+    def navegador_abierto(self) -> bool:
+        return self._browser is not None
+
+    async def cerrar_navegador(self) -> None:
+        """Cierra el navegador dejado abierto y libera el proceso de Playwright.
+        Idempotente: se puede llamar aunque ya esté cerrado."""
+        browser, playwright = self._browser, self._playwright
+        self._browser = self._playwright = None
+        if browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright is not None:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+    async def traer_al_frente(self) -> None:
+        """Trae al frente la pestaña del navegador dejado abierto."""
+        if self._browser is None:
+            return
+        try:
+            for contexto in self._browser.contexts:
+                for pagina in contexto.pages:
+                    await pagina.bring_to_front()
+                    return
+        except Exception:
+            pass
+
+    def contar(self, clave: str, n: int = 1) -> None:
+        """Suma n al contador `clave` y notifica a la UI para refrescar el resumen."""
+        self.contadores[clave] = self.contadores.get(clave, 0) + n
+        if self._contador_fn is not None:
+            try:
+                self._contador_fn(dict(self.contadores))
+            except Exception:
+                pass
+
+    def _opciones_contexto(self) -> dict:
+        """Opciones de tamaño del contexto del navegador.
+
+        En modo VISIBLE se usa `no_viewport`: al lanzar con --start-maximized y a la
+        vez fijar viewport=1440x900, la VENTANA queda maximizada pero la PÁGINA se
+        renderiza a 1440x900 dentro de ella. Al redimensionar o hacer zoom, el
+        contenido se corta y los botones de SIPP (Aceptar/Guardar) quedan fuera de
+        vista. Sin viewport fijo, la página toma el tamaño real de la ventana y es
+        responsiva.
+
+        En HEADLESS no hay ventana real de la cual tomar el tamaño, así que ahí sí se
+        fija un viewport amplio (si no, Chromium usa uno pequeño por defecto y los
+        modales de SIPP no caben)."""
+        if self.headless:
+            return {"viewport": {"width": 1600, "height": 1000}}
+        return {"no_viewport": True}
 
     def log(self, mensaje: str, nivel: str = "info") -> None:
         """Envía el mensaje al callback de la UI y además a la terminal: los
@@ -436,7 +507,7 @@ class RPAAutomation:
                 args=["--start-maximized"],
             )
             context = await browser.new_context(
-                viewport={"width": 1440, "height": 900},
+                **self._opciones_contexto(),
                 locale="es-MX",
             )
             page = await context.new_page()
@@ -705,7 +776,7 @@ class RPAAutomation:
                 args=["--start-maximized"],
             )
             context = await browser.new_context(
-                viewport={"width": 1440, "height": 900},
+                **self._opciones_contexto(),
                 locale="es-MX",
             )
             page = await context.new_page()
@@ -849,7 +920,7 @@ class RPAAutomation:
             args=["--start-maximized"],
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
+            **self._opciones_contexto(),
             locale="es-MX",
         )
         page = await context.new_page()
@@ -895,6 +966,8 @@ class RPAAutomation:
             self.log(f"  No se pudo completar el guardado de la conciliación: {exc}", "error")
             await self._volcar_html(page, "ingdiv_guardar")
         # Browser deliberadamente abierto para que el usuario adjunte soporte y envíe.
+        # Se retiene para que la UI pueda cerrarlo desde el modal de confirmación.
+        self._playwright, self._browser = playwright, browser
 
     # ──────────────────────────────────────────────────────
     # BBVA: Ingresos Diversos vía buzón Host-to-Host (H2H) + respaldo manual.
@@ -922,7 +995,7 @@ class RPAAutomation:
             headless=self.headless, slow_mo=30, args=["--start-maximized"]
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900}, locale="es-MX"
+            **self._opciones_contexto(), locale="es-MX"
         )
         page = await context.new_page()
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
@@ -985,6 +1058,8 @@ class RPAAutomation:
         except Exception as exc:
             self.log(f"  No se pudo guardar la conciliación: {exc}", "error")
             await self._volcar_html(page, "bbva_h2h_guardar")
+        # Browser abierto para adjuntar el soporte; se retiene para que la UI lo cierre.
+        self._playwright, self._browser = playwright, browser
         return len(movimientos)
 
     async def _traer_movimientos_h2h(
@@ -1111,8 +1186,10 @@ class RPAAutomation:
                 await boton.dispatch_event("click")
                 await page.wait_for_timeout(350)
                 eliminadas += 1
+                self.contar("omitidos")
                 self.log(f"  Fila {i + 1} ({ref}): eliminada (ya extraída / excluida).", "info")
             except Exception as exc:
+                self.contar("errores")
                 self.log(f"  No se pudo eliminar la fila {i + 1} ({ref}): {exc}", "warn")
 
         self.log(
@@ -1160,6 +1237,7 @@ class RPAAutomation:
                 # Sin movimiento identificado: se deja SIN cliente (vacía). No la
                 # editamos; se guardará tal cual para captura/identificación manual.
                 omitidas += 1
+                self.contar("sin_cliente")
                 self.log(
                     f"  Fila {i + 1}/{total_filas} ({referencia_modal}): sin cliente identificado, se deja vacía.",
                     "warn",
@@ -1294,12 +1372,14 @@ class RPAAutomation:
                     await self._marcar_ant_cnt_preview(fila, tipos_mov)
 
                 asignados += 1
+                self.contar("identificados")
                 self.log(
                     f"  Fila {i + 1} ({referencia_modal}): cliente '{cliente_asignado}', "
                     f"sucursal '{etiqueta_suc}' [{origen_suc}].",
                     "ok",
                 )
             except Exception as exc:
+                self.contar("errores")
                 self.log(f"  Error llenando fila {i + 1} ({referencia_modal}): {exc}", "error")
                 await self._volcar_html(page, f"ingdiv_fila_{i + 1}")
 
@@ -1435,7 +1515,7 @@ class RPAAutomation:
             headless=self.headless, slow_mo=40, args=["--start-maximized"]
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900}, locale="es-MX"
+            **self._opciones_contexto(), locale="es-MX"
         )
         page = await context.new_page()
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
@@ -1537,9 +1617,11 @@ class RPAAutomation:
                     " if (m) m.classList.add('ng-hide'); }"
                 )
             await page.wait_for_timeout(150)
+            self.contar("capturados_manual")
             self.log(f"  Movimiento {i + 1} agregado.", "ok")
             return True
         except Exception as exc:
+            self.contar("errores")
             self.log(f"  Error agregando movimiento {i + 1} en '{paso}': {exc}", "error")
             await self._volcar_html(page, f"ingdiv_manual_{i + 1}")
             # Cerrar el modal para no bloquear el siguiente movimiento.
@@ -1671,7 +1753,7 @@ class RPAAutomation:
             args=["--start-maximized"],
         )
         context = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
+            **self._opciones_contexto(),
             locale="es-MX",
         )
         page = await context.new_page()
@@ -2011,8 +2093,10 @@ class RPAAutomation:
                 if ruta_comprobante:
                     comprobantes.append(ruta_comprobante)
                 agregados += 1
+                self.contar("capturados_manual")
                 self.log(f"  Movimiento {i + 1} agregado: cliente '{cliente}', plaza '{plaza}'.", "ok")
             except Exception as exc:
+                self.contar("errores")
                 self.log(
                     f"  Error agregando movimiento {i + 1} en el paso '{paso}': {exc}",
                     "error",
@@ -2211,7 +2295,7 @@ class RPAAutomation:
         browser = await playwright.chromium.launch(
             headless=self.headless, slow_mo=8, args=["--start-maximized"]
         )
-        context = await browser.new_context(viewport={"width": 1440, "height": 900}, locale="es-MX")
+        context = await browser.new_context(**self._opciones_contexto(), locale="es-MX")
         page = await context.new_page()
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
 
