@@ -20,8 +20,9 @@ En ambos se procesan solo los ABONOS/importes positivos (cobros); cargos,
 comisiones y SPEI enviados (importe negativo) se ignoran.
 """
 
+import re
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from ..models import Movimiento
 from ..textutils import normalizar
@@ -75,11 +76,25 @@ def _fecha(valor):
         return None
 
 
+# BBVA emite XML inválido: los '&' de las razones sociales van SIN escapar
+# (ej. "A&G TRUCKING GROUP") en vez de '&amp;', y ET revienta con "not well-formed".
+# Se re-escapan los '&' que no formen ya una entidad válida antes de parsear.
+_AMP_SUELTO_RE = re.compile(rb"&(?!(?:amp|lt|gt|quot|apos|#[0-9]+|#[xX][0-9a-fA-F]+);)")
+
+
+def _leer_xml(path: str):
+    """Parsea el SpreadsheetML del archivo, saneando los '&' sueltos que BBVA deja
+    sin escapar. Se trabaja sobre bytes para no chocar con la declaración de
+    encoding del documento."""
+    with open(path, "rb") as f:
+        crudo = f.read()
+    return ET.fromstring(_AMP_SUELTO_RE.sub(b"&amp;", crudo))
+
+
 def _filas(path: str) -> list[list]:
     """Devuelve las filas de la primera hoja como listas de celdas (str|None),
     respetando ss:Index (celdas omitidas por estar vacías)."""
-    tree = ET.parse(path)
-    root = tree.getroot()
+    root = _leer_xml(path)
     tabla = root.find(".//" + _q("Worksheet") + "/" + _q("Table"))
     if tabla is None:
         return []
@@ -167,8 +182,12 @@ def _parse_interno(filas: list[list], enc: int) -> list[Movimiento]:
         referencia = _celda(fila, c_ref)
         descripcion = " ".join(x for x in (concepto, ampliada) if x)
 
-        # Compensaciones por desfase de SPEI: ajustes internos, no cobros.
-        if "COMPENSACION" in normalizar(descripcion).upper():
+        # Compensaciones por desfase de SPEI: ajustes internos de Banxico (centavos),
+        # no cobros. Se busca en TODA la fila, no solo en la descripción: BBVA a veces
+        # parte la leyenda entre columnas y deja "COMPENSACION DE" en Referencia con
+        # "MORA SPEI NORMA BANXICO" en Concepto.
+        fila_texto = " ".join(x for x in (concepto, referencia, ampliada) if x)
+        if "COMPENSACION" in normalizar(fila_texto).upper():
             continue
 
         movimientos.append(
@@ -256,3 +275,51 @@ def parse(path: str) -> list[Movimiento]:
     if tipo == LAYOUT_EXTERNO:
         return _parse_externo(filas, enc)
     return []
+
+
+# ── Formato ACUMULADO (RSMACUM / SPEIACUM) ────────────────────────────────
+# Además del corte DIARIO, BBVA ofrece un archivo ACUMULADO con varios días. Se usa
+# para capturar el dinero que cayó fuera de horario laboral (17:30 → 08:30 del día
+# siguiente), así que en la práctica solo interesan HOY y el día hábil anterior; lo
+# más viejo ya se concilió en cortes previos. La estructura es idéntica a la diaria
+# (mismos encabezados), por eso no hay un layout nuevo: se distingue por abarcar más
+# de una fecha.
+
+
+def dia_habil_anterior(hoy: date) -> date:
+    """Día hábil inmediatamente anterior a `hoy`.
+
+    En LUNES el día hábil anterior es el VIERNES: la ventana de fuera de horario
+    abarca viernes 17:30 → lunes 08:30, así que el fin de semana (sábado y domingo)
+    queda dentro del rango a conservar. Si se tomara "ayer" de calendario, en lunes
+    se perderían los movimientos del viernes por la tarde y del sábado."""
+    dow = hoy.weekday()  # lunes=0 ... domingo=6
+    if dow == 0:  # lunes → viernes
+        dias = 3
+    elif dow == 6:  # domingo → viernes
+        dias = 2
+    else:  # sábado → viernes; martes-viernes → ayer
+        dias = 1
+    return hoy - timedelta(days=dias)
+
+
+def recortar_acumulado(
+    movimientos: list[Movimiento], hoy: date | None = None
+) -> tuple[list[Movimiento], list[Movimiento], date | None]:
+    """Si el archivo abarca MÁS DE UN DÍA (formato acumulado), conserva solo los
+    movimientos desde el día hábil anterior a `hoy` en adelante. Devuelve
+    (conservados, omitidos, fecha_de_corte).
+
+    Un archivo de un solo día (formato diario) se devuelve intacto y con corte None:
+    así, cargar un diario viejo a propósito sigue funcionando.
+
+    Los movimientos sin fecha legible NO se descartan (se conservan): es preferible
+    revisarlos de más a perder un cobro por una fecha que no se pudo parsear."""
+    fechas = {m.fecha for m in movimientos if m.fecha}
+    if len(fechas) <= 1:
+        return list(movimientos), [], None
+
+    corte = dia_habil_anterior(hoy or date.today())
+    conservados = [m for m in movimientos if m.fecha is None or m.fecha >= corte]
+    omitidos = [m for m in movimientos if m.fecha is not None and m.fecha < corte]
+    return conservados, omitidos, corte

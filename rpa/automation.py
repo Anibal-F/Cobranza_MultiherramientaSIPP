@@ -830,6 +830,7 @@ class RPAAutomation:
         cuenta_bancaria_nombre: str,
         fecha_operacion_ddmmyyyy: str,
         ruta_csv: str,
+        a_eliminar: Optional[List[Tuple]] = None,
     ) -> None:
         """
         Abre su propia sesión (login + selección de empresa/sucursal), navega a
@@ -885,7 +886,7 @@ class RPAAutomation:
         self.log(f"  [paso] subiendo archivo bancario: {os.path.basename(ruta_csv)}...", "info")
         await archivo_input.set_input_files(ruta_csv)
 
-        await self._asignar_clientes_preview(page, movimientos)
+        await self._asignar_clientes_preview(page, movimientos, a_eliminar)
 
         try:
             await self._agregar_movimientos_archivo_banco(page)
@@ -908,9 +909,13 @@ class RPAAutomation:
         fecha_operacion_ddmmyyyy: str,
         fecha_inicio_ddmmyyyy: str,
         fecha_fin_ddmmyyyy: str,
+        a_eliminar: Optional[List[Tuple]] = None,
     ) -> int:
         """`movimientos`: tuplas (referencia, abono, cliente, sucursal, forzar,
-        tipos, concepto). No guarda y envía: deja el navegador abierto para revisar
+        tipos, concepto). `a_eliminar`: tuplas (referencia, abono) de los movimientos
+        que NO deben subirse (ya extraídos en un corte anterior / excluidos); el
+        buzón H2H los trae de todos modos, así que se eliminan en la
+        previsualización. No guarda y envía: deja el navegador abierto para revisar
         y adjuntar el soporte. Devuelve cuántos movimientos se procesaron."""
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(
@@ -939,7 +944,7 @@ class RPAAutomation:
         # 1) Buzón H2H → previsualización → identificar con los datos del .xls.
         no_encontrados = list(movimientos)  # si el H2H no trae nada, todo es manual
         if await self._traer_movimientos_h2h(page, fecha_inicio_ddmmyyyy, fecha_fin_ddmmyyyy):
-            no_encontrados = await self._asignar_clientes_preview(page, movimientos)
+            no_encontrados = await self._asignar_clientes_preview(page, movimientos, a_eliminar)
             try:
                 await self._agregar_movimientos_archivo_banco(page)
             except Exception as exc:
@@ -1046,35 +1051,100 @@ class RPAAutomation:
             await self._volcar_html(page, "bbva_h2h_buzon")
             return False
 
-    async def _asignar_clientes_preview(self, page: Page, movimientos) -> list:
-        """En el modal 'Previsualización de datos en Archivo Bancario' (mismo para
-        el flujo CSV 'Subir Excel' y el flujo H2H de BBVA), asigna a cada fila su
-        cliente/sucursal y marca Ant./Cnt. según los candidatos `movimientos`
-        (tuplas ref, abono, cliente, sucursal, forzar, tipos). Devuelve la lista de
-        candidatos que NO se encontraron en la previsualización (para respaldo)."""
-        self.log("  [paso] esperando modal de previsualización (Datos Banco)...", "info")
-        await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
-        await page.wait_for_timeout(500)
+    async def _leer_filas_preview(self, page: Page) -> List[Tuple[str, Optional[float]]]:
+        """Snapshot de (referencia, importe) de TODAS las filas del modal.
 
-        # Se cuentan los movimientos por sus lápices #EditarMovimiento_i (uno por
-        # movimiento). NO se usa "tbody tr": la columna "Importe Sucursales" trae
-        # tablas anidadas cuyas <tr> también matchean y rompen la lectura por
-        # índice (td.nth(3) inexistente → timeout).
+        Se recorren por sus lápices #EditarMovimiento_i (uno por movimiento). NO se
+        usa "tbody tr": la columna "Importe Sucursales" trae tablas anidadas cuyas
+        <tr> también matchean y rompen la lectura por índice (td.nth(3) inexistente
+        → timeout). Por eso se leen SOLO los <td> directos (xpath=./td)."""
         lapices = page.locator("#modal-bodymodalDatosBanco [id^='EditarMovimiento_']")
         total_filas = await lapices.count()
-        self.log(f"{total_filas} movimiento(s) en la previsualización.", "info")
-
-        # Snapshot de (referencia, importe) de TODAS las filas antes de editar
-        # ninguna: editar una fila re-renderiza la tabla y rompe las lecturas
-        # posteriores. Se leen SOLO los <td> directos de la fila del movimiento
-        # (xpath=./td) para ignorar los <td> de las tablas anidadas.
-        filas_datos: List[Tuple[str, Optional[float]]] = []
+        filas: List[Tuple[str, Optional[float]]] = []
         for i in range(total_filas):
             fila = page.locator(f"#EditarMovimiento_{i}").locator("xpath=ancestor::tr[1]")
             celdas = fila.locator("xpath=./td")
             ref = (await celdas.nth(2).inner_text()).strip()
             imp = _parsear_importe(await celdas.nth(3).inner_text())
-            filas_datos.append((ref, imp))
+            filas.append((ref, imp))
+        return filas
+
+    async def _eliminar_filas_preview(self, page: Page, a_eliminar: List[Tuple]) -> int:
+        """Elimina del modal las filas que NO deben subirse a SIPP: las ya extraídas
+        en un corte anterior (ya_subido) y las excluidas (traspasos a filiales,
+        portal BBVA). En el flujo CSV esas filas ya vienen quitadas del archivo, así
+        que esto es una red de seguridad; en el flujo H2H de BBVA (que no sube
+        archivo, sino que jala del buzón por rango de fechas) es el ÚNICO punto donde
+        se pueden omitir.
+
+        Las filas se borran de MAYOR a MENOR índice: al eliminar una, Angular
+        re-renderiza y re-indexa el resto, así que ir en reversa mantiene válidos los
+        #EditarMovimiento_i de las filas que aún faltan por borrar."""
+        if not a_eliminar:
+            return 0
+
+        filas_datos = await self._leer_filas_preview(page)
+        pendientes = list(a_eliminar)
+        objetivos: List[Tuple[int, str]] = []
+        for i, (ref, imp) in enumerate(filas_datos):
+            mov = _emparejar_movimiento(pendientes, ref, imp)
+            if mov is not None:
+                pendientes.remove(mov)
+                objetivos.append((i, ref))
+
+        if not objetivos:
+            self.log(
+                f"  Ninguna de las {len(a_eliminar)} fila(s) a omitir apareció en la "
+                "previsualización (ya venían fuera del archivo).",
+                "info",
+            )
+            return 0
+
+        eliminadas = 0
+        for i, ref in reversed(objetivos):
+            try:
+                fila = page.locator(f"#EditarMovimiento_{i}").locator("xpath=ancestor::tr[1]")
+                boton = fila.locator("button.btn-eliminar15p").first
+                await boton.scroll_into_view_if_needed()
+                # dispatch_event dispara el ng-click directo aunque el botón traiga
+                # la clase ng-hide por los ng-show de SIPP.
+                await boton.dispatch_event("click")
+                await page.wait_for_timeout(350)
+                eliminadas += 1
+                self.log(f"  Fila {i + 1} ({ref}): eliminada (ya extraída / excluida).", "info")
+            except Exception as exc:
+                self.log(f"  No se pudo eliminar la fila {i + 1} ({ref}): {exc}", "warn")
+
+        self.log(
+            f"{eliminadas}/{len(objetivos)} fila(s) omitida(s) eliminadas de la previsualización.",
+            "ok" if eliminadas == len(objetivos) else "warn",
+        )
+        return eliminadas
+
+    async def _asignar_clientes_preview(self, page: Page, movimientos, a_eliminar=None) -> list:
+        """En el modal 'Previsualización de datos en Archivo Bancario' (mismo para
+        el flujo CSV 'Subir Excel' y el flujo H2H de BBVA), asigna a cada fila su
+        cliente/sucursal y marca Ant./Cnt. según los candidatos `movimientos`
+        (tuplas ref, abono, cliente, sucursal, forzar, tipos). Antes de asignar,
+        elimina las filas de `a_eliminar` (ya extraídas / excluidas) para que no se
+        suban. Devuelve la lista de candidatos que NO se encontraron en la
+        previsualización (para respaldo)."""
+        self.log("  [paso] esperando modal de previsualización (Datos Banco)...", "info")
+        await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
+        await page.wait_for_timeout(500)
+
+        # Primero se quitan las filas que no deben subirse; así el snapshot de
+        # abajo ya refleja la tabla final y los índices no se mueven después.
+        if a_eliminar:
+            await self._eliminar_filas_preview(page, a_eliminar)
+            await page.wait_for_timeout(300)
+
+        # Snapshot de (referencia, importe) de TODAS las filas antes de editar
+        # ninguna: editar una fila re-renderiza la tabla y rompe las lecturas
+        # posteriores.
+        filas_datos = await self._leer_filas_preview(page)
+        total_filas = len(filas_datos)
+        self.log(f"{total_filas} movimiento(s) en la previsualización.", "info")
 
         pendientes = list(movimientos)
         asignados = 0

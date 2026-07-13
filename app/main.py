@@ -89,12 +89,11 @@ def es_traspaso(m: Movimiento) -> bool:
 def es_movimiento_portal_cliente(m: Movimiento) -> bool:
     """BBVA: los movimientos cuyo concepto empieza con 'CI' o 'CE' provienen del
     portal de clientes y YA están capturados en SIPP; subirlos por el RPA los
-    duplicaría, así que se excluyen (como los traspasos)."""
+    duplicaría, así que se excluyen (como los traspasos).
+
+    Aplica a los DOS archivos de BBVA: tanto el de movimientos internos (RSM) como
+    el de externos (SPEI), donde la leyenda del SPEI también trae esos códigos."""
     if (m.banco or "").upper() != "BBVA":
-        return False
-    # El archivo de movimientos EXTERNOS son cobros SPEI de otros bancos (no del
-    # portal BBVA): no se excluyen aunque su leyenda traiga códigos "CI...".
-    if getattr(m, "bbva_externo", False):
         return False
     texto = (m.concepto or m.descripcion or "").strip().upper()
     return bool(re.match(r"^(CI|CE)\d", texto))
@@ -1300,6 +1299,16 @@ def main(page: ft.Page) -> None:
                 return
 
             movs_nuevos = parsear_archivo(ruta_temporal, banco)
+
+            # BBVA ACUMULADO (RSMACUM/SPEIACUM): trae varios días porque recoge el
+            # dinero caído fuera de horario. Solo interesan hoy y el día hábil
+            # anterior; lo previo ya se concilió en cortes pasados. Los archivos
+            # diarios (un solo día) no se tocan.
+            corte_acum = None
+            omitidos_corte: list[Movimiento] = []
+            if banco == "BBVA":
+                movs_nuevos, omitidos_corte, corte_acum = bbva.recortar_acumulado(movs_nuevos)
+
             if agregar:
                 # BBVA: unificar internos + externos en un solo grid.
                 movimientos = movimientos + movs_nuevos
@@ -1342,6 +1351,17 @@ def main(page: ft.Page) -> None:
                 )
             else:
                 mensaje = f"Archivo procesado correctamente. {len(movimientos)} movimientos leídos."
+            if corte_acum is not None and omitidos_corte:
+                fechas_om = sorted({m.fecha for m in omitidos_corte if m.fecha})
+                rango = (
+                    fechas_om[0].strftime("%d/%m")
+                    if len(fechas_om) == 1
+                    else f"{fechas_om[0].strftime('%d/%m')}–{fechas_om[-1].strftime('%d/%m')}"
+                )
+                mensaje += (
+                    f" Acumulado: corte al {corte_acum.strftime('%d/%m/%Y')} (día hábil anterior); "
+                    f"se omitieron {len(omitidos_corte)} movimiento(s) previos ({rango})."
+                )
             if ya_subidos:
                 mensaje += f" {ya_subidos} ya venían en un corte anterior (en gris, no se re-suben); {nuevos} nuevos."
             if traspasos:
