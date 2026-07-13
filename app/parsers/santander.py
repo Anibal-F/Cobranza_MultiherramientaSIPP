@@ -4,6 +4,14 @@ from ..models import Movimiento
 from .base import clean_text, parse_date_ddmmyyyy, parse_money
 
 BANCO = "SANTANDER"
+# Si True, este banco se lista en el selector de Conciliaciones Bancarias. Poner en
+# False para bancos cuyo formato aún no se ha validado (no aparecerán en el selector
+# y, si la autodetección los arroja, se avisa al usuario que se comunique).
+EN_CONCILIACION = True
+# Modo de emparejamiento en conciliación: "contiene" — la referencia del sistema se
+# busca DENTRO del texto del movimiento (la columna Concepto trae el detalle del
+# pago con la referencia embebida, p. ej. "PAGO BFERRIES 2100015345 0102944...").
+MODO_CONCILIACION = "contiene"
 
 EXPECTED_HEADER = "Cuenta"
 

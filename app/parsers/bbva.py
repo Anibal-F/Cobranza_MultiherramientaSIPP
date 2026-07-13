@@ -27,6 +27,8 @@ from ..models import Movimiento
 from ..textutils import normalizar
 
 BANCO = "BBVA"
+# Si True, se lista en el selector de Conciliaciones Bancarias (ver santander.py).
+EN_CONCILIACION = True
 _NS = "urn:schemas-microsoft-com:office:spreadsheet"
 
 # Etiquetas de los dos layouts, para que la UI pueda ofrecer subir el archivo

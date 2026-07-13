@@ -19,9 +19,10 @@ import flet as ft
 from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 
 from .conciliador import conciliar
-from .estrategias import ESTRATEGIAS_POR_NOMBRE, detectar_estrategia
 from .ingresos_diversos import cargar_ingresos_diversos
+from .lector_banco import nombres_bancos, normalizar_banco
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
+from ..parsers.lectura import EXTENSIONES
 from ..services.bigquery_repository import BigQueryRepository
 
 # Color por grupo (acento de la tarjeta/tabla).
@@ -140,18 +141,21 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         archivos = await file_picker.pick_files(
             dialog_title="Selecciona el estado de cuenta del banco",
             file_type=ft.FilePickerFileType.CUSTOM,
-            allowed_extensions=["xlsx"],
+            allowed_extensions=EXTENSIONES,  # xlsx/xlsm/xls/xml/csv
             allow_multiple=False,
             with_data=True,
         )
         if not archivos:
             return
         archivo = archivos[0]
-        # En modo web/escritorio: si viene con bytes, volcarlos a un temporal.
+        # En modo web/escritorio: si viene con bytes, volcarlos a un temporal
+        # CONSERVANDO la extensión original (la detección de algunos bancos —p. ej.
+        # BBVA .xls SpreadsheetML— depende de ella).
         if archivo.path and os.path.exists(archivo.path):
             archivo_sel[0] = archivo.path
         else:
-            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+            sufijo = os.path.splitext(archivo.name)[1] or ".xlsx"
+            with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
                 tmp.write(archivo.bytes or b"")
                 archivo_sel[0] = tmp.name
         nombre_archivo.value = archivo.name
@@ -170,7 +174,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         value="",
         width=190,
         options=[ft.dropdown.Option(key="", text="Auto-detectar")]
-        + [ft.dropdown.Option(key=n, text=n.title()) for n in ESTRATEGIAS_POR_NOMBRE],
+        + [ft.dropdown.Option(key=n, text=n.title()) for n in nombres_bancos()],
     )
     boton_conciliar = ft.FilledButton(
         content=ft.Row([ft.Icon(ft.Icons.COMPARE_ARROWS, size=16), ft.Text("Conciliar", size=13)], spacing=8, tight=True),
@@ -381,18 +385,28 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         boton_conciliar.disabled = True
         page.update()
         try:
-            # 1. Elegir estrategia: banco forzado en el selector, o autodetección.
-            nombre_banco = banco_dropdown.value or ""
-            if nombre_banco:
-                estrategia = ESTRATEGIAS_POR_NOMBRE.get(nombre_banco)
-            else:
-                estrategia = await asyncio.to_thread(detectar_estrategia, archivo_sel[0])
-            if estrategia is None:
-                _avisar("No se reconoció el formato del banco en el archivo. Verifica que sea un estado de cuenta soportado o elige el banco manualmente.")
+            # 1. Detectar (o forzar) el banco y normalizar sus movimientos. Usa el
+            #    sistema de parsers unificado (mismo que identificación bancaria).
+            nombre_forzado = banco_dropdown.value or None
+            nombre_banco, mov_banco, estado = await asyncio.to_thread(
+                normalizar_banco, archivo_sel[0], nombre_forzado
+            )
+            if estado == "no_reconocido":
+                _avisar(
+                    "No se reconoció el formato del archivo. Verifica que sea un estado de "
+                    "cuenta de un banco soportado; si el banco no está en la lista, comunícate "
+                    "con el equipo de sistemas para validar el formato."
+                )
                 return
-            mov_banco = await asyncio.to_thread(estrategia.normalizar, archivo_sel[0])
+            if estado == "no_habilitado":
+                _avisar(
+                    f"El archivo parece de {nombre_banco}, pero ese banco aún no está "
+                    "habilitado para conciliaciones. Comunícate con el equipo de sistemas "
+                    "para validar el formato del banco."
+                )
+                return
             if not mov_banco:
-                _avisar(f"El archivo de {estrategia.nombre} no tiene movimientos (abonos) que conciliar.", error=False)
+                _avisar(f"El archivo de {nombre_banco} no tiene movimientos (abonos) que conciliar.", error=False)
 
             # 2. Traer los movimientos del sistema según el origen elegido.
             if origen_group.value == "excel":
@@ -410,7 +424,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             # 3. Conciliar y renderizar.
             resultado = conciliar(mov_banco, mov_sistema)
             _render(resultado)
-            estado_text.value = f"Banco: {estrategia.nombre} · {len(mov_banco)} mov. · Sistema ({origen_txt}): {len(mov_sistema)} mov."
+            estado_text.value = f"Banco: {nombre_banco} · {len(mov_banco)} mov. · Sistema ({origen_txt}): {len(mov_sistema)} mov."
         except FileNotFoundError:
             _avisar("No se encontró el archivo cargado. Vuelve a cargarlo.")
         except Exception as ex:  # noqa: BLE001 — se reporta al usuario, no debe tumbar la UI

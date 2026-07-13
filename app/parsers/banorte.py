@@ -5,6 +5,8 @@ from ..textutils import normalizar
 from .base import clean_text, parse_date_dmy_slash, parse_money
 
 BANCO = "BANORTE"
+# Si True, se lista en el selector de Conciliaciones Bancarias (ver santander.py).
+EN_CONCILIACION = True
 
 # Encabezado del estado de cuenta de Banorte (.csv):
 # CUENTA, FECHA DE OPERACIÓN, FECHA, DEPÓSITOS, RETIROS, MOVIMIENTO, DESCRIPCIÓN DETALLADA

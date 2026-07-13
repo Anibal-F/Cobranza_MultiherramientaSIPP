@@ -13,9 +13,9 @@ import re
 import zipfile
 from xml.etree import ElementTree as ET
 
-from .estrategias.base import a_fecha, normalizar_encabezado
 from .modelo import MovimientoConciliacion
 from ..parsers.base import clean_text, parse_money
+from ..parsers.excel_columnas import a_fecha, normalizar_encabezado
 
 _NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
