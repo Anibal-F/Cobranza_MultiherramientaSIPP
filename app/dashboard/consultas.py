@@ -336,3 +336,33 @@ async def consultar_detalle_movimientos(
     filas = await asyncio.to_thread(obtener_detalle_movimientos, fi, ff, empresas, sucursales, tipos, filial)
     truncado = len(filas) > LIMITE_FILAS_DETALLE
     return filas[:LIMITE_FILAS_DETALLE], truncado
+
+
+# --- Exportación a Excel de la sub-pestaña Detalle ---------------------------
+# A diferencia de obtener_detalle_movimientos (que respeta los filtros opcionales
+# del panel y tiene un tope de LIMITE_FILAS_DETALLE para no saturar la tabla en
+# pantalla), la descarga de Detalle es un volcado completo del periodo: solo el
+# filtro de fecha, sin empresa/sucursal/tipo de negocio/filial y sin límite de filas.
+
+def obtener_detalle_completo_periodo(fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    """Todos los movimientos de la tabla en [fecha_inicio, fecha_fin], sin los
+    filtros opcionales del explorador — solo el filtro de fecha — para la
+    descarga a Excel de la sub-pestaña Detalle."""
+    query = f"""
+        SELECT *, ({TIPO_NEGOCIO_EFECTIVO}) AS tipo_negocio_efectivo
+        FROM `{TABLA}`
+        WHERE DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
+        ORDER BY fh_Envio DESC
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
+            bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
+        ]
+    )
+    filas = _cliente_bigquery().query(query, job_config=job_config).result()
+    return [dict(fila.items()) for fila in filas]
+
+
+async def consultar_detalle_completo_periodo(fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    return await asyncio.to_thread(obtener_detalle_completo_periodo, fecha_inicio, fecha_fin)

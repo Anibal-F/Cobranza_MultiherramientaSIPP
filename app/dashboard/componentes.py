@@ -3,6 +3,8 @@ montos, tarjetas KPI, dona, ranking, tabla simple, barras del timeline y
 helpers de tema/diálogo. Sin ninguna dependencia de BigQuery."""
 
 import dataclasses
+import os
+import re
 from datetime import date
 
 import flet as ft
@@ -58,6 +60,76 @@ def mostrar_dialogo(page: ft.Page, dialogo: ft.AlertDialog) -> None:
             return
         pila.remove(dialogo)
     page.show_dialog(dialogo)
+
+
+# --- Exportación a Excel (Segmentado / Timeline / Detalle) --------------------
+# Helpers compartidos por las 3 descargas del dashboard: escribir una hoja con
+# encabezado estilizado, y el flujo completo de guardado (diálogo nativo +
+# reintento si la ruta elegida resulta no escribible).
+
+def nombre_hoja_valido(base: str, usados: set) -> str:
+    """Nombre de hoja de Excel válido (≤31 chars, sin \\ / * ? : [ ]) y único
+    dentro de `usados` (que se muta con el nombre devuelto)."""
+    limpio = re.sub(r"[\\/*?:\[\]]", "", base or "").strip()[:28] or "Hoja"
+    nombre, i = limpio, 2
+    while nombre in usados:
+        nombre = f"{limpio[:25]}_{i}"
+        i += 1
+    usados.add(nombre)
+    return nombre
+
+
+def escribir_hoja_excel(ws, encabezados: list[str], filas: list[list], fila_inicio: int = 1) -> None:
+    """Escribe encabezado (estilizado en azul marino) + filas de datos en `ws`,
+    empezando en `fila_inicio` (por defecto la primera fila de la hoja) — usar
+    un valor > 1 cuando antes se escribió alguna fila de contexto/metadatos
+    (ej. los filtros aplicados en la exportación de Timeline). Columnas
+    anchadas por longitud del encabezado; freeze_panes justo debajo del
+    encabezado."""
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    for col, valor in enumerate(encabezados, start=1):
+        ws.cell(row=fila_inicio, column=col, value=valor)
+    for celda in ws[fila_inicio]:
+        celda.font = Font(bold=True, color="FFFFFF")
+        celda.fill = PatternFill("solid", fgColor="1B3A5B")
+    for offset, fila in enumerate(filas, start=1):
+        for col, valor in enumerate(fila, start=1):
+            ws.cell(row=fila_inicio + offset, column=col, value=valor)
+    for col, encabezado in enumerate(encabezados, start=1):
+        ws.column_dimensions[get_column_letter(col)].width = max(12, min(30, len(str(encabezado)) + 2))
+    ws.freeze_panes = ws.cell(row=fila_inicio + 1, column=1).coordinate
+
+
+async def guardar_workbook(page: ft.Page, file_picker: ft.FilePicker, wb, nombre_sugerido: str) -> tuple[bool, str]:
+    """Abre el diálogo nativo de guardado y escribe `wb` en la ruta elegida.
+    Devuelve (ok, mensaje) para que el llamador lo muestre en su propio texto
+    de estado. En algunos equipos macOS el diálogo regresa una ruta no
+    escribible (ej. la raíz del sistema, de solo lectura) aunque el usuario
+    haya navegado a una carpeta válida — se reintenta en ~/Downloads antes de
+    rendirse, para no perder el reporte ya generado."""
+    destino = await file_picker.save_file(
+        dialog_title="Guardar Excel",
+        file_name=nombre_sugerido,
+        allowed_extensions=["xlsx"],
+    )
+    if not destino:
+        return False, ""
+    if not destino.lower().endswith(".xlsx"):
+        destino += ".xlsx"
+    try:
+        wb.save(destino)
+        return True, f"Exportado: {os.path.basename(destino)}."
+    except OSError as error:
+        carpeta_respaldo = os.path.expanduser("~/Downloads")
+        respaldo = os.path.join(carpeta_respaldo, os.path.basename(destino))
+        try:
+            os.makedirs(carpeta_respaldo, exist_ok=True)
+            wb.save(respaldo)
+            return True, f"No se pudo guardar en la ubicación elegida; se guardó en Descargas: {os.path.basename(respaldo)}."
+        except OSError:
+            return False, f"No se pudo guardar el Excel: {error}"
 
 
 def chip_total(total: float) -> ft.Container:
