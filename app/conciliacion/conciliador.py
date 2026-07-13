@@ -1,8 +1,14 @@
 """Motor de conciliación: compara movimientos del banco vs. del sistema.
 
-Flujo: (1) apartar devoluciones de cheque del lado banco; (2) emparejar por llave
-(texto normalizado + importe) manejando duplicados con un multiconjunto;
-(3) clasificar el resto en solo-banco y solo-sistema.
+Flujo: (1) apartar devoluciones de cheque del lado banco; (2) emparejar; (3)
+clasificar el resto en solo-banco y solo-sistema.
+
+Regla de emparejamiento (igual para TODOS los bancos): un movimiento del banco
+concilia con uno del sistema cuando el IMPORTE coincide y la REFERENCIA del sistema
+aparece (texto normalizado) dentro del CONCEPTO/DESCRIPCIÓN del banco O dentro de la
+REFERENCIA del banco. Es decir, dos checks (por concepto y por referencia) + importe.
+Cada banco aporta sus columnas correspondientes (concepto/descripción, referencia,
+importe/abono) al construir el MovimientoConciliacion; aquí solo se comparan.
 
 La leyenda que identifica una devolución de cheque es CONFIGURABLE (los usuarios
 aún no dan la exacta): se ajusta LEYENDA_DEVOLUCION_CHEQUE sin tocar la lógica.
@@ -10,23 +16,14 @@ aún no dan la exacta): se ajusta LEYENDA_DEVOLUCION_CHEQUE sin tocar la lógica
 
 import re
 from collections import defaultdict
-from typing import Callable
 
+from ..textutils import normalizar
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
 
 # Leyenda (regex) que marca un movimiento como devolución de cheque. Default:
 # cualquier variante que contenga "CHEQUE"/"CHEQUES". Ajustar cuando los usuarios
 # proporcionen la leyenda exacta (p. ej. r"DEV\.?\s*CHEQUE").
 LEYENDA_DEVOLUCION_CHEQUE = re.compile(r"CHEQUE", re.IGNORECASE)
-
-# Llave de emparejamiento por defecto (decisión del usuario): texto normalizado +
-# importe. Es enchufable: pasar otra `clave` a conciliar() permite cambiar el
-# criterio sin tocar el motor.
-ClaveFn = Callable[[MovimientoConciliacion], tuple]
-
-
-def _clave_default(m: MovimientoConciliacion) -> tuple:
-    return m.clave()
 
 
 def es_devolucion_cheque(m: MovimientoConciliacion) -> bool:
@@ -36,30 +33,41 @@ def es_devolucion_cheque(m: MovimientoConciliacion) -> bool:
 def conciliar(
     mov_banco: list[MovimientoConciliacion],
     mov_sistema: list[MovimientoConciliacion],
-    clave: ClaveFn = _clave_default,
 ) -> ResultadoConciliacion:
     """Concilia las dos listas y devuelve los 4 grupos del requerimiento."""
     # 1. Apartar devoluciones de cheque del lado banco (antes de comparar).
     devoluciones = [m for m in mov_banco if es_devolucion_cheque(m)]
     banco = [m for m in mov_banco if not es_devolucion_cheque(m)]
 
-    # 2. Indexar el sistema por llave (multiconjunto: soporta importes repetidos).
-    indice: dict[tuple, list[MovimientoConciliacion]] = defaultdict(list)
+    # 2. Agrupar el sistema por importe (2 decimales) para acotar la búsqueda;
+    #    cada movimiento del sistema se consume una sola vez.
+    por_importe: dict[float, list] = defaultdict(list)
     for s in mov_sistema:
-        indice[clave(s)].append(s)
+        por_importe[round(s.importe, 2)].append([s, normalizar(s.referencia)])
 
-    # 3. Recorrer el banco: si hay match disponible -> conciliado; si no -> solo banco.
     conciliados: list[tuple[MovimientoConciliacion, MovimientoConciliacion]] = []
     solo_banco: list[MovimientoConciliacion] = []
+    consumidos: set[int] = set()
     for b in banco:
-        cola = indice.get(clave(b))
-        if cola:
-            conciliados.append((b, cola.pop(0)))
+        # Check por concepto/descripción y check por referencia del banco.
+        concepto = normalizar(b.descripcion)
+        referencia = normalizar(b.referencia)
+        elegido = None
+        for par in por_importe.get(round(b.importe, 2), []):
+            s, aguja = par  # aguja = referencia del sistema (normalizada)
+            if id(s) in consumidos or not aguja:
+                continue
+            if aguja in concepto or aguja in referencia:
+                elegido = s
+                break
+        if elegido is not None:
+            consumidos.add(id(elegido))
+            conciliados.append((b, elegido))
         else:
             solo_banco.append(b)
 
-    # 4. Lo que quedó sin consumir en el sistema -> solo sistema.
-    solo_sistema = [s for cola in indice.values() for s in cola]
+    # 3. Lo que quedó sin consumir en el sistema -> solo sistema.
+    solo_sistema = [s for s in mov_sistema if id(s) not in consumidos]
 
     return ResultadoConciliacion(
         conciliados=conciliados,

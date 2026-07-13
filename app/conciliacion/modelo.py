@@ -1,10 +1,11 @@
 """Esquema único de la conciliación bancaria.
 
-`MovimientoConciliacion` es la dataclass común a la que se normaliza 
-TODO: tanto cada fila del Excel del banco (vía las estrategias) como cada movimiento del
-sistema (vía el BigQueryRepository). Reusa el mismo contrato del procedimiento
-almacenado de referencia (fh_Movimiento / de_Descripcion / de_Referencia /
-im_Importe / cl_Naturaleza / im_Saldo).
+`MovimientoConciliacion` es la dataclass común a la que se normaliza todo: tanto
+cada movimiento del banco (vía los parsers en app/parsers, convertido en
+lector_banco.py) como cada movimiento del sistema (Excel de Ingresos Diversos o
+BigQueryRepository). Reusa el mismo contrato del procedimiento almacenado de
+referencia (fh_Movimiento / de_Descripcion / de_Referencia / im_Importe /
+cl_Naturaleza / im_Saldo).
 """
 
 from dataclasses import dataclass, field
