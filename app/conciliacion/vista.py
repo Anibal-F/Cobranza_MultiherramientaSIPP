@@ -220,6 +220,19 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         on_click=lambda e: page.run_task(on_conciliar, e),
     )
 
+    def _limpiar_resultados(_e=None) -> None:
+        """Vacía los paneles de resultados y el texto de estado. NO toca los archivos
+        cargados (para eso está 'Limpiar todos'). `secciones` se define más abajo,
+        pero solo se usa al invocar, así que la referencia ya existe entonces."""
+        secciones.controls.clear()
+        estado_text.value = ""
+        page.update()
+
+    boton_limpiar_resultados = ft.TextButton(
+        content=ft.Row([ft.Icon(ft.Icons.DELETE_SWEEP, size=16), ft.Text("Limpiar resultados", size=13)], spacing=6, tight=True),
+        on_click=_limpiar_resultados,
+    )
+
     # --- Origen de los datos del "sistema" para comparar ------------------------
     async def on_cargar_sistema(_e) -> None:
         archivos = await file_picker.pick_files(
@@ -288,7 +301,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 wrap=True,
             ),
             ft.Row(
-                [progress, estado_text, ft.Container(expand=True), boton_conciliar],
+                [progress, estado_text, ft.Container(expand=True), boton_limpiar_resultados, boton_conciliar],
                 spacing=12,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
@@ -327,7 +340,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         if filas:
             tabla = _tabla(columnas)
             tabla.rows = [
-                ft.DataRow(cells=[ft.DataCell(ft.Text(c, color=ft.Colors.ON_SURFACE)) for c in fila])
+                ft.DataRow(cells=[ft.DataCell(ft.Text(c, color=ft.Colors.ON_SURFACE, selectable=True)) for c in fila])
                 for fila in filas
             ]
             interior = ft.Container(content=tabla, height=280, padding=ft.Padding(left=12, right=12, top=0, bottom=12))
@@ -442,6 +455,9 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         if not archivos_banco:
             _avisar("Agrega al menos un archivo de banco.")
             return
+        # Limpiar los resultados previos ANTES de conciliar (evita mezclar tablas de
+        # una corrida anterior si esta falla o cambia de archivos/origen).
+        secciones.controls.clear()
         progress.visible = True
         estado_text.value = ""
         boton_conciliar.disabled = True
