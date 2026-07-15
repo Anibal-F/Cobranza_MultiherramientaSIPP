@@ -1,7 +1,7 @@
 """Sub-pestaña 'Segmentado': la vista agregada original del dashboard — todas
 las vistas del segmento principal visibles a la vez (Empresa, Tipo de negocio,
-Sucursal, Sucursal Gasolineras, Otras empresas y la banda hero de KPIs), sobre
-un rango de fechas propio, con toggle gráfica/tabla."""
+Sucursal, Sucursal Gasolineras, SF, Otras empresas y la banda hero de KPIs),
+sobre un rango de fechas propio, con toggle gráfica/tabla."""
 
 import asyncio
 from datetime import date, datetime
@@ -25,6 +25,7 @@ from .consultas import (
     consultar_no_identificado,
     consultar_otras_empresas,
     consultar_segmento,
+    consultar_sf,
     consultar_sucursal_gas,
 )
 
@@ -53,6 +54,12 @@ _SECCIONES = [
         "Sucursal (Gasolineras)",
         "Segmento GasPetroil · excluye pagos entre filiales",
         consultar_sucursal_gas,
+        "ranked",
+    ),
+    (
+        "SF",
+        "Segmento SF (de_CuentaBancaria = 'Abastecedora SF /AENE') · excluye pagos entre filiales · todas las sucursales",
+        consultar_sf,
         "ranked",
     ),
     (
@@ -167,7 +174,6 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
         # Banda hero: los grandes indicadores del periodo.
         res_empresa = resultados_secciones[0] if resultados_secciones else []
         res_gas = resultados_secciones[3] if len(resultados_secciones) > 3 else []
-        res_otras = resultados_secciones[4] if len(resultados_secciones) > 4 else []
         hero_contenedor.controls = [
             hero_tile("Ingresos identificados", _total_seguro(res_empresa), color_slot(0, dark),
                       ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
@@ -211,7 +217,7 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     async def exportar_excel(_e) -> None:
         """Descarga un Excel con una hoja 'Resumen' (KPIs del periodo) + una
         hoja por sección (Empresa, Tipo de negocio, Sucursal, Sucursal
-        Gasolineras, Otras empresas), con los mismos filtros que ya aplica
+        Gasolineras, SF, Otras empresas), con los mismos filtros que ya aplica
         esta vista (Asociados/Distribuidora, excluye pagos entre filiales,
         GAS/Autotanque/sin sucursal — ver botón ⓘ)."""
         boton_exportar.disabled = True
@@ -308,16 +314,26 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
             "solo el segmento GasPetroil. Aquí sí se incluyen las sucursales de "
             "GAS y Autotanque, porque son precisamente el objeto de esta vista. "
             "Tampoco incluye pagos entre filiales.",
+            "SF: mismas 3 empresas principales, pero solo el segmento SF (cuentas "
+            "bancarias de_CuentaBancaria = 'Abastecedora SF /AENE', reclasificadas "
+            "como tipo de negocio 'SF'). Excluye pagos entre filiales, pero a "
+            "diferencia de Sucursal e Ingresos identificados, aquí SÍ se incluyen "
+            "todas las sucursales (no se excluyen GAS ni Autotanque).",
             "Otras empresas: todo lo que NO sea Abastecedora, ACP Combustibles ni "
             "Petro Smart, sin más filtros — se incluyen todos los tipos de "
             "negocio, todas las sucursales y también los pagos entre filiales.",
             "Sin identificar: suma de todos los movimientos marcados como no "
             "identificados en el periodo, sin importar empresa, sucursal o tipo "
             "de negocio.",
-            "El tipo de negocio se reclasifica en dos casos antes de agrupar: los "
+            "El tipo de negocio se reclasifica antes de agrupar, en este orden: "
+            "de_CuentaBancaria = 'Abastecedora SF /AENE' se cuenta como 'SF'; los "
             "clientes de 'Público en general' de Petro Smart se cuentan como "
-            "'GasPetroil', y un cliente específico (id 4359) se cuenta como "
-            "'Distribuidora', sin importar cómo esté registrado originalmente.",
+            "'GasPetroil'; y un cliente específico (id 4359) se cuenta como "
+            "'Distribuidora' — sin importar cómo esté registrado originalmente.",
+            "En TODAS las vistas y consultas de esta pestaña (Segmentado, Timeline "
+            "y Detalle) se descartan por completo los movimientos cuya "
+            "de_CuentaBancaria sea 'Gastos No Deducibles' o 'Petroplazas "
+            "Monederos' — son cuentas de control interno, no ingresos reales.",
             "A diferencia de las sub-pestañas 'Timeline' y 'Detalle', aquí sí se "
             "excluyen por defecto GAS, Autotanque, sucursal sin asignar y pagos "
             "entre filiales — por eso los totales no son directamente "

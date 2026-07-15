@@ -17,6 +17,7 @@ from ..dashboard.componentes import (
     mostrar_dialogo,
     preparar_tema_date_picker,
 )
+from .cobranza import construir_panel_cobranza
 from .consultas import SEGMENTOS, consultar_antiguedad_saldos, consultar_detalle_periodo
 
 # Columnas de fecha en el detalle crudo (SELECT * de la tabla): se formatean
@@ -453,7 +454,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    contenido = ft.Container(
+    panel_izquierdo = ft.Container(
         content=ft.Column(
             [
                 ft.Column([titulo, subtitulo], spacing=2),
@@ -464,7 +465,26 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             scroll=ft.ScrollMode.AUTO,
             expand=True,
         ),
-        padding=20,
+        padding=ft.Padding(left=20, right=16, top=20, bottom=20),
+        border=ft.Border(right=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT)),
+        expand=True,
+        col={"xs": 12, "lg": 6},
+    )
+
+    # Mitad derecha: lo efectivamente cobrado la semana anterior (espejo de la
+    # proyección a futuro de la izquierda) — ver app/rdc/cobranza.py.
+    panel_derecho = ft.Container(
+        content=construir_panel_cobranza(page),
+        padding=ft.Padding(left=16, right=20, top=20, bottom=20),
+        expand=True,
+        col={"xs": 12, "lg": 6},
+    )
+
+    contenido = ft.ResponsiveRow(
+        [panel_izquierdo, panel_derecho],
+        spacing=0,
+        run_spacing=0,
+        vertical_alignment=ft.CrossAxisAlignment.START,
         expand=True,
     )
 

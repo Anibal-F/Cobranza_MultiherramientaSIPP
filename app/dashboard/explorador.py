@@ -219,75 +219,97 @@ class Explorador:
         self._recargar()
 
     # --- Selectores multi-valor (empresa / sucursal / tipo de negocio) --------
-    # No existe multi-select nativo en Flet 0.85: AlertDialog con un checkbox
-    # por valor del catálogo (mismo patrón que dialogo_tipos en app/main.py),
-    # con búsqueda y acciones Limpiar/Todos/Cancelar/Aplicar. Solo "Aplicar"
-    # dispara la recarga (no cada checkbox).
+    # Dropdown anclado (PopupMenuButton), NO modal: un PopupMenuItem con un
+    # Checkbox propio por valor del catálogo. Un Checkbox (o TextButton)
+    # anidado dentro del content de un PopupMenuItem consume su propio tap y
+    # NO cierra el menú — solo un PopupMenuItem con on_click en el ítem mismo
+    # (el de "Aplicar" aquí abajo) lo cierra. Eso permite marcar varios
+    # checkboxes seguidos sin que el menú se cierre en cada click, y solo
+    # "Aplicar" dispara la recarga (comportamiento verificado a mano).
+    #
+    # Sin campo de búsqueda: se probó un TextField con on_change filtrando
+    # (fila.visible = ...) y, aunque el checkbox SÍ refleja cambios de valor
+    # en un menú ya abierto, un cambio de VISIBILIDAD de un PopupMenuItem no
+    # se vuelve a pintar — el menú abierto es una foto fija de qué filas
+    # existen. Mejor no ofrecer una búsqueda que aparenta funcionar y no hace
+    # nada, que dejarla a medias.
 
-    def _boton_multiselect(self, icono, etiqueta: str, clave: str) -> ft.OutlinedButton:
+    def _boton_multiselect(self, icono, etiqueta: str, clave: str) -> ft.PopupMenuButton:
         seleccion: list[str] = getattr(self, _ATRIBUTO_FILTRO[clave])
         resumen = f"{len(seleccion)} sel." if seleccion else _ETIQUETA_TODOS[clave]
-        return ft.OutlinedButton(
-            content=ft.Row(
-                [ft.Icon(icono, size=16), ft.Text(etiqueta, size=13),
-                 ft.Text(resumen, size=12, color=ft.Colors.ON_SURFACE_VARIANT)],
-                spacing=6, tight=True,
-            ),
-            on_click=lambda _e: self._abrir_multiselect(etiqueta, clave),
-        )
-
-    def _abrir_multiselect(self, etiqueta: str, clave: str) -> None:
         valores = self.catalogo.get(clave)
+
         if valores is None:
-            cuerpo: ft.Control = ft.Text(
-                "El catálogo aún se está cargando desde BigQuery; intenta de nuevo en unos segundos.",
-                size=12, color=ft.Colors.ON_SURFACE_VARIANT,
-            )
-            checks: dict[str, ft.Checkbox] = {}
+            items: list[ft.PopupMenuItem] = [
+                ft.PopupMenuItem(
+                    content=ft.Text(
+                        "El catálogo aún se está cargando desde BigQuery; intenta de nuevo en unos segundos.",
+                        size=12, color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                )
+            ]
         else:
-            seleccion_previa = set(getattr(self, _ATRIBUTO_FILTRO[clave]))
-            checks = {v: ft.Checkbox(label=v, value=(v in seleccion_previa)) for v in valores}
-            cuerpo = ft.Column(list(checks.values()), scroll=ft.ScrollMode.AUTO, spacing=2, tight=True, expand=True)
+            seleccion_previa = set(seleccion)
+            pendiente: dict[str, bool] = {v: (v in seleccion_previa) for v in valores}
+            checks: list[ft.Checkbox] = []
 
-        def _filtrar(e) -> None:
-            texto = e.control.value.strip().lower()
-            for v, chk in checks.items():
-                chk.visible = texto in v.lower()
-            self.page.update()
+            def _marcar_todos(_e) -> None:
+                for chk in checks:
+                    chk.value = True
+                    pendiente[chk.label] = True
+                self.page.update()
 
-        def _marcar_todos(_e) -> None:
-            for chk in checks.values():
-                chk.value = True
-            self.page.update()
+            def _limpiar(_e) -> None:
+                for chk in checks:
+                    chk.value = False
+                    pendiente[chk.label] = False
+                self.page.update()
 
-        def _limpiar(_e) -> None:
-            for chk in checks.values():
-                chk.value = False
-            self.page.update()
+            def _toggle(v: str):
+                def _h(e) -> None:
+                    pendiente[v] = e.control.value
+                return _h
 
-        def _aplicar(_e) -> None:
-            setattr(self, _ATRIBUTO_FILTRO[clave], [v for v, chk in checks.items() if chk.value])
-            self.page.pop_dialog()
-            self._recargar()
+            def _aplicar(_e) -> None:
+                setattr(self, _ATRIBUTO_FILTRO[clave], [v for v, marcado in pendiente.items() if marcado])
+                self._recargar()
 
-        dialogo = ft.AlertDialog(
-            modal=True,
-            title=ft.Text(f"Filtrar por {etiqueta.lower()}"),
-            content=ft.Container(
-                content=ft.Column(
-                    [ft.TextField(label="Buscar", dense=True, on_change=_filtrar), ft.Divider(height=1), cuerpo],
-                    spacing=8, tight=True,
+            filas_valor = []
+            for v in valores:
+                chk = ft.Checkbox(value=pendiente[v], label=v, on_change=_toggle(v))
+                checks.append(chk)
+                filas_valor.append(ft.PopupMenuItem(content=ft.Row([chk])))
+
+            items = [
+                ft.PopupMenuItem(
+                    content=ft.Row([
+                        ft.TextButton("Limpiar", on_click=_limpiar),
+                        ft.TextButton("Todos", on_click=_marcar_todos),
+                    ]),
                 ),
-                width=380, height=380,
+                *filas_valor,
+                ft.PopupMenuItem(
+                    content=ft.Container(
+                        content=ft.Text("Aplicar", weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                        alignment=ft.Alignment.CENTER,
+                    ),
+                    on_click=_aplicar,
+                ),
+            ]
+
+        return ft.PopupMenuButton(
+            content=ft.Container(
+                content=ft.Row(
+                    [ft.Icon(icono, size=16), ft.Text(etiqueta, size=13),
+                     ft.Text(resumen, size=12, color=ft.Colors.ON_SURFACE_VARIANT)],
+                    spacing=6, tight=True,
+                ),
+                padding=ft.Padding(left=12, right=12, top=6, bottom=6),
+                border=ft.Border.all(1, ft.Colors.OUTLINE),
+                border_radius=8,
             ),
-            actions=[
-                ft.TextButton("Limpiar", on_click=_limpiar),
-                ft.TextButton("Todos", on_click=_marcar_todos),
-                ft.TextButton("Cancelar", on_click=lambda _e: self.page.pop_dialog()),
-                ft.FilledButton("Aplicar", on_click=_aplicar),
-            ],
+            items=items,
         )
-        mostrar_dialogo(self.page, dialogo)
 
     # --- Modal de transparencia de la consulta --------------------------------
 
