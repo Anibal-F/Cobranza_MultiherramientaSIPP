@@ -4,11 +4,13 @@ Flujo: (1) apartar devoluciones de cheque del lado banco; (2) emparejar; (3)
 clasificar el resto en solo-banco y solo-sistema.
 
 Regla de emparejamiento (igual para TODOS los bancos): un movimiento del banco
-concilia con uno del sistema cuando el IMPORTE coincide y la REFERENCIA del sistema
-aparece (texto normalizado) dentro del CONCEPTO/DESCRIPCIÓN del banco O dentro de la
-REFERENCIA del banco. Es decir, dos checks (por concepto y por referencia) + importe.
-Cada banco aporta sus columnas correspondientes (concepto/descripción, referencia,
-importe/abono) al construir el MovimientoConciliacion; aquí solo se comparan.
+concilia con uno del sistema cuando el IMPORTE coincide y ALGUNO de los textos del
+sistema (su REFERENCIA o su CONCEPTO/DESCRIPCIÓN) aparece (normalizado) dentro del
+CONCEPTO/DESCRIPCIÓN o la REFERENCIA del banco. Es decir: importe igual + (check por
+referencia O check por concepto). El reporte de Ingresos Diversos solo trae
+referencia (y razón social); la tabla en la nube trae de_Referencia y de_Concepto,
+y ambos se usan como texto a buscar. Cada banco/lado aporta sus columnas al construir
+el MovimientoConciliacion; aquí solo se comparan.
 
 La leyenda que identifica una devolución de cheque es CONFIGURABLE (los usuarios
 aún no dan la exacta): se ajusta LEYENDA_DEVOLUCION_CHEQUE sin tocar la lógica.
@@ -40,24 +42,26 @@ def conciliar(
     banco = [m for m in mov_banco if not es_devolucion_cheque(m)]
 
     # 2. Agrupar el sistema por importe (2 decimales) para acotar la búsqueda;
-    #    cada movimiento del sistema se consume una sola vez.
+    #    cada movimiento del sistema se consume una sola vez. Se guardan sus dos
+    #    textos normalizados: referencia y concepto/descripción (agujas a buscar).
     por_importe: dict[float, list] = defaultdict(list)
     for s in mov_sistema:
-        por_importe[round(s.importe, 2)].append([s, normalizar(s.referencia)])
+        por_importe[round(s.importe, 2)].append(
+            (s, normalizar(s.referencia), normalizar(s.descripcion))
+        )
 
     conciliados: list[tuple[MovimientoConciliacion, MovimientoConciliacion]] = []
     solo_banco: list[MovimientoConciliacion] = []
     consumidos: set[int] = set()
     for b in banco:
-        # Check por concepto/descripción y check por referencia del banco.
-        concepto = normalizar(b.descripcion)
-        referencia = normalizar(b.referencia)
+        # Texto del banco donde se busca: su concepto/descripción y su referencia.
+        texto_banco = (normalizar(b.descripcion), normalizar(b.referencia))
         elegido = None
-        for par in por_importe.get(round(b.importe, 2), []):
-            s, aguja = par  # aguja = referencia del sistema (normalizada)
-            if id(s) in consumidos or not aguja:
+        for s, aguja_ref, aguja_con in por_importe.get(round(b.importe, 2), []):
+            if id(s) in consumidos:
                 continue
-            if aguja in concepto or aguja in referencia:
+            # Alguna aguja del sistema (referencia o concepto) aparece en el banco.
+            if any(a and (a in texto_banco[0] or a in texto_banco[1]) for a in (aguja_ref, aguja_con)):
                 elegido = s
                 break
         if elegido is not None:
