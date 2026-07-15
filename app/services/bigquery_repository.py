@@ -17,24 +17,18 @@ from google.cloud import bigquery
 from .bigquery_cliente import TABLA, cliente_bigquery
 
 # --- Configuración de columnas del lado "Sistema" -------------------------------
-# La tabla Tableros.IgresosClientes no expone de forma evidente columnas de
-# "referencia"/"concepto" bancario (el Dashboard solo usa importes y catálogos).
-# El lado sistema de la conciliación sale de los IngresosDiversos; estas constantes
-# aíslan los nombres reales de columna para poder ajustarlos SIN tocar la lógica.
+# La tabla nueva es el formato de IgresosClientes MÁS de_CuentaBancaria, de_Referencia
+# y de_Concepto. El conciliador compara la referencia y el concepto del sistema contra
+# el concepto/referencia del banco (ver conciliador.py), así que aquí se mapean esos
+# campos a las llaves canónicas de MovimientoConciliacion.
 #
-# Cada COL_* se interpola tal cual en el SELECT, así que puede ser el NOMBRE de una
-# columna real o una EXPRESIÓN/LITERAL SQL.
-#
-# TEMPORAL: la tabla actual (Tableros.IgresosClientes) NO tiene columna de
-# referencia bancaria — se solicitó una tabla nueva a otro equipo. Mientras tanto,
-# para poder probar el flujo, COL_REFERENCIA emite un literal vacío (columna
-# 'referencia' vacía en el result set). Cuando exista la tabla/columna real, basta
-# con cambiar COL_REFERENCIA (y, si aplica, COL_DESCRIPCION / FILTRO_INGRESOS_DIVERSOS)
-# por el nombre correspondiente.
-COL_DESCRIPCION = "de_RazonSocial"
-COL_REFERENCIA = "''"  # literal SQL temporal (sin columna de referencia aún)
+# Cada COL_* se interpola tal cual en el SELECT: puede ser el NOMBRE de una columna
+# real o una EXPRESIÓN/LITERAL SQL. Ajustar aquí si cambian los nombres de columna.
+COL_DESCRIPCION = "de_Concepto"     # concepto del movimiento (una de las agujas)
+COL_REFERENCIA = "de_Referencia"    # referencia del movimiento (la otra aguja)
 COL_IMPORTE = "im_Movimiento"
 COL_FECHA = "fh_Envio"
+COL_CUENTA = "de_CuentaBancaria"    # cuenta bancaria (se expone en `raw`, no se cruza)
 
 # Filtro SQL opcional (sin el WHERE) que restringe al universo de IngresosDiversos.
 # Vacío = sin restricción adicional. Ej.: "nb_TipoDeNegocio = 'IngresosDiversos'".
@@ -87,7 +81,8 @@ class BigQueryRepository:
                 {COL_DESCRIPCION} AS descripcion,
                 {COL_REFERENCIA} AS referencia,
                 {COL_IMPORTE} AS importe,
-                DATE({COL_FECHA}) AS fecha
+                DATE({COL_FECHA}) AS fecha,
+                {COL_CUENTA} AS cuenta
             FROM `{self._tabla}`
             WHERE {" AND ".join(condiciones)}
         """

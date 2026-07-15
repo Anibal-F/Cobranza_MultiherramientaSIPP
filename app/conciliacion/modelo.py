@@ -12,8 +12,6 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
-from ..textutils import normalizar
-
 
 @dataclass
 class MovimientoConciliacion:
@@ -28,23 +26,9 @@ class MovimientoConciliacion:
 
     @property
     def texto(self) -> str:
-        """Texto base del emparejamiento: descripción + referencia."""
+        """Descripción + referencia. Se usa para detectar la leyenda de devolución
+        de cheque (ver conciliador.es_devolucion_cheque)."""
         return f"{self.descripcion} {self.referencia}".strip()
-
-    def texto_clave(self) -> str:
-        """Texto base del emparejamiento, ASIMÉTRICO según el origen:
-        - Banco: se prioriza el Concepto/Descripción (donde el banco pone la
-        referencia del pago); si viene vacío, se usa la Referencia.
-        - Sistema (Ingresos Diversos / BigQuery): se usa la Referencia.
-        """
-        if self.origen.startswith("BANCO"):
-            return self.descripcion or self.referencia
-        return self.referencia
-
-    def clave(self) -> tuple[str, float]:
-        """Llave de conciliación: texto_clave normalizado (mayúsculas, sin acentos,
-        solo alfanumérico) + importe redondeado a 2 decimales."""
-        return (normalizar(self.texto_clave()), round(self.importe, 2))
 
     @classmethod
     def desde_sistema(cls, fila: dict) -> "MovimientoConciliacion":

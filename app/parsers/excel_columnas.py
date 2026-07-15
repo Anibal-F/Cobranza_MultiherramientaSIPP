@@ -92,6 +92,7 @@ class BancoColumnasExcel:
         firma: set[str],
         cols_fecha: set[str],
         cols_descripcion: set[str],
+        descripcion_orden: tuple[str, ...] = (),
         cols_referencia: set[str] = frozenset(),
         cols_abono: set[str] = frozenset(),
         cols_cargo: set[str] = frozenset(),
@@ -111,6 +112,11 @@ class BancoColumnasExcel:
         self.firma_ausente = set(firma_ausente)
         self.cols_fecha = set(cols_fecha)
         self.cols_descripcion = set(cols_descripcion)
+        # Orden de PREFERENCIA (no unión): si se define, la descripción es la PRIMERA
+        # de estas columnas cuya celda NO venga vacía en la fila (fallback por fila).
+        # Ej. BBVA RSM: ("REFERENCIA_AMPLIADA", "CONCEPTO"). Vacío = comportamiento
+        # normal (concatenar todas las cols_descripcion).
+        self.descripcion_orden = tuple(descripcion_orden)
         self.cols_referencia = set(cols_referencia)
         self.cols_abono = set(cols_abono)
         self.cols_cargo = set(cols_cargo)
@@ -181,6 +187,10 @@ class BancoColumnasExcel:
         return {
             "fecha": primero(self.cols_fecha),
             "descripcion": todos(self.cols_descripcion),
+            # Índices en el ORDEN de preferencia declarado (para el fallback por fila).
+            "descripcion_orden": [
+                headers_norm.index(n) for n in self.descripcion_orden if n in headers_norm
+            ],
             "referencia": todos(self.cols_referencia),
             "abono": primero(self.cols_abono),
             "cargo": primero(self.cols_cargo),
@@ -195,6 +205,16 @@ class BancoColumnasExcel:
     def _unir(self, fila: tuple, indices: list[int]) -> str:
         partes = [_texto(self._celda(fila, i)).strip() for i in indices]
         return " ".join(p for p in partes if p)
+
+    def _descripcion(self, fila: tuple, idx: dict) -> str:
+        """Descripción de la fila. Con `descripcion_orden` toma la PRIMERA columna no
+        vacía (fallback por fila, ej. BBVA RSM: Referencia Ampliada -> Concepto); si
+        no, concatena todas las cols_descripcion."""
+        for i in idx["descripcion_orden"]:
+            val = _texto(self._celda(fila, i)).strip()
+            if val:
+                return clean_text(val)
+        return clean_text(self._unir(fila, idx["descripcion"]))
 
     def _importe_naturaleza(self, fila: tuple, idx: dict):
         if self.naturaleza_por_tipo and idx["tipo"] is not None:
@@ -227,7 +247,7 @@ class BancoColumnasExcel:
         if self.solo_abonos and naturaleza != "A":
             return None
 
-        descripcion = clean_text(self._unir(fila, idx["descripcion"]))
+        descripcion = self._descripcion(fila, idx)
         if idx["referencia"]:
             referencia = clean_text(self._unir(fila, idx["referencia"]))
         elif self.referencia_desde_descripcion:
@@ -253,10 +273,17 @@ class BancoColumnasExcel:
 # BanBajío NO está aquí: su módulo parsers/bajio.py ya lee su .xlsx (con lógica
 # propia: salta COMPENSACION, etc.), y esa lógica se prefiere.
 BANCOS_COLUMNAS: list[BancoColumnasExcel] = [
+    # BBVA RSM/COBRANZA: encabezado en la fila 2 (la 1 trae "Cuenta | <clabe>").
+    # Columnas: Fecha Operación | Concepto | Referencia | Referencia Ampliada | Cargo
+    # | Abono | Saldo. Match por Referencia Ampliada y, si esa celda viene vacía en la
+    # fila, por Concepto (fallback). Importe en Cargo/Abono (solo abonos).
     BancoColumnasExcel(
         "BBVA",
         firma={"FECHA_OPERACION", "CONCEPTO"},
-        cols_fecha={"FECHA_OPERACION"}, cols_descripcion={"CONCEPTO"},
+        fila_encabezado=2,
+        cols_fecha={"FECHA_OPERACION"},
+        cols_descripcion={"REFERENCIA_AMPLIADA", "CONCEPTO"},
+        descripcion_orden=("REFERENCIA_AMPLIADA", "CONCEPTO"),
         cols_referencia={"REFERENCIA"}, cols_abono={"ABONO"}, cols_cargo={"CARGO"}, cols_saldo={"SALDO"},
     ),
     # BBVA SPEI/COBRANZA (movimientos recibidos de otros bancos): encabezado en la
