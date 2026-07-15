@@ -2240,6 +2240,32 @@ def main(page: ft.Page) -> None:
             page.update()
             return
 
+        # Nada que subir: todos los movimientos ya se extrajeron en un corte anterior
+        # o están excluidos. No se lanza el RPA (antes abría el buzón H2H de BBVA y
+        # traía todo de todas formas, para luego excluirlo fila por fila).
+        subibles = [
+            m for m in movimientos
+            if not getattr(m, "excluido", False) and not getattr(m, "ya_subido", False)
+        ]
+        if not subibles:
+            page.pop_dialog()
+            ya_ext = sum(1 for m in movimientos if getattr(m, "ya_subido", False))
+            excl = sum(1 for m in movimientos if getattr(m, "excluido", False))
+            partes = []
+            if ya_ext:
+                partes.append(f"{ya_ext} ya extraído(s) en un corte anterior")
+            if excl:
+                partes.append(f"{excl} excluido(s)")
+            detalle = " y ".join(partes) if partes else "no hay movimientos"
+            mostrar_resultado_rpa(
+                True,
+                "No hay nada que subir",
+                f"Todos los movimientos ya están en SIPP ({detalle}). No se abrió el "
+                "navegador porque no había nada nuevo que cargar.",
+                {},
+            )
+            return
+
         if ingresos_div_recordar_check.value:
             guardar_credenciales(usuario, password)
         else:
