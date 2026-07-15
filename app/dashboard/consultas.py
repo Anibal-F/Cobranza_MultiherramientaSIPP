@@ -32,15 +32,28 @@ TIPOS_NEGOCIO_DASHBOARD = ["Asociados", "Distribuidora"]
 
 # Correcciones de negocio que los reportes anteriores aplicaban "al vuelo" (sin
 # tocar la tabla en BigQuery, que sigue siendo de solo lectura para este
-# tablero): 2 casos puntuales donde el nb_TipoDeNegocio capturado no refleja
+# tablero): casos puntuales donde el nb_TipoDeNegocio capturado no refleja
 # cómo se debe reportar el movimiento. Se resuelve con un CASE en el SELECT/WHERE
 # — nunca se escribe de vuelta a BigQuery. Cualquier query que filtre o agrupe
 # por tipo de negocio debe usar esta expresión en vez de la columna cruda.
+# La rama de_CuentaBancaria = 'ABASTECEDORA SF /AENE' -> 'SF' va primero:
+# reclasifica esas filas antes que las otras reglas puedan alcanzarlas.
 TIPO_NEGOCIO_EFECTIVO = """CASE
+        WHEN de_CuentaBancaria = 'ABASTECEDORA SF /AENE' THEN 'SF'
         WHEN de_RazonSocial = 'CLIENTES PUBLICO EN GENERAL' AND nb_Empresa = 'Petro Smart' THEN 'GasPetroil'
         WHEN id_Cliente = 4359 THEN 'Distribuidora'
         ELSE nb_TipoDeNegocio
     END"""
+
+# de_CuentaBancaria = estos 2 valores se descarta SIEMPRE, en TODAS las
+# consultas de este tablero (Segmentado, Timeline, Detalle, catálogos y
+# exportaciones) — no son movimientos reales de ingresos, son cuentas de
+# control interno. IFNULL evita que NULL (la mayoría de las filas no traen
+# de_CuentaBancaria) se cuele fuera del resultado por la propagación de NULL
+# de "NOT IN".
+FILTRO_CUENTA_BANCARIA_EXCLUIDA = (
+    "IFNULL(de_CuentaBancaria, '') NOT IN ('GASTOS NO DEDUCIBLES', 'PETROPLAZAS MONEDEROS')"
+)
 
 # Columnas permitidas para poblar catálogos de filtro vía SELECT DISTINCT. La
 # clave es el identificador interno (usado por la UI); el valor es la
@@ -100,6 +113,7 @@ def obtener_agregado_segmento_principal(fecha_inicio: date, fecha_fin: date, agr
           AND nb_sucursal != ''
           AND NOT LOWER(nb_sucursal) LIKE '%gas%'
           AND NOT LOWER(nb_sucursal) LIKE '%autotanque%'
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
           AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
         GROUP BY {columna_agrupacion}
         ORDER BY total DESC
@@ -131,8 +145,40 @@ def obtener_agregado_sucursal_gas(fecha_inicio: date, fecha_fin: date) -> list[d
           AND sn_PagoFilial = 'NO'
           AND nb_sucursal IS NOT NULL
           AND nb_sucursal != ''
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
           AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
         GROUP BY nb_sucursal
+        ORDER BY total DESC
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("empresas", "STRING", EMPRESAS_DASHBOARD),
+            bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
+            bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
+        ]
+    )
+    filas = cliente.query(query, job_config=job_config).result()
+    return [dict(fila.items()) for fila in filas]
+
+
+def obtener_agregado_sf(fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    """Total de im_Movimiento por sucursal para el segmento 'SF' (cuentas
+    bancarias reclasificadas vía TIPO_NEGOCIO_EFECTIVO desde
+    de_CuentaBancaria = 'ABASTECEDORA SF /AENE'), en las 3 empresas
+    principales, excluyendo pagos entre filiales. A diferencia de la vista
+    'Sucursal' del segmento principal, aquí se incluyen TODAS las sucursales
+    (no se excluyen GAS/Autotanque/sin asignar) — así se pidió. Ordenado de
+    mayor a menor."""
+    cliente = _cliente_bigquery()
+    query = f"""
+        SELECT IFNULL(nb_sucursal, '(Sin sucursal)') AS etiqueta, SUM(im_Movimiento) AS total
+        FROM `{TABLA}`
+        WHERE nb_Empresa IN UNNEST(@empresas)
+          AND ({TIPO_NEGOCIO_EFECTIVO}) = 'SF'
+          AND sn_PagoFilial = 'NO'
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
+          AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
+        GROUP BY etiqueta
         ORDER BY total DESC
     """
     job_config = bigquery.QueryJobConfig(
@@ -156,6 +202,7 @@ def obtener_agregado_otras_empresas(fecha_inicio: date, fecha_fin: date) -> list
         SELECT nb_Empresa AS empresa, IFNULL(nb_sucursal, '(Sin sucursal)') AS sucursal, SUM(im_Movimiento) AS total
         FROM `{TABLA}`
         WHERE nb_Empresa NOT IN UNNEST(@empresas_principales)
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
           AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
         GROUP BY empresa, sucursal
         ORDER BY total DESC
@@ -180,6 +227,7 @@ def obtener_total_no_identificado(fecha_inicio: date, fecha_fin: date) -> float:
         SELECT SUM(im_Movimiento) AS total
         FROM `{TABLA}`
         WHERE sn_Identificada = 'NO'
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
           AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
     """
     job_config = bigquery.QueryJobConfig(
@@ -210,6 +258,7 @@ def obtener_valores_distintos(columna: str) -> list[str]:
         SELECT DISTINCT {expr} AS valor
         FROM `{TABLA}`
         WHERE {expr} IS NOT NULL AND {expr} != ''
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
         ORDER BY valor
     """
     filas = cliente.query(query).result()
@@ -224,7 +273,7 @@ def _condiciones_explorador(
     obtener_detalle_movimientos: cada filtro es opcional — lista vacía == sin
     restricción ("todas"). `filial` es "todos" | "excluir" | "solo", sobre
     sn_PagoFilial (no existe columna nb_Filial en la tabla)."""
-    condiciones = ["DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin"]
+    condiciones = ["DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin", FILTRO_CUENTA_BANCARIA_EXCLUIDA]
     parametros: list = [
         bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
         bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
@@ -311,6 +360,11 @@ async def consultar_sucursal_gas(fecha_inicio: date, fecha_fin: date) -> list[tu
     return [(fila["etiqueta"], fila["total"] or 0) for fila in filas]
 
 
+async def consultar_sf(fecha_inicio: date, fecha_fin: date) -> list[tuple[str, float]]:
+    filas = await asyncio.to_thread(obtener_agregado_sf, fecha_inicio, fecha_fin)
+    return [(fila["etiqueta"], fila["total"] or 0) for fila in filas]
+
+
 async def consultar_otras_empresas(fecha_inicio: date, fecha_fin: date) -> list[tuple[str, float]]:
     filas = await asyncio.to_thread(obtener_agregado_otras_empresas, fecha_inicio, fecha_fin)
     return [(f"{fila['empresa']} · {fila['sucursal']}", fila["total"] or 0) for fila in filas]
@@ -352,6 +406,7 @@ def obtener_detalle_completo_periodo(fecha_inicio: date, fecha_fin: date) -> lis
         SELECT *, ({TIPO_NEGOCIO_EFECTIVO}) AS tipo_negocio_efectivo
         FROM `{TABLA}`
         WHERE DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
+          AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
         ORDER BY fh_Envio DESC
     """
     job_config = bigquery.QueryJobConfig(

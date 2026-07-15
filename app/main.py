@@ -15,8 +15,7 @@ from .catalogo import cargar_catalogo, guardar_catalogo_completo, guardar_nuevas
 from .clientes import cargar_clientes, preparar_clientes_normalizados
 from .conciliacion.vista import construir_tab_conciliaciones
 from .credenciales import borrar_credenciales, cargar_credenciales, guardar_credenciales
-from .dashboard import construir_tab_dashboard
-from .rdc import construir_tab_rdc
+from .dashboards_tab import construir_tab_dashboards
 from .estado_cuenta import EstadoCuenta, cargar_estado_cuenta, sugerir_sucursal_detalle
 from .historial import (
     cargar_historial,
@@ -3917,12 +3916,11 @@ def main(page: ft.Page) -> None:
         if tabs.selected_index == 1:
             page.run_task(actualizar_bandeja_o365)
 
-    tab_dashboard, contenido_dashboard = construir_tab_dashboard(page)
+    tab_dashboards, contenido_dashboards = construir_tab_dashboards(page)
     tab_conciliaciones, contenido_conciliaciones = construir_tab_conciliaciones(page)
-    tab_rdc, contenido_rdc = construir_tab_rdc(page)
 
     tabs = ft.Tabs(
-        length=6,
+        length=5,
         selected_index=0,
         expand=True,
         on_change=on_tabs_change,
@@ -3934,14 +3932,13 @@ def main(page: ft.Page) -> None:
                         ft.Tab(label="Identificación Bancaria", icon=ft.Icons.ACCOUNT_BALANCE),
                         ft.Tab(label="Extracción de Contados", icon=ft.Icons.MAIL_OUTLINE),
                         ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
-                        tab_dashboard,
+                        tab_dashboards,
                         tab_conciliaciones,
-                        tab_rdc,
                     ],
                 ),
                 ft.TabBarView(
                     expand=True,
-                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboard, contenido_conciliaciones, contenido_rdc],
+                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboards, contenido_conciliaciones],
                 ),
             ],
         ),
