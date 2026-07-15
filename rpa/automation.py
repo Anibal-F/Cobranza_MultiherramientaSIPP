@@ -1144,19 +1144,24 @@ class RPAAutomation:
             filas.append((ref, imp))
         return filas
 
-    async def _eliminar_filas_preview(self, page: Page, a_eliminar: List[Tuple]) -> int:
-        """Elimina del modal las filas que NO deben subirse a SIPP: las ya extraídas
+    async def _eliminar_filas_preview(self, page: Page, a_eliminar: List[Tuple]) -> set:
+        """Excluye del modal las filas que NO deben subirse a SIPP: las ya extraídas
         en un corte anterior (ya_subido) y las excluidas (traspasos a filiales,
         portal BBVA). En el flujo CSV esas filas ya vienen quitadas del archivo, así
         que esto es una red de seguridad; en el flujo H2H de BBVA (que no sube
         archivo, sino que jala del buzón por rango de fechas) es el ÚNICO punto donde
         se pueden omitir.
 
-        Las filas se borran de MAYOR a MENOR índice: al eliminar una, Angular
-        re-renderiza y re-indexa el resto, así que ir en reversa mantiene válidos los
-        #EditarMovimiento_i de las filas que aún faltan por borrar."""
+        El control es el botón rojo 'Excluir registro' de cada fila: un <span>
+        (glyphicon-remove-circle, ng-model='btnExcluir') que TOGGLEA
+        item.sn_Excluir. NO borra la fila ni re-renderiza la tabla, así que los
+        índices #EditarMovimiento_i se mantienen estables; se hace un solo click por
+        fila (de false→true) y en orden natural.
+
+        Devuelve el conjunto de índices de fila excluidos, para que la asignación de
+        clientes no los vuelva a procesar ni los cuente como 'sin cliente'."""
         if not a_eliminar:
-            return 0
+            return set()
 
         filas_datos = await self._leer_filas_preview(page)
         pendientes = list(a_eliminar)
@@ -1173,30 +1178,30 @@ class RPAAutomation:
                 "previsualización (ya venían fuera del archivo).",
                 "info",
             )
-            return 0
+            return set()
 
-        eliminadas = 0
-        for i, ref in reversed(objetivos):
+        excluidos: set = set()
+        for i, ref in objetivos:
             try:
                 fila = page.locator(f"#EditarMovimiento_{i}").locator("xpath=ancestor::tr[1]")
-                boton = fila.locator("button.btn-eliminar15p").first
-                await boton.scroll_into_view_if_needed()
-                # dispatch_event dispara el ng-click directo aunque el botón traiga
-                # la clase ng-hide por los ng-show de SIPP.
-                await boton.dispatch_event("click")
-                await page.wait_for_timeout(350)
-                eliminadas += 1
+                # Botón 'Excluir registro' (toggle sn_Excluir). Timeout corto: si no
+                # está, se avisa y se sigue, en vez de colgar 30s por fila.
+                toggle = fila.locator("[ng-model='btnExcluir']").first
+                await toggle.scroll_into_view_if_needed(timeout=5_000)
+                await toggle.dispatch_event("click")
+                await page.wait_for_timeout(200)
+                excluidos.add(i)
                 self.contar("omitidos")
-                self.log(f"  Fila {i + 1} ({ref}): eliminada (ya extraída / excluida).", "info")
+                self.log(f"  Fila {i + 1} ({ref}): excluida (ya extraída / no se sube).", "info")
             except Exception as exc:
                 self.contar("errores")
-                self.log(f"  No se pudo eliminar la fila {i + 1} ({ref}): {exc}", "warn")
+                self.log(f"  No se pudo excluir la fila {i + 1} ({ref}): {exc}", "warn")
 
         self.log(
-            f"{eliminadas}/{len(objetivos)} fila(s) omitida(s) eliminadas de la previsualización.",
-            "ok" if eliminadas == len(objetivos) else "warn",
+            f"{len(excluidos)}/{len(objetivos)} fila(s) excluida(s) de la previsualización.",
+            "ok" if len(excluidos) == len(objetivos) else "warn",
         )
-        return eliminadas
+        return excluidos
 
     async def _asignar_clientes_preview(self, page: Page, movimientos, a_eliminar=None) -> list:
         """En el modal 'Previsualización de datos en Archivo Bancario' (mismo para
@@ -1210,10 +1215,12 @@ class RPAAutomation:
         await page.wait_for_selector("#divBloqueo_modalDatosBanco", state="visible", timeout=20_000)
         await page.wait_for_timeout(500)
 
-        # Primero se quitan las filas que no deben subirse; así el snapshot de
-        # abajo ya refleja la tabla final y los índices no se mueven después.
+        # Primero se excluyen las filas que no deben subirse (ya extraídas); así no
+        # se les asigna cliente ni se cuentan como 'sin cliente' abajo. El toggle no
+        # re-renderiza, por lo que los índices se mantienen estables.
+        excluidos_idx: set = set()
         if a_eliminar:
-            await self._eliminar_filas_preview(page, a_eliminar)
+            excluidos_idx = await self._eliminar_filas_preview(page, a_eliminar)
             await page.wait_for_timeout(300)
 
         # Snapshot de (referencia, importe) de TODAS las filas antes de editar
@@ -1231,6 +1238,9 @@ class RPAAutomation:
             if self.should_cancel():
                 self.log("Asignación de clientes cancelada por el usuario.", "warn")
                 break
+
+            if i in excluidos_idx:
+                continue  # ya excluida (ya extraída): no se le asigna cliente
 
             mov = _emparejar_movimiento(pendientes, referencia_modal, importe_modal)
             if mov is None:
@@ -1484,6 +1494,81 @@ class RPAAutomation:
             borradas += 1
         return borradas
 
+    async def _consolidar_sucursal_modal(
+        self, page: Page, modal, monto: float,
+        sucursal_objetivo: Optional[str], plaza_requerida: bool = False,
+    ) -> str:
+        """En el modal 'Agregar Movimientos' deja UNA sola fila de sucursal
+        ('Aplicar en:') y le fija sucursal + importe. Al elegir cliente, SIPP crea
+        una fila por CADA sucursal del cliente, y con más de una NO deja guardar.
+
+        Prioridad de la sucursal:
+          1) `sucursal_objetivo` (la identificada en la app), si viene;
+          2) si no, se RESPETA la que SIPP ya dejó por default en la fila;
+          3) solo si quedó vacía ('Seleccionar') se pone 'Corporativo'.
+
+        `plaza_requerida=True` (pagos de contado): si se pidió una sucursal concreta
+        y no está en el combo, lanza en vez de caer a 'Corporativo'.
+
+        Devuelve el texto de la sucursal final aplicada."""
+        # 1) Reducir a una sola fila. Los botones 'Eliminar Sucursal'
+        # (btn-eliminar15p → eliminarSucursalModal) solo existen mientras hay más de
+        # una fila; se borra la última hasta que no quede ninguno.
+        borradas = 0
+        for _ in range(30):  # tope de seguridad
+            del_btns = modal.locator("button.btn-eliminar15p")
+            if await del_btns.count() == 0:
+                break
+            try:
+                await del_btns.last.click()
+            except Exception:
+                await del_btns.last.dispatch_event("click")
+            await page.wait_for_timeout(200)
+            borradas += 1
+        if borradas:
+            self.log(f"    {borradas} sucursal(es) extra eliminada(s) (SIPP exige una sola).", "info")
+
+        select = modal.locator("#ID_SUCURSAL_Agregar_0")
+
+        async def _texto_actual() -> str:
+            try:
+                return (await select.evaluate(
+                    "s => s.options[s.selectedIndex] ? s.options[s.selectedIndex].text : ''"
+                )).strip()
+            except Exception:
+                return ""
+
+        # 2) Resolver la sucursal de la única fila.
+        if sucursal_objetivo:
+            opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", sucursal_objetivo)
+            if not opcion and plaza_requerida:
+                raise RuntimeError(
+                    f"No se encontró la plaza '{sucursal_objetivo}' en el combo de sucursales."
+                )
+            if not opcion:
+                self.log(f"    sucursal '{sucursal_objetivo}' no está en el combo; uso 'Corporativo'.", "warn")
+                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", "Corporativo")
+            if opcion:
+                await select.select_option(value=opcion["value"])
+        else:
+            # Sin sucursal en la app: si SIPP ya puso una por default, se respeta;
+            # solo si quedó en 'Seleccionar' se fuerza 'Corporativo'.
+            actual = await _texto_actual()
+            if actual.lower() in ("", "seleccionar"):
+                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", "Corporativo")
+                if opcion:
+                    await select.select_option(value=opcion["value"])
+                    self.log("    sin sucursal en la app y SIPP no puso default: 'Corporativo'.", "info")
+                else:
+                    self.log("    no se encontró 'Corporativo' en el combo.", "warn")
+            else:
+                self.log(f"    sin sucursal en la app; se respeta la default de SIPP: '{actual}'.", "info")
+
+        await page.wait_for_timeout(150)
+        # 3) Importe en la fila de la sucursal.
+        await modal.locator("#IM_MOVIMIENTO_Agregar_0").fill(f"{monto:.2f}")
+        return await _texto_actual()
+
     # ──────────────────────────────────────────────────────
     # Ingresos Diversos por captura MANUAL (modal "Agregar Movimientos"),
     # para bancos que SIPP no importa por "Subir Excel" (ej. BanBajío).
@@ -1588,22 +1673,14 @@ class RPAAutomation:
                 await self._chosen_select(page, "ID_CLIENTE", cliente)
                 await page.wait_for_timeout(300)
 
-                # Sucursal: la indicada o 'Corporativo' por defecto (SIPP no guarda
-                # sin sucursal y el flujo se trabaría).
-                paso = "seleccionar sucursal"
-                objetivo = sucursal or "Corporativo"
-                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", objetivo)
-                if not opcion and objetivo != "Corporativo":
-                    self.log(f"    sucursal '{objetivo}' no está en el combo; uso 'Corporativo'.", "warn")
-                    opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", "Corporativo")
-                    objetivo = "Corporativo"
-                if opcion:
-                    await modal.locator("#ID_SUCURSAL_Agregar_0").select_option(value=opcion["value"])
-                    self.log(f"    sucursal: {opcion['text']}", "ok")
-                    await modal.locator("#IM_MOVIMIENTO_Agregar_0").fill(f"{monto:.2f}")
-                else:
-                    self.log("    no se encontró la sucursal ni 'Corporativo' en el combo.", "warn")
-                await page.wait_for_timeout(300)
+                # Deja UNA sola sucursal (SIPP agrega una por cada sucursal del
+                # cliente y no deja guardar con varias) y le fija sucursal+importe:
+                # la de la app si se identificó; si no, la default de SIPP; y solo si
+                # SIPP la dejó vacía, 'Corporativo'.
+                paso = "resolver sucursal"
+                final_suc = await self._consolidar_sucursal_modal(page, modal, monto, sucursal)
+                self.log(f"    sucursal aplicada: {final_suc or '(sin definir)'}", "ok")
+                await page.wait_for_timeout(200)
 
             paso = "guardar movimiento"
             await modal.locator("button.btn-info", has_text="Guardar Movimiento").click()
@@ -2063,14 +2140,14 @@ class RPAAutomation:
                 await self._chosen_select(page, "ID_CLIENTE", cliente)
                 await page.wait_for_timeout(300)
 
+                # Deja UNA sola sucursal (si el cliente tiene varias, SIPP crea una
+                # fila por cada una y no deja guardar) con la plaza del pago.
                 paso = "seleccionar plaza"
-                self.log(f"  [paso] seleccionando plaza '{plaza}'...", "info")
-                opcion = await self._opcion_plaza_por_nombre(page, "#ID_SUCURSAL_Agregar_0", plaza)
-                if not opcion:
-                    raise RuntimeError(f"No se encontró la plaza '{plaza}' en el combo de sucursales.")
-                await modal.locator("#ID_SUCURSAL_Agregar_0").select_option(value=opcion["value"])
-                self.log(f"    plaza seleccionada: '{opcion['text']}'", "ok")
-                await modal.locator("#IM_MOVIMIENTO_Agregar_0").fill(f"{monto:.2f}")
+                self.log(f"  [paso] fijando plaza '{plaza}' (una sola sucursal)...", "info")
+                final_suc = await self._consolidar_sucursal_modal(
+                    page, modal, monto, plaza, plaza_requerida=bool(plaza)
+                )
+                self.log(f"    plaza seleccionada: '{final_suc}'", "ok")
                 await page.wait_for_timeout(300)
 
                 paso = "guardar movimiento"
