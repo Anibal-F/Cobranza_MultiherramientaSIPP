@@ -12,10 +12,12 @@ import flet_charts as fc
 
 from ..dashboard.componentes import (
     color_slot,
+    encabezado_seccion,
     formato_compacto,
-    hero_tile,
     mostrar_dialogo,
     preparar_tema_date_picker,
+    sombra_tarjeta,
+    tile_compacta,
 )
 from .cobranza import construir_panel_cobranza
 from .consultas import SEGMENTOS, consultar_antiguedad_saldos, consultar_detalle_periodo
@@ -208,7 +210,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     def _texto_rango(inicio: date, fin: date) -> str:
         return f"{inicio.strftime('%d %b %Y')} – {fin.strftime('%d %b %Y')}"
 
-    titulo = ft.Text("Proyeción", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
+    titulo = ft.Text("Proyección", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
     subtitulo = ft.Text(
         "Distribuidora, Asociados y Petroplazas · el saldo vigente se filtra por fecha de vencimiento "
         "dentro del rango; el vencido a 30 días es el acumulado total a la fecha de corte.",
@@ -256,25 +258,30 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         total_vigente = sum(v for _s, v, _v3 in items)
         total_vencido30 = sum(v3 for _s, _v, v3 in items)
 
+        # col explícito a 3 por fila: este panel vive a media pantalla (junto al
+        # de Cobranza), así que el default de tile_compacta (2 por fila) dejaría
+        # una tarjeta sola y angosta en la 2a fila — con exactamente 3 tarjetas,
+        # un tercio cada una aprovecha todo el ancho disponible sin huecos.
+        col_tercio = {"xs": 12, "sm": 4}
         hero_contenedor.controls = [
-            hero_tile("Total cartera", total_vigente + total_vencido30, color_slot(2, dark),
-                      ft.Icons.ACCOUNT_BALANCE_OUTLINED, "Distribuidora + Asociados + Petroplazas"),
-            hero_tile("Saldo vigente", total_vigente, color_slot(_COLOR_SLOT_VIGENTE, dark),
-                      ft.Icons.SCHEDULE_OUTLINED, "Facturas con vencimiento en el rango seleccionado"),
-            hero_tile("Vencido a 30 días", total_vencido30, color_slot(_COLOR_SLOT_VENCIDO, dark),
-                      ft.Icons.WARNING_AMBER_OUTLINED, "Acumulado total a la fecha de corte"),
+            tile_compacta("Total cartera", total_vigente + total_vencido30, color_slot(2, dark),
+                          ft.Icons.ACCOUNT_BALANCE_OUTLINED, "Distribuidora + Asociados + Petroplazas",
+                          col=col_tercio),
+            tile_compacta("Saldo vigente", total_vigente, color_slot(_COLOR_SLOT_VIGENTE, dark),
+                          ft.Icons.SCHEDULE_OUTLINED, "Facturas con vencimiento en el rango seleccionado",
+                          col=col_tercio),
+            tile_compacta("Vencido a 30 días", total_vencido30, color_slot(_COLOR_SLOT_VENCIDO, dark),
+                          ft.Icons.WARNING_AMBER_OUTLINED, "Acumulado total a la fecha de corte",
+                          col=col_tercio),
         ]
 
         seccion_grafica.content = ft.Container(
             content=ft.Column(
                 [
-                    ft.Row(
-                        [
-                            ft.Text("Vigente vs. vencido a 30 días por segmento", size=14,
-                                    weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
-                            ft.Container(expand=True),
-                            _leyenda_metricas(dark),
-                        ],
+                    encabezado_seccion(
+                        ft.Icons.BAR_CHART_OUTLINED, color_slot(2, dark),
+                        "Vigente vs. vencido a 30 días", "Por segmento: Distribuidora, Asociados y Petroplazas",
+                        [_leyenda_metricas(dark)],
                     ),
                     ft.Divider(height=1),
                     _construir_barra_segmentos(items, dark),
@@ -289,6 +296,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
             border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
             border_radius=12,
+            shadow=sombra_tarjeta(),
         )
 
     async def cargar(_e=None) -> None:
@@ -448,10 +456,15 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         on_click=lambda e: page.run_task(exportar_excel, e),
     )
 
-    barra_herramientas = ft.Row(
-        [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info],
-        spacing=12,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    barra_herramientas = ft.Container(
+        content=ft.Row(
+            [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info],
+            spacing=12,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=ft.Padding(left=14, right=14, top=10, bottom=10),
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+        border_radius=12,
     )
 
     panel_izquierdo = ft.Container(

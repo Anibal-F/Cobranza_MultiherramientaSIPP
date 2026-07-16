@@ -2,8 +2,8 @@
 dos dashboards de BigQuery de la app, con un SegmentedButton para alternar
 entre sub-pestañas:
 
-- 'Dashboard Ingresos' → ingresos diversos mensuales (app/dashboard).
-- 'Proyección' → antigüedad de saldos / RDC (app/rdc).
+- 'Ingresos Mensuales' → ingresos diversos mensuales (app/dashboard).
+- 'Proyección y Cobranza Semanal' → antigüedad de saldos / RDC (app/rdc).
 
 No se usa un segundo ft.Tabs anidado — main.py ya tiene uno de nivel superior
 y anidarlos da problemas de render en Flutter (mismo criterio que
@@ -33,8 +33,8 @@ def construir_tab_dashboards(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     selector = ft.SegmentedButton(
         segments=[
-            ft.Segment(value="ingresos", icon=ft.Icons.BAR_CHART, label=ft.Text("Dashboard Ingresos")),
-            ft.Segment(value="proyeccion", icon=ft.Icons.HISTORY_EDU, label=ft.Text("Proyección")),
+            ft.Segment(value="ingresos", icon=ft.Icons.BAR_CHART, label=ft.Text("Ingresos Mensuales")),
+            ft.Segment(value="proyeccion", icon=ft.Icons.HISTORY_EDU, label=ft.Text("Proyección y Cobranza Semanal")),
         ],
         selected=["ingresos"],
     )
@@ -50,8 +50,16 @@ def construir_tab_dashboards(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     contenido = ft.Column(
         expand=True,
+        spacing=0,
         controls=[
-            ft.Container(content=selector, padding=ft.Padding(left=20, right=20, top=12, bottom=0)),
+            # Barra de sub-navegación con borde inferior: separa visualmente el
+            # selector del contenido de abajo (antes flotaba sin ninguna
+            # división, se sentía pegado al primer panel de cada dashboard).
+            ft.Container(
+                content=selector,
+                padding=ft.Padding(left=20, right=20, top=14, bottom=14),
+                border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT)),
+            ),
             area,
         ],
     )

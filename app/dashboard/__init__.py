@@ -64,8 +64,15 @@ def construir_tab_dashboard(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     contenido = ft.Column(
         expand=True,
+        spacing=0,
         controls=[
-            ft.Container(content=selector, padding=ft.Padding(left=20, right=20, top=12, bottom=0)),
+            # Borde inferior: separa visualmente el selector del contenido de
+            # abajo (antes flotaba sin ninguna división).
+            ft.Container(
+                content=selector,
+                padding=ft.Padding(left=20, right=20, top=14, bottom=14),
+                border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT)),
+            ),
             area,
         ],
     )

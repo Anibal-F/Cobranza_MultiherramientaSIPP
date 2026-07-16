@@ -23,20 +23,29 @@ import flet as ft
 from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 
 from .componentes import (
+    chip_total_usd,
+    color_slot,
     construir_timeline,
     escribir_hoja_excel,
     estado_vacio,
     guardar_workbook,
     mostrar_dialogo,
     placeholder_carga,
+    sombra_tarjeta,
 )
 from .consultas import (
     LIMITE_FILAS_DETALLE,
+    MONEDA_USD,
     consultar_catalogo,
     consultar_detalle_completo_periodo,
     consultar_detalle_movimientos,
     consultar_serie_temporal,
 )
+
+
+def _es_usd(fila: dict) -> bool:
+    return (fila.get("nb_Moneda") or "").strip().lower() == MONEDA_USD
+
 
 ETIQUETAS_FILIAL = {"todos": "Todos", "excluir": "Excluye entre filiales", "solo": "Solo entre filiales"}
 _ETIQUETA_TODOS = {"empresa": "Todas", "sucursal": "Todas", "tipo_negocio": "Todos"}
@@ -44,7 +53,7 @@ _ATRIBUTO_FILTRO = {"empresa": "empresas", "sucursal": "sucursales", "tipo_negoc
 # Campo de la fila por índice de columna de la tabla de detalle (para ordenar).
 _CAMPOS_ORDEN = [
     "fh_Envio", "nb_Empresa", "nb_sucursal", "tipo_negocio_efectivo",
-    "de_RazonSocial", "im_Movimiento", "sn_PagoFilial", "sn_Identificada",
+    "de_RazonSocial", "im_Movimiento", "nb_Moneda", "sn_PagoFilial", "sn_Identificada",
 ]
 # Máximo de filas que se RENDEREAN en la tabla (los datos completos, hasta
 # LIMITE_FILAS_DETALLE, sí viven en memoria para filtrar/ordenar). Serializar
@@ -80,7 +89,8 @@ class Explorador:
         self.orden: tuple[int, bool] = (0, False)  # (columna, ascendente) — default fecha desc, como la query
         # --- Datos ---
         self.catalogo: dict[str, list[str] | None] = {"empresa": None, "sucursal": None, "tipo_negocio": None}
-        self.serie: list[tuple[date, float]] = []
+        self.serie: list[tuple[date, float]] = []  # MXN únicamente — alimenta la gráfica
+        self.serie_usd: list[tuple[date, float]] = []  # USD por periodo, aparte — nunca se suma a self.serie
         self.detalle: list[dict] = []
         self.truncado = False
         self.cargado = False
@@ -131,6 +141,7 @@ class Explorador:
         r_serie, r_detalle, *r_catalogos = resultados
         if not isinstance(r_serie, Exception):
             self.serie = [(fila["periodo"], fila["total"] or 0) for fila in r_serie]
+            self.serie_usd = [(fila["periodo"], fila["total_usd"] or 0) for fila in r_serie]
         if not isinstance(r_detalle, Exception):
             self.detalle, self.truncado = r_detalle
         for clave, resultado in zip(faltantes, r_catalogos):
@@ -192,8 +203,11 @@ class Explorador:
         )
         return ft.Container(
             content=fila,
-            padding=ft.Padding(left=20, right=20, top=12, bottom=12),
+            padding=ft.Padding(left=16, right=16, top=12, bottom=12),
+            margin=ft.Margin(left=20, right=20, top=16, bottom=0),
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+            border_radius=12,
+            shadow=sombra_tarjeta(),
         )
 
     def _abrir_rango(self, _e) -> None:
@@ -328,13 +342,18 @@ class Explorador:
             f"Tipo de negocio: {', '.join(self.tipos_negocio) if self.tipos_negocio else 'todos los tipos de negocio'}.",
             filial_txt,
             f"El Timeline agrupa los totales {periodo_txt}.",
-            "El tipo de negocio se reclasifica en dos casos: los clientes de "
-            "'Público en general' de Petro Smart se cuentan como 'GasPetroil', y "
-            "un cliente específico (id 4359) se cuenta como 'Distribuidora', sin "
-            "importar cómo esté registrado originalmente.",
+            "El tipo de negocio se reclasifica en tres casos: cuentas bancarias "
+            "'Abastecedora SF /AENE' o 'Petroplazas SF' se cuentan como 'SF'; los "
+            "clientes de 'Público en general' de Petro Smart se cuentan como "
+            "'GasPetroil'; y un cliente específico (id 4359) se cuenta como "
+            "'Distribuidora' — sin importar cómo esté registrado originalmente.",
             f"La tabla de Detalle muestra como máximo {LIMITE_FILAS_DETALLE:,} movimientos por consulta"
             + (" y con los filtros actuales se alcanzó ese límite (hay más movimientos de los que se muestran)."
                if self.truncado else "."),
+            "Los movimientos en dólares (Moneda = 'Dolar (USD)') nunca se convierten ni se suman a los "
+            "de pesos: el Timeline los deja aparte en la pastilla 'USD' (arriba de la gráfica), y en "
+            "Detalle cada fila muestra su propia moneda en la columna 'Moneda', con el total MXN/USD del "
+            "conjunto filtrado debajo de la tabla.",
             "A diferencia de la vista 'Segmentado', aquí no se excluyen por defecto "
             "los movimientos de GAS, Autotanque ni los de sucursal sin asignar — por "
             "eso los totales de esta vista no son directamente comparables con los de esa vista.",
@@ -398,10 +417,14 @@ class Explorador:
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Timeline"
+            usd_por_periodo = dict(self.serie_usd)
             escribir_hoja_excel(
                 ws,
-                ["Periodo", "Total"],
-                [[self._etiqueta_periodo_excel(periodo), round(total, 2)] for periodo, total in self.serie],
+                ["Periodo", "Total MXN", "Total USD"],
+                [
+                    [self._etiqueta_periodo_excel(periodo), round(total, 2), round(usd_por_periodo.get(periodo, 0), 2)]
+                    for periodo, total in self.serie
+                ],
                 fila_inicio=3,
             )
             ws.cell(row=1, column=1, value=self._texto_filtros_activos())
@@ -422,22 +445,33 @@ class Explorador:
             on_click=lambda e: self.page.run_task(_exportar, e),
         )
 
+        total_usd_periodo = sum(v for _p, v in self.serie_usd)
+
         return ft.Container(
             content=ft.Column(
                 [
                     ft.Row(
                         [
+                            ft.Container(
+                                ft.Icon(ft.Icons.SHOW_CHART, color=color_slot(0, self._dark()), size=16),
+                                width=30, height=30, border_radius=9,
+                                bgcolor=ft.Colors.with_opacity(0.14, color_slot(0, self._dark())),
+                                alignment=ft.Alignment.CENTER,
+                            ),
                             ft.Text("Timeline de ingresos", size=16, weight=ft.FontWeight.W_600,
                                     color=ft.Colors.ON_SURFACE),
                             ft.Container(expand=True),  # Row sin wrap: aquí expand sí es válido
+                            chip_total_usd(total_usd_periodo),
                             selector_periodo,
                             boton_exportar,
                         ],
+                        spacing=10,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     ft.Text(
                         "Explorador abierto: sin la restricción de segmento principal de 'Segmentado' "
-                        "— ver el botón ⓘ arriba para el detalle de filtros y transformaciones.",
+                        "— ver el botón ⓘ arriba para el detalle de filtros y transformaciones. La línea es "
+                        "en pesos; el total en dólares del periodo (si hay) se muestra en la pastilla 'USD'.",
                         size=11, color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     estado_exportar,
@@ -463,13 +497,18 @@ class Explorador:
     @staticmethod
     def _fila(f: dict) -> ft.DataRow:
         fecha = f["fh_Envio"]
+        moneda_usd = _es_usd(f)
+        etiqueta_moneda = "USD" if moneda_usd else "MXN"
+        signo = "US$" if moneda_usd else "$"
         return ft.DataRow(cells=[
             ft.DataCell(ft.Text(fecha.strftime("%d/%m/%Y") if fecha else "—", size=11)),
             ft.DataCell(ft.Text(f["nb_Empresa"] or "—", size=11)),
             ft.DataCell(ft.Text(f["nb_sucursal"] or "—", size=11)),
             ft.DataCell(ft.Text(f["tipo_negocio_efectivo"] or "—", size=11)),
             ft.DataCell(ft.Text(f["de_RazonSocial"] or "—", size=11)),
-            ft.DataCell(ft.Text(f"${(f['im_Movimiento'] or 0):,.2f}", size=11)),
+            ft.DataCell(ft.Text(f"{signo}{(f['im_Movimiento'] or 0):,.2f}", size=11,
+                                 color="#eda100" if moneda_usd else None)),
+            ft.DataCell(ft.Text(etiqueta_moneda, size=11)),
             ft.DataCell(ft.Text(f["sn_PagoFilial"] or "—", size=11)),
             ft.DataCell(ft.Text(f["sn_Identificada"] or "—", size=11)),
         ])
@@ -513,18 +552,27 @@ class Explorador:
             bgcolor=ft.Colors.with_opacity(0.12, "#eda100"), padding=8, border_radius=8,
             visible=False,
         )
+        texto_totales = ft.Text("", size=11, color=ft.Colors.ON_SURFACE_VARIANT)
 
         def _aplicar_estado_tabla() -> None:
-            """Repone filas/orden/banner de la tabla montada. IMPORTANTE: solo
-            se mandan al cliente las primeras _MAX_FILAS_RENDER filas —
+            """Repone filas/orden/banner/totales de la tabla montada. IMPORTANTE:
+            solo se mandan al cliente las primeras _MAX_FILAS_RENDER filas —
             serializar las 5,000 completas en un mensaje tumba el canal de
             Flet (la vista queda pintada pero todos los eventos posteriores
-            mueren, sin error visible)."""
+            mueren, sin error visible). Los totales sí se calculan sobre TODAS
+            las filas filtradas (no solo las renderizadas), separando MXN de
+            USD — nunca se suman entre sí."""
             filas = self._filas_filtradas()
             tabla.rows = [self._fila(f) for f in filas[:_MAX_FILAS_RENDER]]
             tabla.sort_column_index, tabla.sort_ascending = self.orden
             texto_banner.value = self._texto_banner(len(filas))
             banner.visible = bool(texto_banner.value)
+            total_mxn = sum((f["im_Movimiento"] or 0) for f in filas if not _es_usd(f))
+            total_usd = sum((f["im_Movimiento"] or 0) for f in filas if _es_usd(f))
+            texto_totales.value = (
+                f"{len(filas):,} movimiento(s) · Total MXN: ${total_mxn:,.2f}"
+                + (f" · Total USD: ${total_usd:,.2f}" if total_usd else "")
+            )
 
         def _on_orden(indice: int, ascendente: bool) -> None:
             self.orden = (indice, ascendente)
@@ -553,8 +601,9 @@ class Explorador:
             _columna("Tipo de negocio", 3, fixed_width=140),
             _columna("Razón social", 4, size=DataColumnSize.L),
             _columna("Monto", 5, numeric=True, fixed_width=120),
-            _columna("Pago filial", 6, fixed_width=90),
-            _columna("Identificada", 7, fixed_width=90),
+            _columna("Moneda", 6, fixed_width=80),
+            _columna("Pago filial", 7, fixed_width=90),
+            _columna("Identificada", 8, fixed_width=90),
         ]
         _aplicar_estado_tabla()
 
@@ -596,6 +645,10 @@ class Explorador:
             ws.cell(row=1, column=1,
                     value=f"Periodo: {fi.strftime('%d/%m/%Y')} - {ff.strftime('%d/%m/%Y')} "
                           "(sin filtros de empresa/sucursal/tipo de negocio/filial)")
+            total_mxn_export = sum((f.get("im_Movimiento") or 0) for f in filas_export if not _es_usd(f))
+            total_usd_export = sum((f.get("im_Movimiento") or 0) for f in filas_export if _es_usd(f))
+            ws.cell(row=2, column=1,
+                    value=f"Total MXN: ${total_mxn_export:,.2f} · Total USD: ${total_usd_export:,.2f} (aparte, sin convertir)")
             encabezados = list(filas_export[0].keys()) if filas_export else []
             escribir_hoja_excel(
                 ws, encabezados,
@@ -626,15 +679,23 @@ class Explorador:
                 [
                     ft.Row(
                         [
+                            ft.Container(
+                                ft.Icon(ft.Icons.TABLE_ROWS_OUTLINED, color=color_slot(1, self._dark()), size=16),
+                                width=30, height=30, border_radius=9,
+                                bgcolor=ft.Colors.with_opacity(0.14, color_slot(1, self._dark())),
+                                alignment=ft.Alignment.CENTER,
+                            ),
                             ft.Text("Detalle de movimientos", size=16, weight=ft.FontWeight.W_600,
                                     color=ft.Colors.ON_SURFACE),
                             ft.Container(expand=True),
                             boton_exportar,
                         ],
+                        spacing=10,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     estado_exportar,
                     banner,
+                    texto_totales,
                     ft.Row(
                         [
                             _campo_filtro("Empresa", "nb_Empresa", 160),
