@@ -149,6 +149,73 @@ def chip_total(total: float) -> ft.Container:
     )
 
 
+def chip_total_usd(total_usd: float) -> ft.Control:
+    """Pastilla 'USD · $X' — el monto en dólares de una sección, mostrado
+    SIEMPRE aparte de `chip_total` (nunca sumado a los pesos: son montos en
+    monedas distintas). No renderiza nada si la sección no tuvo movimientos
+    en dólares — la mayoría no los tiene, y una pastilla en $0.00 sería ruido."""
+    if not total_usd:
+        return ft.Container()
+    return ft.Container(
+        content=ft.Row(
+            [
+                ft.Text("USD", size=10, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Text(f"${total_usd:,.2f}", size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+            ],
+            spacing=6,
+            tight=True,
+        ),
+        padding=ft.Padding(left=10, right=10, top=4, bottom=4),
+        bgcolor=ft.Colors.with_opacity(0.14, "#eda100"),
+        border_radius=20,
+    )
+
+
+def sombra_tarjeta() -> ft.BoxShadow:
+    """Sombra sutil compartida por TODAS las tarjetas del dashboard (KPI,
+    secciones, paneles de filtro) — antes cada tarjeta era un rectángulo
+    plano de 1px (bgcolor + border), correcto pero sin profundidad ni
+    jerarquía visual frente al fondo. Una sombra chica (blur 16, sin spread)
+    las separa del fondo sin verse "flotadas"; se centraliza aquí para poder
+    ajustar el look de toda la app en un solo lugar."""
+    return ft.BoxShadow(
+        spread_radius=0,
+        blur_radius=16,
+        color=ft.Colors.with_opacity(0.10, ft.Colors.SHADOW),
+        offset=ft.Offset(0, 3),
+    )
+
+
+def encabezado_seccion(icono, color: str, titulo: str, subtitulo: str, chips: list[ft.Control] | None = None) -> ft.Row:
+    """Cabecera estándar de tarjeta de sección: ícono en círculo de acento +
+    título + subtítulo a la izquierda, chips (Total/USD) a la derecha —
+    mismo lenguaje visual que `hero_tile`/`tile_compacta`, para que las
+    tarjetas de sección (donas, rankings, tablas) se sientan parte del mismo
+    sistema que las tarjetas KPI en vez de solo texto plano sin acento."""
+    return ft.Row(
+        [
+            ft.Container(
+                ft.Icon(icono, color=color, size=16),
+                width=30, height=30, border_radius=9,
+                bgcolor=ft.Colors.with_opacity(0.14, color),
+                alignment=ft.Alignment.CENTER,
+            ),
+            ft.Column(
+                [
+                    ft.Text(titulo, size=14, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+                    ft.Text(subtitulo, size=10, color=ft.Colors.ON_SURFACE_VARIANT,
+                            max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                ],
+                spacing=2,
+                expand=True,
+            ),
+            ft.Row(chips or [], spacing=6, tight=True),
+        ],
+        spacing=10,
+        vertical_alignment=ft.CrossAxisAlignment.START,
+    )
+
+
 def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "") -> ft.Container:
     """Tarjeta grande de la banda superior (hero): ícono en acento + valor
     grande + etiqueta. `valor` puede ser una Exception (consulta fallida)."""
@@ -186,8 +253,58 @@ def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "") -> ft
             bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
         ),
         border_radius=12,
+        shadow=sombra_tarjeta(),
         height=124,  # alto fijo → las 4 tarjetas del hero quedan uniformes
         col={"xs": 12, "sm": 6, "lg": 3},  # ancho responsivo: 4 por fila en pantallas anchas
+    )
+
+
+def tile_compacta(etiqueta: str, valor, color: str, icono, subtexto: str = "", col=None) -> ft.Container:
+    """Tarjeta KPI compacta: como `hero_tile` pero pensada para paneles a
+    media pantalla (ej. Proyección/Cobranza, cada uno la mitad del ancho).
+    Sin alto fijo (crece con el contenido) y con `max_lines` + elipsis tanto
+    en la etiqueta como en el subtexto — `hero_tile` solo protege la
+    etiqueta, así que su subtexto se desbordaba del alto fijo de 124px en
+    columnas angostas (texto amontonado saliéndose de la tarjeta). `col` por
+    defecto dos tarjetas por fila; pásalo explícito si el número de tarjetas
+    pide otra fracción (ej. 3 tarjetas → col={"xs": 12, "sm": 4})."""
+    if isinstance(valor, Exception):
+        valor_texto, valor_color = "—", ft.Colors.ON_SURFACE_VARIANT
+    else:
+        valor_texto, valor_color = formato_compacto(valor), ft.Colors.ON_SURFACE
+    contenido = [
+        ft.Row(
+            [
+                ft.Container(
+                    ft.Icon(icono, color=color, size=15),
+                    width=28, height=28, border_radius=8,
+                    bgcolor=ft.Colors.with_opacity(0.14, color),
+                    alignment=ft.Alignment.CENTER,
+                ),
+                ft.Text(etiqueta, size=11, color=ft.Colors.ON_SURFACE_VARIANT, expand=True,
+                        max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+            ],
+            spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        ft.Text(valor_texto, size=19, weight=ft.FontWeight.W_700, color=valor_color),
+    ]
+    if subtexto:
+        contenido.append(ft.Text(subtexto, size=9.5, color=ft.Colors.ON_SURFACE_VARIANT,
+                                  max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, tooltip=subtexto))
+    return ft.Container(
+        content=ft.Column(contenido, spacing=5),
+        padding=12,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
+        border=ft.Border(
+            top=ft.BorderSide(3, color),
+            left=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+            right=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+            bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+        ),
+        border_radius=10,
+        shadow=sombra_tarjeta(),
+        col=col or {"xs": 12, "sm": 6},
     )
 
 
@@ -350,6 +467,101 @@ def construir_tabla(items: list[tuple[str, float]], dark: bool, un_solo_color: b
         )
     tabla = ft.DataTable(
         columns=[ft.DataColumn(ft.Text("Categoría", size=11)), ft.DataColumn(ft.Text("Total", size=11), numeric=True)],
+        rows=filas,
+        data_row_max_height=32,
+        heading_row_height=32,
+        column_spacing=16,
+    )
+    return ft.Column([tabla], scroll=ft.ScrollMode.AUTO, height=200)
+
+
+def construir_tabla_moneda(items: list[tuple[str, float, float, float, float]], dark: bool) -> ft.Control:
+    """Tabla detallada con el desglose pesos/dólares — la usan las secciones
+    del dashboard en modo tabla, para separar el USD por categoría (no solo
+    el agregado de la pastilla). Cada item es
+    (etiqueta, mxn, usd, usd_convertido, usd_sin_tc):
+
+    - MXN (sin USD): pesos únicamente.
+    - USD: dólares crudos, sin convertir.
+    - MXN convertido: USD × tipo de cambio promedio del día que le tocó.
+    - Total final: MXN (sin USD) + MXN convertido — el USD sin tipo de
+      cambio (columna aparte, si aplica) NO entra en este total, porque no
+      hay con qué convertirlo, no porque se ignore: sigue visible en su
+      propia columna."""
+    hay_sin_tc = any(sin_tc for _et, _m, _u, _c, sin_tc in items)
+    columnas = [
+        ft.DataColumn(ft.Text("Categoría", size=11)),
+        ft.DataColumn(ft.Text("MXN (sin USD)", size=11), numeric=True),
+        ft.DataColumn(ft.Text("USD", size=11), numeric=True),
+        ft.DataColumn(ft.Text("MXN convertido", size=11), numeric=True),
+        ft.DataColumn(ft.Text("Total final", size=11), numeric=True),
+    ]
+    if hay_sin_tc:
+        columnas.append(ft.DataColumn(ft.Text("USD sin tipo de cambio", size=11), numeric=True))
+
+    filas = []
+    for i, (etiqueta, mxn, usd, convertido, sin_tc) in enumerate(items):
+        color = color_slot(i, dark)
+        total_final = mxn + convertido
+        celdas = [
+            ft.DataCell(
+                ft.Row(
+                    [
+                        ft.Container(width=8, height=8, bgcolor=color, border_radius=4),
+                        ft.Container(
+                            ft.Text(etiqueta, size=11, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS,
+                                     tooltip=etiqueta),
+                            width=160,
+                        ),
+                    ],
+                    spacing=6,
+                )
+            ),
+            ft.DataCell(ft.Text(f"${mxn:,.2f}", size=11)),
+            ft.DataCell(ft.Text(f"US${usd:,.2f}" if usd else "—", size=11)),
+            ft.DataCell(ft.Text(f"${convertido:,.2f}" if convertido else "—", size=11)),
+            ft.DataCell(ft.Text(f"${total_final:,.2f}", size=11, weight=ft.FontWeight.W_600)),
+        ]
+        if hay_sin_tc:
+            celdas.append(
+                ft.DataCell(
+                    ft.Text(f"US${sin_tc:,.2f}" if sin_tc else "—", size=11,
+                             color=ft.Colors.RED_600 if sin_tc else ft.Colors.ON_SURFACE_VARIANT)
+                )
+            )
+        filas.append(ft.DataRow(cells=celdas))
+
+    total_mxn = sum(mxn for _et, mxn, _usd, _convertido, _sin_tc in items)
+    total_usd = sum(usd for _et, _mxn, usd, _convertido, _sin_tc in items)
+    total_convertido = sum(convertido for _et, _mxn, _usd, convertido, _sin_tc in items)
+    total_final = total_mxn + total_convertido
+    total_sin_tc = sum(sin_tc for _et, _mxn, _usd, _convertido, sin_tc in items)
+    estilo_total = {"size": 11, "weight": ft.FontWeight.W_700, "color": ft.Colors.ON_SURFACE}
+    celdas_total = [
+        ft.DataCell(ft.Text("TOTAL", **estilo_total)),
+        ft.DataCell(ft.Text(f"${total_mxn:,.2f}", **estilo_total)),
+        ft.DataCell(ft.Text(f"US${total_usd:,.2f}" if total_usd else "—", **estilo_total)),
+        ft.DataCell(ft.Text(f"${total_convertido:,.2f}" if total_convertido else "—", **estilo_total)),
+        ft.DataCell(ft.Text(f"${total_final:,.2f} MXN", **estilo_total)),
+    ]
+    if hay_sin_tc:
+        celdas_total.append(
+            ft.DataCell(
+                ft.Text(
+                    f"US${total_sin_tc:,.2f}" if total_sin_tc else "—",
+                    **estilo_total,
+                )
+            )
+        )
+    filas.append(
+        ft.DataRow(
+            cells=celdas_total,
+            color=ft.Colors.with_opacity(0.08, color_slot(0, dark)),
+        )
+    )
+
+    tabla = ft.DataTable(
+        columns=columnas,
         rows=filas,
         data_row_max_height=32,
         heading_row_height=32,
