@@ -12,34 +12,70 @@ referencia (y razón social); la tabla en la nube trae de_Referencia y de_Concep
 y ambos se usan como texto a buscar. Cada banco/lado aporta sus columnas al construir
 el MovimientoConciliacion; aquí solo se comparan.
 
-La leyenda que identifica una devolución de cheque es CONFIGURABLE (los usuarios
-aún no dan la exacta): se ajusta LEYENDA_DEVOLUCION_CHEQUE sin tocar la lógica.
+Las leyendas que identifican una devolución de cheque son CONFIGURABLES (los
+usuarios aún no dan las exactas): se editan desde la UI y se guardan en un JSON
+(ver leyendas_cheque.py) sin tocar esta lógica.
 """
 
-import re
 from collections import defaultdict
+from datetime import date
 
 from ..textutils import normalizar
+from .leyendas_cheque import cargar_leyendas, es_devolucion
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
 
-# Leyenda (regex) que marca un movimiento como devolución de cheque. Default:
-# cualquier variante que contenga "CHEQUE"/"CHEQUES". Ajustar cuando los usuarios
-# proporcionen la leyenda exacta (p. ej. r"DEV\.?\s*CHEQUE").
-LEYENDA_DEVOLUCION_CHEQUE = re.compile(r"CHEQUE", re.IGNORECASE)
+
+def es_devolucion_cheque(m: MovimientoConciliacion, leyendas: list[str]) -> bool:
+    return es_devolucion(m.texto, leyendas)
 
 
-def es_devolucion_cheque(m: MovimientoConciliacion) -> bool:
-    return bool(LEYENDA_DEVOLUCION_CHEQUE.search(m.texto))
+def _ventana_comun(
+    mov_banco: list[MovimientoConciliacion],
+    mov_sistema: list[MovimientoConciliacion],
+) -> tuple[date, date] | None:
+    """Rango de fechas presente en AMBOS archivos: [max(mínimos), min(máximos)].
+
+    Los archivos del banco a veces cubren un rango mayor o menor que el reporte de
+    Ingresos Diversos; solo tiene sentido conciliar el tramo que ambos comparten.
+    Devuelve None si algún lado no tiene ninguna fecha (no se puede acotar → no se
+    filtra). Si los rangos no se traslapan, inicio > fin y todo queda fuera."""
+    fechas_banco = [m.fecha for m in mov_banco if m.fecha]
+    fechas_sistema = [m.fecha for m in mov_sistema if m.fecha]
+    if not fechas_banco or not fechas_sistema:
+        return None
+    return (max(min(fechas_banco), min(fechas_sistema)),
+            min(max(fechas_banco), max(fechas_sistema)))
 
 
 def conciliar(
     mov_banco: list[MovimientoConciliacion],
     mov_sistema: list[MovimientoConciliacion],
+    leyendas: list[str] | None = None,
 ) -> ResultadoConciliacion:
-    """Concilia las dos listas y devuelve los 4 grupos del requerimiento."""
+    """Concilia las dos listas y devuelve los grupos del requerimiento.
+
+    `leyendas` son las leyendas de devolución de cheque; si es None se cargan del
+    JSON configurable (leyendas_cheque.cargar_leyendas)."""
+    if leyendas is None:
+        leyendas = cargar_leyendas()
+    # 0. Acotar por la ventana común de fechas: los movimientos (de cualquier lado)
+    #    cuya fecha caiga fuera se apartan y NO se consideran para conciliar ni para
+    #    detectar duplicados. Las fechas nulas no se pueden ubicar → se conservan.
+    ventana = _ventana_comun(mov_banco, mov_sistema)
+    fuera_de_rango: list[MovimientoConciliacion] = []
+    if ventana is not None:
+        inicio, fin = ventana
+
+        def _dentro(m: MovimientoConciliacion) -> bool:
+            return m.fecha is None or inicio <= m.fecha <= fin
+
+        fuera_de_rango = [m for m in mov_banco + mov_sistema if not _dentro(m)]
+        mov_banco = [m for m in mov_banco if _dentro(m)]
+        mov_sistema = [m for m in mov_sistema if _dentro(m)]
+
     # 1. Apartar devoluciones de cheque del lado banco (antes de comparar).
-    devoluciones = [m for m in mov_banco if es_devolucion_cheque(m)]
-    banco = [m for m in mov_banco if not es_devolucion_cheque(m)]
+    devoluciones = [m for m in mov_banco if es_devolucion_cheque(m, leyendas)]
+    banco = [m for m in mov_banco if not es_devolucion_cheque(m, leyendas)]
 
     # 2. Agrupar el sistema por importe (2 decimales) para acotar la búsqueda;
     #    cada movimiento del sistema se consume una sola vez. Se guardan sus dos
@@ -79,6 +115,8 @@ def conciliar(
         solo_sistema=solo_sistema,
         devoluciones_cheque=devoluciones,
         posibles_repetidos_sistema=_posibles_repetidos(mov_sistema),
+        fuera_de_rango=fuera_de_rango,
+        ventana=ventana,
     )
 
 

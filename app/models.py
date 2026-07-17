@@ -80,6 +80,11 @@ class Movimiento:
     # (SPEI de otros bancos). Estos son cobros reales a subir a SIPP, así que NO
     # se les aplica la exclusión de portal de clientes (CI/CE) del archivo interno.
     bbva_externo: bool = False
+    # BBVA interbancario: razón social del ORDENANTE tomada del archivo SPEI
+    # (enlazado por referencia). El SPEI ya no aporta movimientos; solo enriquece
+    # los del RSM para identificar al cliente. Se muestra como pista en el grid
+    # cuando el movimiento aún no se identifica.
+    razon_social_ordenante: Optional[str] = None
 
     @property
     def identificado(self) -> bool:

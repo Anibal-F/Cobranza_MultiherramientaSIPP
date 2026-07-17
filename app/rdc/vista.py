@@ -3,6 +3,7 @@ Asociados y Petroplazas — réplica de las macros `CargarAntiguedadSaldos` /
 `CargarAntiguedadAsociados` del Excel de Proyección, sobre la tabla
 `documentosClientes_AntiguedadSaldosVencidoPorClienteDetalle` de BigQuery."""
 
+import asyncio
 import math
 import os
 from datetime import date, datetime, timedelta
@@ -12,13 +13,25 @@ import flet_charts as fc
 
 from ..dashboard.componentes import (
     color_slot,
+    encabezado_seccion,
     formato_compacto,
-    hero_tile,
     mostrar_dialogo,
     preparar_tema_date_picker,
+    sombra_tarjeta,
+    tile_compacta,
 )
+from ..services.rdc_repository import SEGMENTOS, RdcRepository
 from .cobranza import construir_panel_cobranza
-from .consultas import SEGMENTOS, consultar_antiguedad_saldos, consultar_detalle_periodo
+
+# El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
+# no falla al importar este módulo si aún no hay credenciales configuradas.
+_repo_holder: list[RdcRepository | None] = [None]
+
+
+def _repo() -> RdcRepository:
+    if _repo_holder[0] is None:
+        _repo_holder[0] = RdcRepository()
+    return _repo_holder[0]
 
 # Columnas de fecha en el detalle crudo (SELECT * de la tabla): se formatean
 # como fecha en el Excel en vez de dejarlas como el datetime completo de BigQuery.
@@ -208,7 +221,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     def _texto_rango(inicio: date, fin: date) -> str:
         return f"{inicio.strftime('%d %b %Y')} – {fin.strftime('%d %b %Y')}"
 
-    titulo = ft.Text("Proyeción", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
+    titulo = ft.Text("Proyección", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
     subtitulo = ft.Text(
         "Distribuidora, Asociados y Petroplazas · el saldo vigente se filtra por fecha de vencimiento "
         "dentro del rango; el vencido a 30 días es el acumulado total a la fecha de corte.",
@@ -256,25 +269,30 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         total_vigente = sum(v for _s, v, _v3 in items)
         total_vencido30 = sum(v3 for _s, _v, v3 in items)
 
+        # col explícito a 3 por fila: este panel vive a media pantalla (junto al
+        # de Cobranza), así que el default de tile_compacta (2 por fila) dejaría
+        # una tarjeta sola y angosta en la 2a fila — con exactamente 3 tarjetas,
+        # un tercio cada una aprovecha todo el ancho disponible sin huecos.
+        col_tercio = {"xs": 12, "sm": 4}
         hero_contenedor.controls = [
-            hero_tile("Total cartera", total_vigente + total_vencido30, color_slot(2, dark),
-                      ft.Icons.ACCOUNT_BALANCE_OUTLINED, "Distribuidora + Asociados + Petroplazas"),
-            hero_tile("Saldo vigente", total_vigente, color_slot(_COLOR_SLOT_VIGENTE, dark),
-                      ft.Icons.SCHEDULE_OUTLINED, "Facturas con vencimiento en el rango seleccionado"),
-            hero_tile("Vencido a 30 días", total_vencido30, color_slot(_COLOR_SLOT_VENCIDO, dark),
-                      ft.Icons.WARNING_AMBER_OUTLINED, "Acumulado total a la fecha de corte"),
+            tile_compacta("Total cartera", total_vigente + total_vencido30, color_slot(2, dark),
+                          ft.Icons.ACCOUNT_BALANCE_OUTLINED, "Distribuidora + Asociados + Petroplazas",
+                          col=col_tercio),
+            tile_compacta("Saldo vigente", total_vigente, color_slot(_COLOR_SLOT_VIGENTE, dark),
+                          ft.Icons.SCHEDULE_OUTLINED, "Facturas con vencimiento en el rango seleccionado",
+                          col=col_tercio),
+            tile_compacta("Vencido a 30 días", total_vencido30, color_slot(_COLOR_SLOT_VENCIDO, dark),
+                          ft.Icons.WARNING_AMBER_OUTLINED, "Acumulado total a la fecha de corte",
+                          col=col_tercio),
         ]
 
         seccion_grafica.content = ft.Container(
             content=ft.Column(
                 [
-                    ft.Row(
-                        [
-                            ft.Text("Vigente vs. vencido a 30 días por segmento", size=14,
-                                    weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
-                            ft.Container(expand=True),
-                            _leyenda_metricas(dark),
-                        ],
+                    encabezado_seccion(
+                        ft.Icons.BAR_CHART_OUTLINED, color_slot(2, dark),
+                        "Vigente vs. vencido a 30 días", "Por segmento: Distribuidora, Asociados y Petroplazas",
+                        [_leyenda_metricas(dark)],
                     ),
                     ft.Divider(height=1),
                     _construir_barra_segmentos(items, dark),
@@ -289,6 +307,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
             border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
             border_radius=12,
+            shadow=sombra_tarjeta(),
         )
 
     async def cargar(_e=None) -> None:
@@ -300,7 +319,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
         fecha_inicio, fecha_fin = rango_sel[0]
         try:
-            resultado = await consultar_antiguedad_saldos(fecha_inicio, fecha_fin)
+            resultado = await asyncio.to_thread(_repo().antiguedad_saldos, fecha_inicio, fecha_fin)
         except Exception as error:  # noqa: BLE001 - se muestra en la sección, igual que el dashboard de ingresos
             resultado = error
 
@@ -352,8 +371,10 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             "en el reporte de Distribuidora como en el de Asociados.",
             "El segmento GasPetroil (y filas sin tipo de negocio) no entra en ninguna categoría — "
             "la macro original nunca los procesaba.",
-            "Se excluyen filas sin cliente o sin factura, el cliente 'ICV' y los folios que "
-            "empiezan con 'FCOR' (el filtro configurado en Config_Filtros > Antigüedad de Saldos).",
+            "Se excluyen filas sin cliente o sin factura, el cliente 'ICV', las filas cuyo nombre de "
+            "cliente contenga la palabra 'totales' (filas de subtotal del reporte, no clientes reales) "
+            "y los folios que empiezan con 'FCOR' (el filtro configurado en Config_Filtros > "
+            "Antigüedad de Saldos).",
             "El saldo vigente (im_CarteraVigente) solo se suma si la fecha de vencimiento de la "
             "factura cae dentro del rango de fechas seleccionado.",
             "El vencido a 30 días (im_Vencido30Dias) se suma completo, sin filtrar por fecha — es "
@@ -392,7 +413,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
         fecha_inicio, fecha_fin = rango_sel[0]
         try:
-            detalle = await consultar_detalle_periodo(fecha_inicio, fecha_fin)
+            detalle = await asyncio.to_thread(_repo().detalle_periodo, fecha_inicio, fecha_fin)
             wb = _construir_workbook_reporte(ultimo_items[0], detalle)
         except Exception as error:  # noqa: BLE001 - se muestra en estado_text, igual que el resto de la pestaña
             estado_text.value = f"No se pudo generar el Excel: {error}"
@@ -448,10 +469,15 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         on_click=lambda e: page.run_task(exportar_excel, e),
     )
 
-    barra_herramientas = ft.Row(
-        [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info],
-        spacing=12,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    barra_herramientas = ft.Container(
+        content=ft.Row(
+            [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info],
+            spacing=12,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=ft.Padding(left=14, right=14, top=10, bottom=10),
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+        border_radius=12,
     )
 
     panel_izquierdo = ft.Container(

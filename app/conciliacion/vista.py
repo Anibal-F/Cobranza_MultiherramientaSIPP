@@ -11,6 +11,7 @@ inserte en TabBar/TabBarView en la misma posición.
 import asyncio
 import dataclasses
 import os
+import re
 import tempfile
 import traceback
 from datetime import date, datetime, timedelta
@@ -21,9 +22,11 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 from .conciliador import conciliar
 from .ingresos_diversos import cargar_ingresos_diversos
 from .lector_banco import nombres_bancos, normalizar_banco
+from .leyendas_cheque import cargar_leyendas, guardar_leyendas
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
 from ..parsers.lectura import EXTENSIONES
 from ..services.bigquery_repository import BigQueryRepository
+from ..textutils import normalizar
 
 # Color por grupo (acento de la tarjeta/tabla).
 _COLOR_CONCILIADOS = "#1baf7a"
@@ -31,6 +34,7 @@ _COLOR_SOLO_BANCO = "#eda100"
 _COLOR_SOLO_SISTEMA = "#2a78d6"
 _COLOR_CHEQUES = "#e34948"
 _COLOR_REPETIDOS = "#7e57c2"
+_COLOR_FUERA_RANGO = "#607d8b"
 
 
 _MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -47,6 +51,99 @@ def _fmt_fecha_larga(f: date) -> str:
 
 def _fmt_importe(v: float) -> str:
     return f"${v:,.2f}"
+
+
+def _hex_argb(color: str) -> str:
+    """'#1baf7a' -> 'FF1BAF7A' (ARGB que espera openpyxl)."""
+    return "FF" + color.lstrip("#").upper()
+
+
+def _nombre_hoja(nombre: str) -> str:
+    """Sanea el nombre para una hoja de Excel (máx 31 chars, sin \\ / ? * [ ] :)."""
+    limpio = re.sub(r"[\\/?*\[\]:]", " ", nombre).strip()
+    return (limpio or "Hoja")[:31]
+
+
+def _construir_workbook(res: "ResultadoConciliacion", secciones: list[dict], generado: str):
+    """Arma el .xlsx: una hoja 'Resumen' + una hoja por sección con sus movimientos.
+
+    `secciones` es la lista de dicts que produce la UI (titulo/hoja/color/columnas/
+    filas/total) para que Excel y pantalla muestren exactamente lo mismo."""
+    import openpyxl
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    borde = Side(style="thin", color="FFD0D0D0")
+    marco = Border(left=borde, right=borde, top=borde, bottom=borde)
+
+    wb = openpyxl.Workbook()
+
+    # --- Hoja Resumen ---------------------------------------------------------
+    ws = wb.active
+    ws.title = "Resumen"
+    ws["A1"] = "Conciliación Bancaria"
+    ws["A1"].font = Font(bold=True, size=16)
+    ws["A2"] = f"Generado: {generado}"
+    ws["A2"].font = Font(italic=True, size=10, color="FF666666")
+    if res.ventana is not None:
+        ini, fin = res.ventana
+        ws["A3"] = f"Ventana de fechas conciliada: {_fmt_fecha(ini)} – {_fmt_fecha(fin)}"
+    else:
+        ws["A3"] = "Ventana de fechas: sin filtro (algún archivo no trae fechas)."
+    ws["A3"].font = Font(size=10, color="FF666666")
+
+    encabezados = ["Sección", "Movimientos", "Importe total"]
+    fila0 = 5
+    for j, h in enumerate(encabezados, start=1):
+        c = ws.cell(row=fila0, column=j, value=h)
+        c.font = Font(bold=True, color="FFFFFFFF")
+        c.fill = PatternFill(fill_type="solid", fgColor="FF37474F")
+        c.border = marco
+    for i, s in enumerate(secciones, start=fila0 + 1):
+        ws.cell(row=i, column=1, value=s["titulo"]).border = marco
+        ws.cell(row=i, column=2, value=len(s["filas"])).border = marco
+        cimp = ws.cell(row=i, column=3, value=round(s["total"], 2))
+        cimp.number_format = '"$"#,##0.00'
+        cimp.border = marco
+    ws.column_dimensions["A"].width = 34
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 18
+
+    # --- Una hoja por sección -------------------------------------------------
+    usados: set[str] = set()
+    for s in secciones:
+        nombre = _nombre_hoja(s["hoja"])
+        base, k = nombre, 2
+        while nombre in usados:  # evita choque de nombres de hoja
+            nombre = f"{base[:28]} {k}"
+            k += 1
+        usados.add(nombre)
+        hoja = wb.create_sheet(nombre)
+
+        etiquetas = [col[0] for col in s["columnas"]]
+        col_importe = {i for i, e in enumerate(etiquetas) if "Importe" in e}
+        fill = PatternFill(fill_type="solid", fgColor=_hex_argb(s["color"]))
+        for j, e in enumerate(etiquetas, start=1):
+            c = hoja.cell(row=1, column=j, value=e)
+            c.font = Font(bold=True, color="FFFFFFFF")
+            c.fill = fill
+            c.alignment = Alignment(horizontal="center")
+            c.border = marco
+        if not s["filas"]:
+            hoja.cell(row=2, column=1, value="Sin movimientos en este grupo.").font = Font(italic=True, color="FF888888")
+        for r, fila in enumerate(s["filas"], start=2):
+            for j, valor in enumerate(fila):
+                c = hoja.cell(row=r, column=j + 1, value=valor)
+                c.border = marco
+                if j in col_importe:  # los importes van a la derecha
+                    c.alignment = Alignment(horizontal="right")
+        # Anchos de columna: proporcional a la etiqueta, con mínimos razonables.
+        for j, e in enumerate(etiquetas, start=1):
+            ancho = 40 if "Descripción" in e else max(14, len(e) + 4)
+            hoja.column_dimensions[get_column_letter(j)].width = ancho
+        hoja.freeze_panes = "A2"
+
+    return wb
 
 
 def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
@@ -80,6 +177,11 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     lista_archivos = ft.Column(spacing=6)         # UI: un renglón por archivo cargado
     archivo_sistema: list[str | None] = [None]    # ruta temporal del Excel de Ingresos Diversos
     nombre_sistema = ft.Text("", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+    # Última conciliación calculada (para exportarla a Excel sin recalcular).
+    ultimo_resultado: list[ResultadoConciliacion | None] = [None]
+    # Leyendas de devolución de cheque (editables desde el modal, persistidas en JSON).
+    # Se envuelve en lista para poder reasignar leyendas_ref[0] dentro de los closures.
+    leyendas_ref: list[list[str]] = [cargar_leyendas()]
 
     # El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
     # la pestaña se construye aunque BigQuery no esté configurado en ese momento.
@@ -176,16 +278,27 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         lista_archivos.controls.append(fila)
 
     async def on_cargar_archivo(_e) -> None:
+        # Se usa filtro ANY (no CUSTOM+allowed_extensions): en macOS el diálogo nativo
+        # filtra por TIPO DE CONTENIDO (UTI), no por la extensión literal, y muchos
+        # estados de cuenta .xls del portal son en realidad SpreadsheetML/HTML (o .csv
+        # con tipo raro) → macOS los atenuaba aunque .xls/.csv estén permitidos. La
+        # app valida el formato tras seleccionar (detección por bytes en lectura.py),
+        # así que mostrar todos los archivos es seguro; los no válidos se avisan luego.
         archivos = await file_picker.pick_files(
-            dialog_title="Selecciona los estados de cuenta de los bancos",
-            file_type=ft.FilePickerFileType.CUSTOM,
-            allowed_extensions=EXTENSIONES,  # xlsx/xlsm/xls/xml/csv
+            dialog_title="Selecciona los estados de cuenta (xlsx, xlsm, xls, xml, csv)",
+            file_type=ft.FilePickerFileType.ANY,
             allow_multiple=True,
             with_data=True,
         )
         if not archivos:
             return
         for archivo in archivos:
+            # Ignorar extensiones que el sistema de parsers no maneja (evita que el
+            # usuario agregue un PDF/PNG por error al no haber filtro en el diálogo).
+            ext = os.path.splitext(archivo.name)[1].lower().lstrip(".")
+            if ext and ext not in EXTENSIONES:
+                _avisar(f"«{archivo.name}»: formato .{ext} no soportado. Usa xlsx, xlsm, xls, xml o csv.")
+                continue
             # En modo web: volcar bytes a un temporal CONSERVANDO la extensión (la
             # detección de algunos bancos —p. ej. BBVA .xls SpreadsheetML— depende de ella).
             if archivo.path and os.path.exists(archivo.path):
@@ -225,12 +338,122 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         cargados (para eso está 'Limpiar todos'). `secciones` se define más abajo,
         pero solo se usa al invocar, así que la referencia ya existe entonces."""
         secciones.controls.clear()
+        ultimo_resultado[0] = None
+        boton_exportar_excel.disabled = True
         estado_text.value = ""
         page.update()
 
     boton_limpiar_resultados = ft.TextButton(
         content=ft.Row([ft.Icon(ft.Icons.DELETE_SWEEP, size=16), ft.Text("Limpiar resultados", size=13)], spacing=6, tight=True),
         on_click=_limpiar_resultados,
+    )
+
+    async def exportar_excel(_e=None) -> None:
+        """Exporta la última conciliación a un .xlsx (Resumen + una hoja por sección
+        con sus movimientos). El armado y el guardado van en hilos para no bloquear."""
+        res = ultimo_resultado[0]
+        if res is None:
+            _avisar("Primero concilia para poder exportar.")
+            return
+        secs = _secciones_datos(res)
+        generado = datetime.now().strftime("%d/%m/%Y %H:%M")
+        wb = await asyncio.to_thread(_construir_workbook, res, secs, generado)
+
+        nombre_def = f"conciliacion_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        destino = await file_picker.save_file(
+            dialog_title="Guardar conciliación en Excel",
+            file_name=nombre_def,
+            allowed_extensions=["xlsx"],
+        )
+        if not destino:
+            return
+        if not destino.lower().endswith(".xlsx"):
+            destino += ".xlsx"
+        try:
+            await asyncio.to_thread(wb.save, destino)
+        except OSError as ex:
+            _avisar(f"No se pudo guardar el Excel: {ex}")
+            return
+        _avisar(f"Conciliación exportada a {os.path.basename(destino)}.", error=False)
+
+    boton_exportar_excel = ft.OutlinedButton(
+        content=ft.Row([ft.Icon(ft.Icons.TABLE_VIEW, size=16), ft.Text("Exportar a Excel", size=13)], spacing=8, tight=True),
+        style=ft.ButtonStyle(padding=ft.Padding(left=12, right=12, top=6, bottom=6)),
+        disabled=True,
+        on_click=lambda e: page.run_task(exportar_excel, e),
+    )
+
+    # --- Modal: leyendas de devolución de cheque (configurables) ----------------
+    def _abrir_leyendas(_e=None) -> None:
+        """Modal discreto para agregar/quitar las leyendas con las que se identifica
+        una devolución de cheque. Se guardan en el JSON al instante."""
+        lista_col = ft.Column(spacing=2, scroll=ft.ScrollMode.AUTO, height=200)
+        nuevo_tf = ft.TextField(label="Nueva leyenda", dense=True, expand=True,
+                                hint_text="p. ej. DEVOLUCION CHEQUE")
+
+        def _refrescar() -> None:
+            lista_col.controls.clear()
+            if not leyendas_ref[0]:
+                lista_col.controls.append(
+                    ft.Text("Sin leyendas: no se apartará ninguna devolución de cheque.",
+                            italic=True, size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+                )
+            for ley in leyendas_ref[0]:
+                lista_col.controls.append(
+                    ft.Row(
+                        [
+                            ft.Icon(ft.Icons.LABEL_OUTLINE, size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(ley, expand=True, selectable=True),
+                            ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18, tooltip="Quitar",
+                                          on_click=lambda _e, l=ley: _quitar(l)),
+                        ],
+                        spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    )
+                )
+            page.update()
+
+        def _agregar(_e=None) -> None:
+            val = (nuevo_tf.value or "").strip()
+            if val and not any(normalizar(val) == normalizar(x) for x in leyendas_ref[0]):
+                leyendas_ref[0] = leyendas_ref[0] + [val]
+                guardar_leyendas(leyendas_ref[0])
+            nuevo_tf.value = ""
+            _refrescar()
+
+        def _quitar(objetivo: str) -> None:
+            leyendas_ref[0] = [x for x in leyendas_ref[0] if x != objetivo]
+            guardar_leyendas(leyendas_ref[0])
+            _refrescar()
+
+        nuevo_tf.on_submit = _agregar
+        _refrescar()
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Leyendas de devolución de cheque"),
+            content=ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(
+                            "Un movimiento del banco se aparta como devolución de cheque si su "
+                            "texto CONTIENE alguna de estas leyendas (sin distinguir mayúsculas ni acentos).",
+                            size=12, color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.Divider(height=1),
+                        lista_col,
+                        ft.Row([nuevo_tf, ft.FilledButton("Agregar", on_click=_agregar)], spacing=8),
+                    ],
+                    tight=True, spacing=10,
+                ),
+                width=470,
+            ),
+            actions=[ft.TextButton("Cerrar", on_click=lambda _e: page.pop_dialog())],
+        )
+        page.show_dialog(dlg)
+
+    boton_leyendas = ft.IconButton(
+        icon=ft.Icons.RULE,
+        tooltip="Leyendas de devolución de cheque",
+        on_click=_abrir_leyendas,
     )
 
     # --- Origen de los datos del "sistema" para comparar ------------------------
@@ -301,7 +524,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 wrap=True,
             ),
             ft.Row(
-                [progress, estado_text, ft.Container(expand=True), boton_limpiar_resultados, boton_conciliar],
+                [progress, estado_text, ft.Container(expand=True), boton_leyendas, boton_exportar_excel, boton_limpiar_resultados, boton_conciliar],
                 spacing=12,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
@@ -376,12 +599,30 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         # origen "BANCO:BBVA" -> "BBVA"
         return m.origen.split(":", 1)[1] if ":" in m.origen else m.origen
 
-    def _render(res: ResultadoConciliacion) -> None:
+    def _origen_fuera(m: MovimientoConciliacion) -> str:
+        """Etiqueta de origen para la sección 'Fuera de rango': lado banco -> nombre
+        del banco; lado sistema -> el banco que trae el reporte (columna 'Banco'), o
+        'Ingresos Diversos' si no viene."""
+        if m.origen.startswith("BANCO:"):
+            return f"Banco: {_banco(m)}"
+        return f"Sistema: {m.raw.get('BANCO') or 'Ingresos Diversos'}"
+
+    def _secciones_datos(res: ResultadoConciliacion) -> list[dict]:
+        """Arma columnas + filas + totales por grupo. Fuente única que consumen tanto
+        el render de la UI como la exportación a Excel (para no duplicar la lógica)."""
+        L = DataColumnSize.L
         # Se antepone "Banco" en las tablas del lado banco (útil al combinar varios).
-        cols_mov = [("Banco", 100.0), ("Fecha", 90.0), ("Descripción", DataColumnSize.L),
+        cols_mov = [("Banco", 100.0), ("Fecha", 90.0), ("Descripción", L),
                     ("Referencia", 150.0), ("Importe", 120.0)]
-        cols_conc = [("Banco", 100.0), ("Fecha", 90.0), ("Descripción (banco)", DataColumnSize.L),
+        cols_conc = [("Banco", 100.0), ("Fecha", 90.0), ("Descripción (banco)", L),
                      ("Referencia", 150.0), ("Importe banco", 120.0), ("Importe sistema", 120.0)]
+        # Repetidos: "Conciliación" (folio) + "Banco" (columna del reporte de Ingresos
+        # Diversos, guardada en raw) para que el usuario sepa de qué banco es cada
+        # posible duplicado y no lo confunda con el banco que subió.
+        cols_repetidos = [("Conciliación", 110.0), ("Banco", 130.0), ("Fecha", 90.0),
+                          ("Descripción", L), ("Referencia", 150.0), ("Importe", 120.0)]
+        cols_fuera = [("Origen", 170.0), ("Fecha", 90.0), ("Descripción", L),
+                      ("Referencia", 150.0), ("Importe", 120.0)]
 
         filas_conc = [
             [_banco(b), _fmt_fecha(b.fecha), b.descripcion, b.referencia, _fmt_importe(b.importe), _fmt_importe(s.importe)]
@@ -389,24 +630,50 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         ]
         filas_banco = [[_banco(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.solo_banco]
         filas_cheques = [[_banco(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.devoluciones_cheque]
-        # Repetidos: se antepone la "Conciliación" (columna del reporte de Ingresos
-        # Diversos, guardada en raw). Para el origen nube aún no hay tabla -> vacío.
-        cols_repetidos = [("Conciliación", 110.0), ("Fecha", 90.0), ("Descripción", DataColumnSize.L),
-                          ("Referencia", 150.0), ("Importe", 120.0)]
         filas_repetidos = [
-            [str(m.raw.get("CONCILIACION") or ""), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)]
+            # Conciliación (folio) + Banco (de raw, para no confundir el banco del
+            # duplicado). En la nube la descripción no se cruza (aguja = solo
+            # referencia): se muestra el concepto guardado en raw como contexto.
+            [str(m.raw.get("CONCILIACION") or ""), str(m.raw.get("BANCO") or ""),
+             _fmt_fecha(m.fecha), m.descripcion or str(m.raw.get("concepto") or ""),
+             m.referencia, _fmt_importe(m.importe)]
             for m in res.posibles_repetidos_sistema
         ]
+        filas_fuera = [[_origen_fuera(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.fuera_de_rango]
 
-        total_conc = sum(b.importe for b, _ in res.conciliados)
         # Nota: "En sistema, no en banco" se calcula pero ya no se muestra; en su
         # lugar va "Posibles repetidos en sistema" (mismos ref+descripción+importe).
-        secciones.controls = [
-            seccion_resultado("Movimientos conciliados", _COLOR_CONCILIADOS, ft.Icons.CHECK_CIRCLE_OUTLINE, cols_conc, filas_conc, total_conc),
-            seccion_resultado("En banco, no en sistema", _COLOR_SOLO_BANCO, ft.Icons.ACCOUNT_BALANCE_OUTLINED, cols_mov, filas_banco, sum(m.importe for m in res.solo_banco)),
-            seccion_resultado("Posibles repetidos en sistema", _COLOR_REPETIDOS, ft.Icons.CONTENT_COPY, cols_repetidos, filas_repetidos, sum(m.importe for m in res.posibles_repetidos_sistema)),
-            seccion_resultado("Devoluciones de cheque", _COLOR_CHEQUES, ft.Icons.MONEY_OFF, cols_mov, filas_cheques, sum(m.importe for m in res.devoluciones_cheque)),
+        secs = [
+            {"titulo": "Movimientos conciliados", "hoja": "Conciliados", "color": _COLOR_CONCILIADOS,
+             "icono": ft.Icons.CHECK_CIRCLE_OUTLINE, "columnas": cols_conc, "filas": filas_conc,
+             "total": sum(b.importe for b, _ in res.conciliados)},
+            {"titulo": "En banco, no en sistema", "hoja": "En banco no en sistema", "color": _COLOR_SOLO_BANCO,
+             "icono": ft.Icons.ACCOUNT_BALANCE_OUTLINED, "columnas": cols_mov, "filas": filas_banco,
+             "total": sum(m.importe for m in res.solo_banco)},
+            {"titulo": "Posibles repetidos en sistema", "hoja": "Posibles duplicados", "color": _COLOR_REPETIDOS,
+             "icono": ft.Icons.CONTENT_COPY, "columnas": cols_repetidos, "filas": filas_repetidos,
+             "total": sum(m.importe for m in res.posibles_repetidos_sistema)},
+            {"titulo": "Devoluciones de cheque", "hoja": "Devoluciones cheque", "color": _COLOR_CHEQUES,
+             "icono": ft.Icons.MONEY_OFF, "columnas": cols_mov, "filas": filas_cheques,
+             "total": sum(m.importe for m in res.devoluciones_cheque)},
         ]
+        # La sección "Fuera de rango de fechas" solo aparece si hubo movimientos
+        # excluidos por caer fuera de la ventana común de fechas de ambos archivos.
+        if res.fuera_de_rango:
+            secs.append(
+                {"titulo": "Fuera de rango de fechas", "hoja": "Fuera de rango", "color": _COLOR_FUERA_RANGO,
+                 "icono": ft.Icons.EVENT_BUSY, "columnas": cols_fuera, "filas": filas_fuera,
+                 "total": sum(m.importe for m in res.fuera_de_rango)}
+            )
+        return secs
+
+    def _render(res: ResultadoConciliacion) -> None:
+        ultimo_resultado[0] = res
+        secciones.controls = [
+            seccion_resultado(s["titulo"], s["color"], s["icono"], s["columnas"], s["filas"], s["total"])
+            for s in _secciones_datos(res)
+        ]
+        boton_exportar_excel.disabled = False
         page.update()
 
     def _avisar(mensaje: str, error: bool = True) -> None:
@@ -505,7 +772,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 origen_txt = "nube"
 
             # 3. Conciliar (todos los bancos juntos) y renderizar.
-            resultado = conciliar(mov_banco, mov_sistema)
+            resultado = conciliar(mov_banco, mov_sistema, leyendas_ref[0])
             _render(resultado)
             estado_text.value = f"Bancos: {', '.join(resumen)} · Sistema ({origen_txt}): {len(mov_sistema)} mov."
             if problemas:

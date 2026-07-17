@@ -102,6 +102,9 @@ class Empresa:
     sipp_empresa: str     # texto a elegir en el combo de empresa del login SIPP
     sipp_sucursal: str    # sucursal/plaza del login (normalmente CORPORATIVO)
     nombre_reporte: str   # cómo aparece la empresa en col A del estado de cuenta
+    # Razón social EXACTA que espera el param `empresa` de la API /api/facturas
+    # (difiere del texto del combo de login; validada contra la API de test).
+    api_empresa: str = ""
     cuentas: list[CuentaBancaria] = field(default_factory=list)
 
 
@@ -112,6 +115,7 @@ EMPRESAS: list[Empresa] = [
         sipp_empresa="ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
         sipp_sucursal="CORPORATIVO",
         nombre_reporte="Abastecedora",
+        api_empresa="ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
         cuentas=CUENTAS_BANCARIAS,
     ),
     Empresa(
@@ -120,6 +124,7 @@ EMPRESAS: list[Empresa] = [
         sipp_empresa="ACP COMBUSTIBLES - (ACP COMBUSTIBLES )",
         sipp_sucursal="CORPORATIVO",
         nombre_reporte="ACP Combustibles",
+        api_empresa="ACP COMBUSTIBLES",
         cuentas=_CUENTAS_ACP,
     ),
     Empresa(
@@ -128,6 +133,7 @@ EMPRESAS: list[Empresa] = [
         sipp_empresa="PETRO SMART COMBUSTIBLES - (PETRO SMART )",
         sipp_sucursal="CORPORATIVO",
         nombre_reporte="Petro Smart",
+        api_empresa="PETRO SMART COMBUSTIBLES",
         cuentas=_CUENTAS_PETROSMART,
     ),
 ]
