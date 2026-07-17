@@ -20,7 +20,7 @@ sistema → `ingresos_diversos.cargar_ingresos_diversos` o `services/bigquery_re
 `conciliador.conciliar(...)` → `ResultadoConciliacion` → `vista._render`.
 
 ## Reglas (en conciliador.py)
-- **Match**: importe igual **Y** alguna aguja del sistema (su `referencia` **o** su `descripcion`/concepto, normalizadas) aparece dentro del `descripcion` (concepto) **o** de la `referencia` del banco. El reporte Excel solo trae referencia; la nube trae `de_Referencia` + `de_Concepto` (ambos se usan). Se agrupa por importe; cada sistema se consume 1 vez.
+- **Match**: importe igual **Y** alguna aguja del sistema (su `referencia` **o** su `descripcion`/concepto, normalizadas) aparece dentro del `descripcion` (concepto) **o** de la `referencia` del banco. Excel: agujas = referencia + razón social (ambas). **Nube: aguja = SOLO `de_Referencia`** (decisión 2026-07-17; `de_Concepto` viene vacío 73% y difiere de la referencia cuando existe → no se cruza, `descripcion` se emite vacía). Se agrupa por importe; cada sistema se consume 1 vez.
 - **Posibles repetidos en sistema**: mismos referencia + descripción + importe + **fecha** (2+).
 - **Devolución de cheque**: regex `LEYENDA_DEVOLUCION_CHEQUE` (hoy contiene "CHEQUE"); apartadas antes de comparar.
 - `normalizar()` (app/textutils) quita mayúsc/acentos/símbolos → el apóstrofo (`'003…`) y guion bajo (`_SPEI`) no estorban.
@@ -34,7 +34,7 @@ sistema → `ingresos_diversos.cargar_ingresos_diversos` o `services/bigquery_re
 - Banco `.xlsx` simple → agregar `BancoColumnasExcel(...)` en `excel_columnas.py` (firma + columnas + `en_conciliacion=True`).
 - Banco con lógica especial → módulo `app/parsers/<banco>.py` (`detect`, `parse`, `BANCO`, `EN_CONCILIACION`) y registrarlo en `PARSERS`.
 - Habilitar uno existente → poner su flag en `True`.
-- Nube: `services/bigquery_repository.py` mapea `de_Concepto`→descripcion, `de_Referencia`→referencia, `im_Movimiento`→importe, `fh_Envio`→fecha, `de_CuentaBancaria`→cuenta (en `raw`). Ajustar `COL_*` si cambian los nombres.
+- Nube: `services/bigquery_repository.py` (tabla `sipp-app.Tableros.IgresosClientes`) mapea `de_Referencia`→referencia (única aguja), `im_Movimiento`→importe, `fh_Envio`→fecha; `de_Concepto`→`raw['concepto']` y `de_CuentaBancaria`→`raw['cuenta']` (solo display, no se cruzan); `descripcion` sale como literal vacío `''`. Trae TODO el universo del rango (sin filtro de tipo). Ajustar `COL_*` si cambian los nombres.
 
 ## Notas
 - Reader de tablas: `app/parsers/lectura.py` detecta formato por **bytes** (no extensión); archivos de portal declaran mal la "dimensión" → usa modo normal antes que read_only.
