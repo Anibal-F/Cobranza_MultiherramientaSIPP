@@ -24,13 +24,80 @@ from .componentes import (
     nombre_hoja_valido,
     sombra_tarjeta,
 )
-from .consultas import (
-    consultar_no_identificado,
-    consultar_otras_empresas,
-    consultar_segmento,
-    consultar_sf,
-    consultar_sucursal_gas,
-)
+from ..services.dashboard_repository import DashboardRepository
+
+# El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
+# no falla al importar este módulo si aún no hay credenciales configuradas.
+_repo_holder: list[DashboardRepository | None] = [None]
+
+
+def _repo() -> DashboardRepository:
+    if _repo_holder[0] is None:
+        _repo_holder[0] = DashboardRepository()
+    return _repo_holder[0]
+
+
+async def _consultar_segmento(
+    fecha_inicio: date, fecha_fin: date, columna: str
+) -> list[tuple[str, float, float, float, float]]:
+    filas = await asyncio.to_thread(_repo().agregado_segmento_principal, fecha_inicio, fecha_fin, columna)
+    return [
+        (fila["etiqueta"], fila["total"] or 0, fila["total_usd"] or 0,
+         fila["total_usd_convertido"] or 0, fila["total_usd_sin_tc"] or 0)
+        for fila in filas
+    ]
+
+
+async def _consultar_sucursal_gas(fecha_inicio: date, fecha_fin: date) -> list[tuple[str, float, float, float, float]]:
+    filas = await asyncio.to_thread(_repo().agregado_sucursal_gas, fecha_inicio, fecha_fin)
+    return [
+        (fila["etiqueta"], fila["total"] or 0, fila["total_usd"] or 0,
+         fila["total_usd_convertido"] or 0, fila["total_usd_sin_tc"] or 0)
+        for fila in filas
+    ]
+
+
+async def _consultar_sf(fecha_inicio: date, fecha_fin: date) -> list[tuple[str, float, float, float, float]]:
+    filas = await asyncio.to_thread(_repo().agregado_sf, fecha_inicio, fecha_fin)
+    return [
+        (fila["etiqueta"], fila["total"] or 0, fila["total_usd"] or 0,
+         fila["total_usd_convertido"] or 0, fila["total_usd_sin_tc"] or 0)
+        for fila in filas
+    ]
+
+
+async def _consultar_otras_empresas(fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    """Una fila POR EMPRESA (no por empresa+filial): la consulta SQL trae 2
+    filas por empresa (una por sn_PagoFilial), y aquí se pivotea en Python
+    para que la UI muestre una sola fila por empresa con las columnas
+    no_mxn/no_usd_convertido/no_usd_sin_tc y si_mxn/si_usd_convertido/
+    si_usd_sin_tc lado a lado — evita la vista anterior, que amontonaba 2
+    filas casi idénticas por empresa en el mismo leaderboard."""
+    filas = await asyncio.to_thread(_repo().agregado_otras_empresas, fecha_inicio, fecha_fin)
+    por_empresa: dict[str, dict] = {}
+    for fila in filas:
+        entrada = por_empresa.setdefault(fila["empresa"], {
+            "empresa": fila["empresa"],
+            "no_mxn": 0.0, "no_usd_convertido": 0.0, "no_usd_sin_tc": 0.0,
+            "si_mxn": 0.0, "si_usd_convertido": 0.0, "si_usd_sin_tc": 0.0,
+        })
+        prefijo = "no" if fila["filial"] == "NO" else "si"
+        entrada[f"{prefijo}_mxn"] = fila["total"] or 0
+        entrada[f"{prefijo}_usd_convertido"] = fila["total_usd_convertido"] or 0
+        entrada[f"{prefijo}_usd_sin_tc"] = fila["total_usd_sin_tc"] or 0
+    items = list(por_empresa.values())
+    items.sort(
+        key=lambda it: it["no_mxn"] + it["no_usd_convertido"] + it["si_mxn"] + it["si_usd_convertido"],
+        reverse=True,
+    )
+    return items
+
+
+async def _consultar_no_identificado(fecha_inicio: date, fecha_fin: date) -> tuple[float, float]:
+    """(total_mxn, total_usd)."""
+    resultado = await asyncio.to_thread(_repo().total_no_identificado, fecha_inicio, fecha_fin)
+    return resultado["total"], resultado["total_usd"]
+
 
 # (titulo, subtitulo, consulta, vista, icono) — vista: "donut" (composición
 # parte-todo) o "ranked" (leaderboard con muchas categorías). El color de cada
@@ -40,28 +107,28 @@ _SECCIONES = [
     (
         "Empresa",
         "Asociados y Distribuidora · excluye pagos entre filiales, GAS, Autotanque, Corporativo y sucursal sin asignar",
-        lambda fi, ff: consultar_segmento(fi, ff, "nb_Empresa"),
+        lambda fi, ff: _consultar_segmento(fi, ff, "nb_Empresa"),
         "donut",
         ft.Icons.BUSINESS_OUTLINED,
     ),
     (
         "Tipo de negocio",
         "Asociados y Distribuidora · excluye pagos entre filiales, GAS, Autotanque, Corporativo y sucursal sin asignar",
-        lambda fi, ff: consultar_segmento(fi, ff, "nb_TipoDeNegocio"),
+        lambda fi, ff: _consultar_segmento(fi, ff, "nb_TipoDeNegocio"),
         "donut",
         ft.Icons.CATEGORY_OUTLINED,
     ),
     (
         "Sucursal",
         "Asociados y Distribuidora · excluye pagos entre filiales, GAS, Autotanque, Corporativo y sucursal sin asignar",
-        lambda fi, ff: consultar_segmento(fi, ff, "nb_sucursal"),
+        lambda fi, ff: _consultar_segmento(fi, ff, "nb_sucursal"),
         "ranked",
         ft.Icons.STORE_OUTLINED,
     ),
     (
         "Sucursal (Gaseras)",
         "Segmento GasPetroil · excluye pagos entre filiales",
-        consultar_sucursal_gas,
+        _consultar_sucursal_gas,
         "ranked",
         ft.Icons.LOCAL_GAS_STATION_OUTLINED,
     ),
@@ -69,7 +136,7 @@ _SECCIONES = [
         "SF",
         "Segmento SF (de_CuentaBancaria = 'Abastecedora SF /AENE' o 'Petroplazas SF') · "
         "excluye pagos entre filiales · todas las sucursales",
-        consultar_sf,
+        _consultar_sf,
         "ranked",
         ft.Icons.ACCOUNT_BALANCE_OUTLINED,
     ),
@@ -78,7 +145,7 @@ _SECCIONES = [
 # empresa con columnas Filial NO / Filial SI) no encaja con el contrato
 # (etiqueta, mxn, usd, usd_convertido, usd_sin_tc) que usa _construir_seccion
 # — tiene su propia consulta, cabecera y tabla (ver más abajo), igual que
-# 'Sin identificar' (consultar_no_identificado) ya vivía fuera de esta lista.
+# 'Sin identificar' (_consultar_no_identificado) ya vivía fuera de esta lista.
 
 
 def _construir_seccion(
@@ -335,8 +402,8 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
         fecha_inicio, fecha_fin = rango_sel[0]
         resultados = await asyncio.gather(
             *(consulta(fecha_inicio, fecha_fin) for _titulo, _subtitulo, consulta, _vista, _icono in _SECCIONES),
-            consultar_no_identificado(fecha_inicio, fecha_fin),
-            consultar_otras_empresas(fecha_inicio, fecha_fin),
+            _consultar_no_identificado(fecha_inicio, fecha_fin),
+            _consultar_otras_empresas(fecha_inicio, fecha_fin),
             return_exceptions=True,
         )
         resultados_actuales[0] = resultados
@@ -481,7 +548,8 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
             "Autotanque, Corporativo o sin sucursal asignada.",
             "Gaseras (Sucursal Gasolineras): mismas 3 empresas principales, pero "
             "solo el segmento GasPetroil. Aquí sí se incluyen las sucursales de "
-            "GAS y Autotanque, porque son precisamente el objeto de esta vista. "
+            "GAS y Autotanque, porque son precisamente el objeto de esta vista "
+            "(solo se excluyen las filas sin ninguna sucursal asignada). "
             "Tampoco incluye pagos entre filiales.",
             "SF: mismas 3 empresas principales, pero solo el segmento SF (cuentas "
             "bancarias de_CuentaBancaria = 'Abastecedora SF /AENE' o 'Petroplazas SF', "

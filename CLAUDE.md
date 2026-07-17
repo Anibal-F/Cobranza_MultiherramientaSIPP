@@ -19,7 +19,7 @@ App de escritorio en **Flet 0.85.3** (Python) para cobranza. Entrada:
 
 ## Estructura relevante
 - `app/parsers/` — **lectura unificada de bancos** (CSV/.xls/.xlsx) → `Movimiento`. La usan identificación Y conciliación. Registro en `parsers/__init__.py` (`detectar_banco`, `parsear_archivo`).
-- `app/services/` — BigQuery: `bigquery_cliente.py` (cliente/config compartidos) y `bigquery_repository.py` (datos crudos).
+- `app/services/` — BigQuery: `bigquery_cliente.py` (cliente/config compartidos) y un Repository por concern — `bigquery_repository.py` (Conciliación, datos crudos), `dashboard_repository.py` (Dashboard Ingresos), `rdc_repository.py` (Proyección/Antigüedad de Saldos), `cobranza_semanal_repository.py` (panel Cobranza en Proyección). Todos comparten el mismo cliente singleton.
 - `app/conciliacion/` — módulo de conciliación (ver su propio CLAUDE.md).
 - `app/models.py` — dataclass `Movimiento` (identificación).
 
