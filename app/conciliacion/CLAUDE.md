@@ -21,8 +21,9 @@ sistema → `ingresos_diversos.cargar_ingresos_diversos` o `services/bigquery_re
 `conciliador.conciliar(...)` → `ResultadoConciliacion` → `vista._render`.
 
 ## Reglas (en conciliador.py)
+- **Ventana de fechas (filtro previo)**: antes de comparar se calcula la **intersección** de rangos de fecha de ambos lados (`_ventana_comun`: `[max(mínimos), min(máximos)]`). Los movimientos (banco **o** sistema) cuya fecha caiga fuera se apartan en `ResultadoConciliacion.fuera_de_rango` y NO se concilian ni cuentan como duplicados. Fechas nulas se conservan. Si algún lado no trae fechas → `ventana=None` y no se filtra. La ventana usada queda en `ResultadoConciliacion.ventana`.
 - **Match**: importe igual **Y** alguna aguja del sistema (su `referencia` **o** su `descripcion`/concepto, normalizadas) aparece dentro del `descripcion` (concepto) **o** de la `referencia` del banco. Excel: agujas = referencia + razón social (ambas). **Nube: aguja = SOLO `de_Referencia`** (decisión 2026-07-17; `de_Concepto` viene vacío 73% y difiere de la referencia cuando existe → no se cruza, `descripcion` se emite vacía). Se agrupa por importe; cada sistema se consume 1 vez.
-- **Posibles repetidos en sistema**: mismos referencia + descripción + importe + **fecha** (2+).
+- **Posibles repetidos en sistema**: mismos referencia + descripción + importe + **fecha** (2+). El grid muestra columna **Banco** (de `raw["BANCO"]`, ver abajo) para que el usuario NO confunda un duplicado de otro banco con el archivo que subió.
 - **Devolución de cheque**: leyendas CONFIGURABLES desde la UI (botón ícono en la barra) y persistidas en `leyendas_cheque.json` (raíz, gitignored). Un movimiento del banco se aparta antes de comparar si su `texto` CONTIENE (substring normalizado) alguna leyenda. `conciliar(..., leyendas=None)` las carga del JSON si no se pasan. Ver `leyendas_cheque.py`. Semilla por defecto: `["CHEQUE"]`.
 - `normalizar()` (app/textutils) quita mayúsc/acentos/símbolos → el apóstrofo (`'003…`) y guion bajo (`_SPEI`) no estorban.
 
@@ -37,9 +38,13 @@ sistema → `ingresos_diversos.cargar_ingresos_diversos` o `services/bigquery_re
 - Habilitar uno existente → poner su flag en `True`.
 - Nube: `services/bigquery_repository.py` (tabla `sipp-app.Tableros.IgresosClientes`) mapea `de_Referencia`→referencia (única aguja), `im_Movimiento`→importe, `fh_Envio`→fecha; `de_Concepto`→`raw['concepto']` y `de_CuentaBancaria`→`raw['cuenta']` (solo display, no se cruzan); `descripcion` sale como literal vacío `''`. Trae TODO el universo del rango (sin filtro de tipo). Ajustar `COL_*` si cambian los nombres.
 
+## Exportar a Excel (vista.py)
+- Botón "Exportar a Excel" (habilitado tras conciliar). `exportar_excel` toma `ultimo_resultado[0]` y llama `_construir_workbook(res, secs, generado)` (nivel módulo). Genera hoja **Resumen** (ventana de fechas + conteo/importe por sección) + una hoja por sección con sus movimientos, con los MISMOS columnas/filas que la UI (fuente única: `_secciones_datos`). Armado y `wb.save` van en `asyncio.to_thread`.
+
 ## Notas
 - Reader de tablas: `app/parsers/lectura.py` detecta formato por **bytes** (no extensión); archivos de portal declaran mal la "dimensión" → usa modo normal antes que read_only.
-- La columna "Conciliación" de repetidos sale de `MovimientoConciliacion.raw["CONCILIACION"]`.
+- El reporte de Ingresos Diversos **sí** trae columna **Banco** y **Cuenta Bancaria** (encabezado en fila 8; el lector lo localiza por contenido y guarda TODAS las columnas en `raw`). Se leen como `raw["BANCO"]` / `raw["CUENTA_BANCARIA"]`; la "Conciliación" (folio) sale de `raw["CONCILIACION"]`.
+- `_secciones_datos(res)` (en vista.py) es la fuente única de columnas+filas+totales por grupo; la consumen tanto `_render` (UI) como `exportar_excel` (Excel). Al agregar/cambiar una sección, tocar solo ahí.
 
 ## Estado / pendientes (actualizar aquí lo que quede abierto)
 - **Nube sin probar**: el origen "Datos en la nube" (BigQuery) NO se ha podido validar porque la tabla con `de_Referencia`/`de_Concepto`/`de_CuentaBancaria` aún no está publicada. El código ya está listo (`services/bigquery_repository.py`); falta correr contra la tabla real y confirmar nombres de columna.

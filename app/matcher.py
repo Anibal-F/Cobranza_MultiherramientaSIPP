@@ -2,7 +2,7 @@ import math
 import re
 
 from .models import ClienteCuenta, Movimiento
-from .textutils import normalizar
+from .textutils import normalizar, normalizar_referencia
 
 LONGITUD_MINIMA_CUENTA = 6
 
@@ -217,6 +217,71 @@ def match_movimientos_por_nombre(
                     plaza="",
                     rfc=rfc_extraido or "",
                 )
+            )
+
+    return nuevas_cuentas
+
+
+def enriquecer_con_spei(movimientos: list[Movimiento], indice_spei: dict[str, dict]) -> None:
+    """Enriquece los movimientos interbancarios de BBVA con los datos del ordenante
+    que trae el SPEI (razón social y cuenta ordenante), enlazando por REFERENCIA.
+
+    El RSM no trae la cuenta ni la razón social del ordenante; el SPEI sí. Se
+    guarda la razón social en el movimiento (pista para el grid) y se anexan la
+    cuenta y el nombre a `texto_busqueda`, de modo que el match por CUENTA (contra
+    el catálogo) y por NOMBRE funcionen sin cambios. Es idempotente: no re-anexa si
+    la cuenta ya está en el texto. Modifica los movimientos in-place."""
+    for mov in movimientos:
+        datos = indice_spei.get(normalizar_referencia(mov.referencia))
+        if not datos:
+            continue  # movimiento interno del RSM (no interbancario): no está en el SPEI
+        mov.razon_social_ordenante = datos.get("nombre") or mov.razon_social_ordenante
+        cuenta = datos.get("cuenta") or ""
+        nombre = datos.get("nombre") or ""
+        extra = " ".join(x for x in (cuenta, nombre) if x)
+        if extra and (not cuenta or cuenta not in mov.texto_busqueda):
+            mov.texto_busqueda = f"{mov.texto_busqueda} {extra}".strip()
+
+
+def match_movimientos_por_spei(
+    movimientos: list[Movimiento],
+    indice_spei: dict[str, dict],
+    clientes_normalizados: list[tuple[str, str]],
+) -> list[ClienteCuenta]:
+    """Identifica los movimientos interbancarios de BBVA aún NO identificados usando
+    el índice del SPEI (referencia → razón social + cuenta ordenante + banco
+    ordenante). Matchea la razón social contra el maestro de clientes; al acertar,
+    marca el cliente y propone la CUENTA ORDENANTE → cliente (banco = banco
+    ordenante del SPEI, plaza vacía) para auto-agregarla al catálogo.
+
+    Se ejecuta DESPUÉS de `match_movimientos` (para que una cuenta ya presente en el
+    catálogo gane primero) y salta los ya identificados. Modifica in-place y regresa
+    las cuentas propuestas. Los movimientos cuya razón social no coincida con ningún
+    cliente quedan sin identificar (con la razón social como pista en el grid)."""
+    nuevas_cuentas: list[ClienteCuenta] = []
+    claves_propuestas: set[str] = set()
+
+    for mov in movimientos:
+        if mov.identificado:
+            continue
+        datos = indice_spei.get(normalizar_referencia(mov.referencia))
+        if not datos:
+            continue
+        cliente = _match_por_nombre(normalizar(datos.get("nombre") or ""), clientes_normalizados)
+        if not cliente:
+            continue
+
+        cuenta = datos.get("cuenta") or ""
+        banco = datos.get("banco") or mov.banco
+        mov.cliente_match = cliente
+        mov.identificado_por_nombre = True
+        mov.banco_match = banco
+        mov.cuenta_match = cuenta or mov.cuenta_match
+
+        if cuenta and cuenta not in claves_propuestas:
+            claves_propuestas.add(cuenta)
+            nuevas_cuentas.append(
+                ClienteCuenta(cuenta=cuenta, cliente=cliente, banco=banco, plaza="")
             )
 
     return nuevas_cuentas

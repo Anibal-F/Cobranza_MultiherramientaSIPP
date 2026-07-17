@@ -31,7 +31,13 @@ from .updater import aplicar_actualizacion, reiniciar_app, revisar_actualizacion
 from .sucursales import cargar_sucursales
 from .textutils import normalizar
 from .empresas import EMPRESAS, EMPRESA_DEFAULT, EMPRESA_POR_CLAVE
-from .matcher import extraer_cuenta, match_movimientos, match_movimientos_por_nombre
+from .matcher import (
+    enriquecer_con_spei,
+    extraer_cuenta,
+    match_movimientos,
+    match_movimientos_por_nombre,
+    match_movimientos_por_spei,
+)
 from .models import ClienteCuenta, Movimiento, OPCIONES_TIPO_MOVIMIENTO
 from .ingresos_diversos import (
     aplicar_factoraje_en_sipp,
@@ -42,7 +48,14 @@ from .factoraje import extraer_factoraje
 from .mailbox_o365 import CorreoResumen, descargar_adjuntos, listar_correos, obtener_cuenta, obtener_cuerpo
 from .pagos_contado import PagoContadoExtraido, completar_con_adjunto, extraer_pago_contado
 from .parsers import bbva, detectar_banco, parsear_archivo
-from .rpa_folios import buscar_y_aplicar_folios, extraer_folio, extraer_folios_pendientes
+from .rpa_folios import (
+    aplicar_resultados_folios,
+    buscar_y_aplicar_folios,
+    extraer_folio,
+    extraer_folios_pendientes,
+)
+from .api_folios import FOLIOS_POR_API, buscar_folios_api
+from .sipp_api import SippAPIError, obtener_clientes
 
 EXTENSIONES_IMAGEN = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
@@ -475,6 +488,18 @@ def main(page: ft.Page) -> None:
     nombres_clientes = sorted({original for original, _ in clientes_normalizados})
     sugerencias_clientes = [ft.AutoCompleteSuggestion(key=nombre, value=nombre) for nombre in nombres_clientes]
     movimientos: list[Movimiento] = []
+    # Índice de identificación del SPEI de BBVA (referencia → razón social + cuenta
+    # ordenante + banco). El SPEI ya NO aporta movimientos; enriquece los del RSM
+    # para identificar interbancarios y auto-agregar su cuenta al catálogo. Persiste
+    # mientras dure la sesión de esta pestaña (se re-aplica al recargar/agregar).
+    spei_index_ref: list[Optional[dict]] = [None]
+
+    def _actualizar_boton_spei() -> None:
+        """Muestra el botón 'Cargar SPEI (BBVA)' solo cuando hay un RSM de BBVA
+        cargado (el SPEI de identificación solo aplica a BBVA). Definido aquí para
+        estar en ámbito de todos los llamadores; `boton_cargar_spei` se crea después
+        y ya existe cuando esto se invoca en tiempo de ejecución."""
+        boton_cargar_spei.visible = bool(movimientos) and movimientos[0].banco == "BBVA"
 
     # --- Controles de estado / resumen ---
     archivo_nombre_text = ft.Text("Ningún archivo cargado", italic=True, color=ft.Colors.ON_SURFACE_VARIANT)
@@ -904,6 +929,40 @@ def main(page: ft.Page) -> None:
     def celda(texto: str) -> ft.DataCell:
         return ft.DataCell(ft.Text(texto, color=ft.Colors.ON_SURFACE))
 
+    def celda_cliente(m: Movimiento) -> ft.DataCell:
+        """Celda de cliente. Si el movimiento está identificado, muestra el cliente.
+        Si NO, y es un interbancario de BBVA con razón social del SPEI, la muestra
+        como PISTA (naranja, con ícono de foco y prefijo 'Pista'), para dejar claro
+        que NO es un cliente identificado: el usuario debe asignarlo con el ícono de
+        acciones. No es editable directamente (es solo texto informativo)."""
+        if m.cliente_match:
+            return ft.DataCell(ft.Text(m.cliente_match, color=ft.Colors.ON_SURFACE))
+        if m.razon_social_ordenante:
+            tip = (
+                "PISTA del SPEI (razón social del ordenante), NO es un cliente "
+                "identificado. Sin coincidencia en el catálogo: asígnalo manualmente "
+                "con el ícono de acciones (persona +)."
+            )
+            return ft.DataCell(
+                ft.Row(
+                    [
+                        ft.Icon(ft.Icons.LIGHTBULB_OUTLINE, size=15, color=ORANGE, tooltip=tip),
+                        ft.Text(
+                            f"Pista: {m.razon_social_ordenante}",
+                            italic=True,
+                            color=ORANGE,
+                            tooltip=tip,
+                            max_lines=2,
+                            overflow=ft.TextOverflow.ELLIPSIS,
+                        ),
+                    ],
+                    spacing=5,
+                    tight=True,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                )
+            )
+        return ft.DataCell(ft.Text("-", color=ft.Colors.ON_SURFACE))
+
     # Diálogo para ver la descripción completa (seleccionable/copiable).
     descripcion_dialog_text = ft.Text("", selectable=True, color=ft.Colors.ON_SURFACE)
     dialogo_descripcion = ft.AlertDialog(
@@ -1110,7 +1169,7 @@ def main(page: ft.Page) -> None:
                     celda(m.referencia[:30]),
                     # celda(f"${m.cargo:,.2f}" if m.cargo else ""),
                     celda(f"${m.abono:,.2f}" if m.abono else ""),
-                    celda(m.cliente_match or "-"),
+                    celda_cliente(m),
                     celda(m.cuenta_match or "-"),
                     celda_sucursal_sugerida(m),
                     ft.DataCell(estado_badge(m)),
@@ -1237,7 +1296,11 @@ def main(page: ft.Page) -> None:
             cuenta_bancaria_dropdown.value = None
 
         sucursal_cache.clear()
+        # La identificación por SPEI queda congelada en el snapshot; se descarta el
+        # índice en memoria (si vuelve a hacer falta, se recarga el SPEI).
+        spei_index_ref[0] = None
         boton_cargar_estado_cuenta.disabled = not movimientos
+        _actualizar_boton_spei()
         estado_text.value = (
             f"Extracción restaurada: {banco} · {registro.get('fecha','')} "
             f"{registro.get('hora','')} ({len(movimientos)} movimientos)."
@@ -1421,6 +1484,29 @@ def main(page: ft.Page) -> None:
         _rellenar_lista_historial()
         mostrar_dialogo(dialogo_historial)
 
+    def _identificar_movimientos() -> list:
+        """Corre la identificación completa sobre `movimientos` (in-place) y
+        persiste las cuentas nuevas al catálogo. Orden:
+          1) enriquecer con el SPEI de BBVA si está cargado (razón social + cuenta
+             ordenante de los interbancarios, enlazados por referencia);
+          2) match por CUENTA contra el catálogo (una cuenta ya conocida gana);
+          3) match por SPEI (interbancarios: razón social → cliente, y auto-agrega
+             la cuenta ordenante → cliente);
+          4) match por NOMBRE (resto de los no identificados).
+        Devuelve las cuentas realmente agregadas al catálogo."""
+        if spei_index_ref[0]:
+            enriquecer_con_spei(movimientos, spei_index_ref[0])
+        match_movimientos(movimientos, catalogo)
+        propuestas: list = []
+        if spei_index_ref[0]:
+            propuestas += match_movimientos_por_spei(
+                movimientos, spei_index_ref[0], clientes_normalizados
+            )
+        propuestas += match_movimientos_por_nombre(movimientos, clientes_normalizados)
+        agregadas = guardar_nuevas_cuentas(CATALOGO_PATH, catalogo, propuestas)
+        catalogo.extend(agregadas)
+        return agregadas
+
     def procesar_csv_path(
         ruta_temporal: str, nombre_archivo: Optional[str] = None, agregar: bool = False
     ) -> None:
@@ -1454,6 +1540,35 @@ def main(page: ft.Page) -> None:
                 page.update()
                 return
 
+            # BBVA SPEI (layout externo): ya NO aporta movimientos. El RSM trae TODOS
+            # los cobros (internos y externos); extraer también el SPEI los
+            # duplicaría. Se carga como ÍNDICE de identificación (referencia → razón
+            # social + cuenta ordenante) y se reidentifican los movimientos del RSM
+            # ya cargados, auto-agregando al catálogo las cuentas ordenantes.
+            if banco == "BBVA" and bbva.layout(ruta_temporal) == bbva.LAYOUT_EXTERNO:
+                spei_index_ref[0] = bbva.indice_spei(ruta_temporal)
+                agregadas = _identificar_movimientos() if movimientos else []
+                mensaje = (
+                    f"SPEI cargado como índice de identificación "
+                    f"({len(spei_index_ref[0])} referencia(s))."
+                )
+                if movimientos:
+                    ident = sum(1 for m in movimientos if m.identificado)
+                    mensaje += f" {ident}/{len(movimientos)} movimiento(s) identificado(s)."
+                    if agregadas:
+                        mensaje += f" Se agregaron {len(agregadas)} cuenta(s) al catálogo."
+                    catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
+                    historial_guardar_snapshot(nuevo=False)
+                else:
+                    mensaje += " Ahora carga el archivo RSM para ver e identificar los movimientos."
+                estado_text.value = mensaje
+                boton_cargar_estado_cuenta.disabled = not movimientos
+                _actualizar_boton_spei()
+                refrescar_resumen()
+                refrescar_tabla()
+                page.update()
+                return
+
             movs_nuevos = parsear_archivo(ruta_temporal, banco)
 
             # BBVA ACUMULADO (RSMACUM/SPEIACUM): trae varios días porque recoge el
@@ -1466,16 +1581,16 @@ def main(page: ft.Page) -> None:
                 movs_nuevos, omitidos_corte, corte_acum = bbva.recortar_acumulado(movs_nuevos)
 
             if agregar:
-                # BBVA: unificar internos + externos en un solo grid.
+                # BBVA: unificar los movimientos del RSM con los ya cargados. (El
+                # SPEI ya no llega aquí: se maneja arriba como índice, no como grid.)
                 movimientos = movimientos + movs_nuevos
             else:
                 banco_detectado_text.value = f"Banco detectado: {banco}"
                 movimientos = movs_nuevos
-            match_movimientos(movimientos, catalogo)
-
-            propuestas = match_movimientos_por_nombre(movimientos, clientes_normalizados)
-            agregadas = guardar_nuevas_cuentas(CATALOGO_PATH, catalogo, propuestas)
-            catalogo.extend(agregadas)
+                # Extracción nueva: descartar el índice SPEI de una carga anterior
+                # (sus referencias no aplican al nuevo RSM) antes de reidentificar.
+                spei_index_ref[0] = None
+            agregadas = _identificar_movimientos()
             catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
 
             # Nueva extracción: deduplicar contra extracciones previas del mismo
@@ -1548,6 +1663,7 @@ def main(page: ft.Page) -> None:
 
         # El estado de cuenta solo tiene sentido con un CSV ya cargado.
         boton_cargar_estado_cuenta.disabled = not movimientos
+        _actualizar_boton_spei()
         refrescar_resumen()
         refrescar_tabla()
 
@@ -1574,8 +1690,8 @@ def main(page: ft.Page) -> None:
             return tmp.name
 
     _BBVA_LAYOUT_DESC = {
-        bbva.LAYOUT_INTERNO: "movimientos internos (mismo banco BBVA)",
-        bbva.LAYOUT_EXTERNO: "movimientos externos (otros bancos)",
+        bbva.LAYOUT_INTERNO: "movimientos (RSM: internos y externos)",
+        bbva.LAYOUT_EXTERNO: "SPEI (identificación de clientes interbancarios)",
     }
 
     async def on_agregar_complemento_bbva(_e) -> None:
@@ -1620,16 +1736,24 @@ def main(page: ft.Page) -> None:
     )
 
     def ofrecer_complemento_bbva(layout_actual: Optional[str]) -> None:
-        """Si el archivo recién cargado es de BBVA, ofrece agregar el archivo
-        complementario (interno↔externo) para unificar ambos en un solo grid."""
+        """Si el archivo recién cargado es de BBVA, ofrece agregar el complementario.
+        El RSM aporta los movimientos; el SPEI solo se usa para identificar a los
+        clientes interbancarios (razón social y cuenta ordenante), NO aporta
+        movimientos —el RSM ya los trae— para no duplicarlos."""
         bbva_layout_actual[0] = layout_actual
         if layout_actual not in _BBVA_LAYOUT_DESC:
             return
         otro = bbva.LAYOUT_EXTERNO if layout_actual == bbva.LAYOUT_INTERNO else bbva.LAYOUT_INTERNO
+        if layout_actual == bbva.LAYOUT_INTERNO:
+            detalle = (
+                "El SPEI no agrega movimientos (ya vienen en el RSM); sirve para "
+                "identificar los cobros interbancarios por su razón social."
+            )
+        else:
+            detalle = "El RSM trae todos los movimientos a conciliar."
         dialogo_complemento_bbva.content.value = (
             f"Se detectó el archivo de {_BBVA_LAYOUT_DESC[layout_actual]} de BBVA.\n\n"
-            f"Para unificar la conciliación, ¿desea agregar el archivo de "
-            f"{_BBVA_LAYOUT_DESC[otro]}?"
+            f"¿Desea agregar el archivo de {_BBVA_LAYOUT_DESC[otro]}?\n\n{detalle}"
         )
         mostrar_dialogo(dialogo_complemento_bbva)
 
@@ -1655,9 +1779,11 @@ def main(page: ft.Page) -> None:
         ruta_temporal = _volcar_a_temporal(archivo)
         procesar_csv_path(ruta_temporal, nombre_archivo=archivo.name)
 
-        # BBVA parte los movimientos en dos archivos (internos/externos): si se
-        # cargó uno válido, ofrecer unificar con el complementario.
-        if movimientos:
+        # BBVA parte los movimientos en dos archivos: RSM (movimientos) y SPEI
+        # (índice de identificación). Si el archivo cargado es de BBVA, ofrecer el
+        # complementario. Se comprueba por layout (no por `movimientos`) para cubrir
+        # el caso de cargar el SPEI primero, cuando el grid aún está vacío.
+        if bbva.layout(ruta_temporal) is not None:
             ofrecer_complemento_bbva(bbva.layout(ruta_temporal))
         else:
             bbva_layout_actual[0] = None
@@ -1877,24 +2003,76 @@ def main(page: ft.Page) -> None:
         actions=[boton_sipp_cancelar, boton_sipp_buscar],
     )
 
+    def _abrir_dialogo_rpa_folios(restantes: list, prefijo: str = "") -> None:
+        """Prepara y abre el diálogo del RPA de folios para los `restantes` que la
+        API no resolvió (respaldo)."""
+        usuario_guardado, password_guardado = cargar_credenciales()
+        sipp_usuario_field.value = usuario_guardado
+        sipp_password_field.value = password_guardado
+        sipp_recordar_check.value = bool(usuario_guardado)
+        sipp_progreso_text.value = f"{prefijo}{len(restantes)} folio(s) para buscar con el RPA."
+        mostrar_dialogo(dialogo_sipp)
+
+    async def _flujo_folios_api_primero() -> None:
+        """API primero (HTTP, sin navegador); los folios que la API no resuelva se
+        pasan al RPA como respaldo. Reutiliza `aplicar_resultados_folios` para que
+        la identificación por folio sea idéntica venga de API o RPA."""
+        candidatos = extraer_folios_pendientes(movimientos)
+        if not candidatos:
+            return
+        empresa = empresa_ref[0]
+        antes = sum(1 for m in movimientos if m.identificado_por_folio)
+        n_api = 0
+        if empresa.api_empresa:
+            estado_text.value = "Consultando folios por API (SIPP)…"
+            page.update()
+            try:
+                resultados = await asyncio.to_thread(
+                    buscar_folios_api, candidatos, empresa.api_empresa, movimientos,
+                    lambda _m, _l="info": None,
+                )
+                propuestas = aplicar_resultados_folios(
+                    candidatos, resultados, movimientos, log_fn=lambda *a, **k: None
+                )
+                agregadas = guardar_nuevas_cuentas(CATALOGO_PATH, catalogo, propuestas)
+                catalogo.extend(agregadas)
+                if agregadas:
+                    catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
+                n_api = sum(1 for m in movimientos if m.identificado_por_folio) - antes
+            except SippAPIError as ex:
+                estado_text.value = f"API no disponible ({ex}); se usará el RPA."
+            except Exception as ex:  # noqa: BLE001 — no debe tumbar la UI; cae al RPA
+                estado_text.value = f"Error consultando la API ({ex}); se usará el RPA."
+        refrescar_resumen()
+        refrescar_tabla()
+
+        restantes = extraer_folios_pendientes(movimientos)
+        if not restantes:
+            historial_guardar_snapshot()
+            estado_text.value = (
+                f"{n_api} folio(s) identificado(s) por API. Sin folios pendientes para el RPA."
+            )
+            page.update()
+            return
+        _abrir_dialogo_rpa_folios(restantes, prefijo=(f"{n_api} resuelto(s) por API · " if n_api else ""))
+
     def on_click_buscar_sipp(_e) -> None:
         if not movimientos:
             estado_text.value = "Primero carga un archivo bancario."
             page.update()
             return
-
         candidatos = extraer_folios_pendientes(movimientos)
         if not candidatos:
             estado_text.value = "No hay folios candidatos pendientes de buscar en SIPP."
             page.update()
             return
-
-        usuario_guardado, password_guardado = cargar_credenciales()
-        sipp_usuario_field.value = usuario_guardado
-        sipp_password_field.value = password_guardado
-        sipp_recordar_check.value = bool(usuario_guardado)
-        sipp_progreso_text.value = f"{len(candidatos)} folio(s) candidato(s) detectado(s) en la descripción."
-        mostrar_dialogo(dialogo_sipp)
+        # Con la API habilitada: API primero y RPA de respaldo. Mientras TI no
+        # permita buscar por folio interno, FOLIOS_POR_API=False y se va directo al
+        # RPA (comportamiento previo).
+        if FOLIOS_POR_API and empresa_ref[0].api_empresa:
+            page.run_task(_flujo_folios_api_primero)
+        else:
+            _abrir_dialogo_rpa_folios(candidatos)
 
     boton_buscar_sipp = ft.Button(
         "Buscar Folios en SIPP",
@@ -1902,6 +2080,57 @@ def main(page: ft.Page) -> None:
         on_click=on_click_buscar_sipp,
         bgcolor=ORANGE,
         color=ft.Colors.WHITE,
+    )
+
+    async def _sincronizar_clientes_api() -> None:
+        """Trae el maestro de clientes de la API y lo FUSIONA con el CSV local (la
+        API complementa; el CSV es el respaldo). Corre en segundo plano por el
+        volumen (~8k clientes). No reescribe archivos: actualiza el maestro en
+        memoria (matcher por nombre + autocompletados) durante la sesión."""
+        nonlocal clientes_normalizados, nombres_clientes
+        boton_sync_clientes.disabled = True
+        estado_text.value = "Sincronizando clientes desde la API (puede tardar unos segundos)…"
+        page.update()
+        try:
+            clientes_api = await asyncio.to_thread(obtener_clientes, True, None)
+        except SippAPIError as ex:
+            estado_text.value = f"No se pudo sincronizar con la API ({ex}). Se conserva el catálogo local."
+            boton_sync_clientes.disabled = False
+            page.update()
+            return
+        except Exception as ex:  # noqa: BLE001 — no debe tumbar la UI
+            estado_text.value = f"Error al sincronizar clientes ({ex}). Se conserva el catálogo local."
+            boton_sync_clientes.disabled = False
+            page.update()
+            return
+
+        nombres_api = [(c.get("de_RazonSocial") or "").strip() for c in clientes_api]
+        base = cargar_clientes(CLIENTES_PATH)
+        base_unicos = {n for n in base if n}
+        vistos: set[str] = set()
+        union: list[str] = []
+        for n in [*base, *nombres_api]:
+            if n and n not in vistos:
+                vistos.add(n)
+                union.append(n)
+        nuevos = len(union) - len(base_unicos)
+        clientes_normalizados = preparar_clientes_normalizados(union)
+        nombres_clientes = sorted({o for o, _ in clientes_normalizados})
+        nuevas_sug = [ft.AutoCompleteSuggestion(key=n, value=n) for n in nombres_clientes]
+        manual_autocomplete.suggestions = nuevas_sug
+        pago_cliente_autocomplete.suggestions = nuevas_sug
+        estado_text.value = (
+            f"Clientes sincronizados: {len(clientes_api)} activo(s) de la API; "
+            f"maestro combinado = {len(union)} razón(es) social(es) ({nuevos} nueva(s) desde la API)."
+        )
+        boton_sync_clientes.disabled = False
+        page.update()
+
+    boton_sync_clientes = ft.IconButton(
+        icon=ft.Icons.CLOUD_SYNC,
+        tooltip="Sincronizar clientes desde la API de SIPP (complementa el catálogo local)",
+        icon_color=NAVY,
+        on_click=lambda e: page.run_task(_sincronizar_clientes_api),
     )
 
     # ──────────────────────────────────────────────────────
@@ -2132,6 +2361,46 @@ def main(page: ft.Page) -> None:
         on_click=on_click_factoraje,
         bgcolor=ORANGE,
         color=ft.Colors.WHITE,
+    )
+
+    async def on_click_cargar_spei(_e) -> None:
+        """Carga el archivo SPEI de BBVA por separado (por si el usuario declinó el
+        diálogo de complemento). El SPEI NO aporta movimientos: se usa como índice
+        para identificar los cobros interbancarios del RSM por su razón social."""
+        archivos = await file_picker.pick_files(
+            dialog_title="Selecciona el archivo SPEI de BBVA (identificación)",
+            file_type=ft.FilePickerFileType.CUSTOM,
+            allowed_extensions=["xls", "xml"],
+            allow_multiple=False,
+            with_data=True,
+        )
+        if not archivos:
+            return
+        archivo = archivos[0]
+        ruta_temporal = _volcar_a_temporal(archivo)
+        if bbva.layout(ruta_temporal) != bbva.LAYOUT_EXTERNO:
+            estado_text.value = (
+                "El archivo no es un SPEI de BBVA (movimientos externos). "
+                "Elige el archivo SPEI/SPEIACUM."
+            )
+            os.unlink(ruta_temporal)
+            page.update()
+            return
+        # procesar_csv_path detecta el layout externo y lo carga como índice (no
+        # agrega movimientos), reidentificando los del RSM ya cargados.
+        procesar_csv_path(ruta_temporal, nombre_archivo=archivo.name, agregar=True)
+        bbva_layout_actual[0] = None
+
+    # Solo visible cuando hay un RSM de BBVA cargado (ver _actualizar_boton_spei).
+    boton_cargar_spei = ft.Button(
+        "Cargar SPEI (BBVA)",
+        icon=ft.Icons.UPLOAD_FILE,
+        on_click=on_click_cargar_spei,
+        bgcolor=ORANGE,
+        color=ft.Colors.WHITE,
+        visible=False,
+        tooltip="Cargar el SPEI de BBVA para identificar los cobros interbancarios "
+        "por razón social (no agrega movimientos).",
     )
 
     # ──────────────────────────────────────────────────────
@@ -3776,11 +4045,13 @@ def main(page: ft.Page) -> None:
                 [
                     paso_badge(1),
                     boton_cargar,
+                    boton_cargar_spei,
                     boton_buscar_sipp,
                     boton_factoraje,
                     archivo_nombre_text,
                     banco_detectado_text,
                     ft.Container(expand=True),
+                    boton_sync_clientes,
                     boton_ayuda_csv,
                 ],
                 spacing=16,
