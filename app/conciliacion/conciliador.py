@@ -18,6 +18,7 @@ aún no dan la exacta): se ajusta LEYENDA_DEVOLUCION_CHEQUE sin tocar la lógica
 
 import re
 from collections import defaultdict
+from datetime import date
 
 from ..textutils import normalizar
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
@@ -32,11 +33,44 @@ def es_devolucion_cheque(m: MovimientoConciliacion) -> bool:
     return bool(LEYENDA_DEVOLUCION_CHEQUE.search(m.texto))
 
 
+def _ventana_comun(
+    mov_banco: list[MovimientoConciliacion],
+    mov_sistema: list[MovimientoConciliacion],
+) -> tuple[date, date] | None:
+    """Rango de fechas presente en AMBOS archivos: [max(mínimos), min(máximos)].
+
+    Los archivos del banco a veces cubren un rango mayor o menor que el reporte de
+    Ingresos Diversos; solo tiene sentido conciliar el tramo que ambos comparten.
+    Devuelve None si algún lado no tiene ninguna fecha (no se puede acotar → no se
+    filtra). Si los rangos no se traslapan, inicio > fin y todo queda fuera."""
+    fechas_banco = [m.fecha for m in mov_banco if m.fecha]
+    fechas_sistema = [m.fecha for m in mov_sistema if m.fecha]
+    if not fechas_banco or not fechas_sistema:
+        return None
+    return (max(min(fechas_banco), min(fechas_sistema)),
+            min(max(fechas_banco), max(fechas_sistema)))
+
+
 def conciliar(
     mov_banco: list[MovimientoConciliacion],
     mov_sistema: list[MovimientoConciliacion],
 ) -> ResultadoConciliacion:
     """Concilia las dos listas y devuelve los 4 grupos del requerimiento."""
+    # 0. Acotar por la ventana común de fechas: los movimientos (de cualquier lado)
+    #    cuya fecha caiga fuera se apartan y NO se consideran para conciliar ni para
+    #    detectar duplicados. Las fechas nulas no se pueden ubicar → se conservan.
+    ventana = _ventana_comun(mov_banco, mov_sistema)
+    fuera_de_rango: list[MovimientoConciliacion] = []
+    if ventana is not None:
+        inicio, fin = ventana
+
+        def _dentro(m: MovimientoConciliacion) -> bool:
+            return m.fecha is None or inicio <= m.fecha <= fin
+
+        fuera_de_rango = [m for m in mov_banco + mov_sistema if not _dentro(m)]
+        mov_banco = [m for m in mov_banco if _dentro(m)]
+        mov_sistema = [m for m in mov_sistema if _dentro(m)]
+
     # 1. Apartar devoluciones de cheque del lado banco (antes de comparar).
     devoluciones = [m for m in mov_banco if es_devolucion_cheque(m)]
     banco = [m for m in mov_banco if not es_devolucion_cheque(m)]
@@ -79,6 +113,8 @@ def conciliar(
         solo_sistema=solo_sistema,
         devoluciones_cheque=devoluciones,
         posibles_repetidos_sistema=_posibles_repetidos(mov_sistema),
+        fuera_de_rango=fuera_de_rango,
+        ventana=ventana,
     )
 
 

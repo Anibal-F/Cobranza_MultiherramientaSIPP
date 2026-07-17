@@ -99,11 +99,29 @@ async def buscar_y_aplicar_folios(
         sucursal_sipp=empresa.sipp_sucursal,
     )
     resultados = await automatizacion.buscar_clientes_por_folio(pares_unicos)
+    return aplicar_resultados_folios(candidatos, resultados, todos_movimientos, log_fn)
 
+
+def aplicar_resultados_folios(
+    candidatos: list[tuple[Movimiento, str]],
+    resultados: dict[tuple[str, float], tuple[str, str]],
+    todos_movimientos: list[Movimiento] | None = None,
+    log_fn: Callable = print,
+) -> list[ClienteCuenta]:
+    """Aplica a los movimientos los folios ya resueltos (por API o por RPA) y
+    propone las cuentas nuevas para el catálogo. `resultados` mapea
+    (folio, abono) -> (cliente, sucursal). Reutilizado por ambos orígenes para que
+    la identificación por folio sea idéntica venga de donde venga.
+
+    No sobrescribe movimientos ya identificados (p. ej. resueltos en una pasada
+    previa por API). Con `todos_movimientos`, propaga el cliente a los demás
+    movimientos no identificados con la misma cuenta/CLABE o referencia."""
     nuevas_cuentas: list[ClienteCuenta] = []
     cuentas_propuestas: set[str] = set()
 
     for mov, folio in candidatos:
+        if mov.identificado:
+            continue
         encontrado = resultados.get((folio, mov.abono))
         if not encontrado:
             continue

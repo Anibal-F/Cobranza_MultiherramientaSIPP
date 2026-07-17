@@ -5,19 +5,33 @@ en formato **SpreadsheetML** (XML de Excel 2003, `<?mso-application
 progid="Excel.Sheet"?>`) con extensión .xls. openpyxl no los lee; se parsean con
 xml.etree (nativo).
 
-1. Layout INTERNO ("movimientos del mismo banco"): pagos/transferencias hechas
-   desde otra cuenta BBVA. Encabezado:
+1. Layout INTERNO — "RSM" (archivo RSMACUM): trae TODOS los cobros del día,
+   tanto los internos (de otra cuenta BBVA) como los interbancarios (SPEI de otros
+   bancos). Es la ÚNICA fuente de movimientos. Encabezado:
        Fecha Operación | Concepto | Referencia | Referencia Ampliada | Cargo | Abono | Saldo
 
-2. Layout EXTERNO ("movimientos de otros bancos"): SPEI recibidos de bancos que
-   NO son BBVA. Encabezado (columnas SPEI):
+2. Layout EXTERNO — "SPEI" (archivo SPEIACUM): SOLO los cobros interbancarios, pero
+   con columnas extra que el RSM no trae (razón social y cuenta ordenante).
+   Encabezado (columnas SPEI):
        Fecha | Referencia numerica | Concepto de codigo de leyenda | Referencia |
        Concepto de pago | Importe | Saldo | Banco ordenante | Nombre ordenante |
        Cuenta ordenante | Banco beneficiario | Nombre beneficiario |
        Cuenta beneficiario | Clave de rastreo | Estado del pago | Motivo de devolucion
 
-En ambos se procesan solo los ABONOS/importes positivos (cobros); cargos,
-comisiones y SPEI enviados (importe negativo) se ignoran.
+   IMPORTANTE (flujo de IDENTIFICACIÓN): como el RSM ya trae TODOS los cobros,
+   extraer también los movimientos del SPEI los DUPLICARÍA. Por eso el SPEI NO se
+   usa como movimientos, sino como ÍNDICE de identificación: `indice_spei()` mapea
+   REFERENCIA → {razón social, cuenta ordenante, banco ordenante}. Cada movimiento
+   interbancario del RSM enlaza con su fila del SPEI por la columna REFERENCIA
+   (número de operación + código de banco; ver textutils.normalizar_referencia), y
+   así se identifica al cliente por razón social y se auto-agrega su cuenta al
+   catálogo. El cableado vive en app/main.py (`_identificar_movimientos`) y el
+   matching en app/matcher.py (`enriquecer_con_spei`, `match_movimientos_por_spei`).
+   `_parse_externo` se conserva para el módulo de Conciliación Bancaria (que sí
+   compara ambos lados), no para identificación.
+
+En todos los layouts se procesan solo los ABONOS/importes positivos (cobros);
+cargos, comisiones y SPEI enviados (importe negativo) se ignoran.
 """
 
 import re
@@ -25,7 +39,7 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
 
 from ..models import Movimiento
-from ..textutils import normalizar
+from ..textutils import normalizar, normalizar_referencia
 
 BANCO = "BBVA"
 # Si True, se lista en el selector de Conciliaciones Bancarias (ver santander.py).
@@ -275,6 +289,43 @@ def parse(path: str) -> list[Movimiento]:
     if tipo == LAYOUT_EXTERNO:
         return _parse_externo(filas, enc)
     return []
+
+
+def indice_spei(path: str) -> dict[str, dict]:
+    """Índice de identificación a partir del archivo SPEI (layout EXTERNO).
+
+    En el flujo de IDENTIFICACIÓN, el SPEI ya NO aporta movimientos (el RSM trae
+    TODOS los cobros, internos y externos; extraer también el SPEI los duplicaría).
+    En su lugar se usa como fuente de datos del ordenante: cada fila enlaza con su
+    movimiento interbancario del RSM por la REFERENCIA (número de operación + código
+    de banco), y aporta la RAZÓN SOCIAL y la CUENTA ORDENANTE (CLABE) que el RSM no
+    trae. Devuelve {referencia_normalizada: {"nombre","cuenta","banco"}} con los
+    abonos (importe > 0). Si una referencia se repite, gana la última."""
+    filas = _filas(path)
+    tipo, enc = _detectar_layout(filas)
+    if tipo != LAYOUT_EXTERNO:
+        return {}
+    encabezados = [_key(v) for v in filas[enc]]
+    col = _columna(encabezados)
+    c_ref = col("REFERENCIA")
+    c_importe = col("IMPORTE")
+    c_nombre_ord = col("NOMBRE ORDENANTE")
+    c_cuenta_ord = col("CUENTA ORDENANTE")
+    c_banco_ord = col("BANCO ORDENANTE")
+
+    indice: dict[str, dict] = {}
+    for fila in filas[enc + 1:]:
+        if _monto(_celda(fila, c_importe)) <= 0:
+            continue  # SPEI enviados (negativos) / filas vacías
+        ref = normalizar_referencia(_celda(fila, c_ref))
+        if not ref:
+            continue
+        indice[ref] = {
+            "nombre": _celda(fila, c_nombre_ord),
+            "cuenta": _celda(fila, c_cuenta_ord),
+            "banco": _celda(fila, c_banco_ord),
+        }
+    return indice
 
 
 # ── Formato ACUMULADO (RSMACUM / SPEIACUM) ────────────────────────────────

@@ -59,6 +59,13 @@ class ResultadoConciliacion:
     # Movimientos del sistema que se repiten entre sí (misma referencia, descripción
     # e importe): posibles duplicados capturados en el sistema.
     posibles_repetidos_sistema: list[MovimientoConciliacion] = field(default_factory=list)
+    # Movimientos (banco y/o sistema) cuya fecha cae FUERA de la ventana común de
+    # fechas de ambos archivos: se apartan ANTES de comparar y no se concilian ni
+    # cuentan como duplicados. Se distinguen por su `origen` ("BANCO:*" / "SISTEMA").
+    fuera_de_rango: list[MovimientoConciliacion] = field(default_factory=list)
+    # Ventana común (inicio, fin) usada para filtrar por fecha, o None si no se pudo
+    # calcular (algún lado sin fechas) y por tanto no se filtró.
+    ventana: Optional[tuple[date, date]] = None
 
     @property
     def resumen(self) -> dict[str, int]:
@@ -69,4 +76,5 @@ class ResultadoConciliacion:
             "solo_sistema": len(self.solo_sistema),
             "devoluciones_cheque": len(self.devoluciones_cheque),
             "posibles_repetidos_sistema": len(self.posibles_repetidos_sistema),
+            "fuera_de_rango": len(self.fuera_de_rango),
         }
