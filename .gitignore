@@ -18,6 +18,8 @@ html_pages/
 Reporte_Estado_de_Cuenta.xlsx
 
 historial_extracciones.json
+# Leyendas de devolución de cheque (configuración por máquina, editable en la UI)
+leyendas_cheque.json
 # Lanzador generado por instalar_windows.bat (por máquina)
 iniciar_cobranza.bat
 

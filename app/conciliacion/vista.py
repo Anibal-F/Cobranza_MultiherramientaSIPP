@@ -22,9 +22,11 @@ from flet_datatable2 import DataColumn2, DataColumnSize, DataTable2
 from .conciliador import conciliar
 from .ingresos_diversos import cargar_ingresos_diversos
 from .lector_banco import nombres_bancos, normalizar_banco
+from .leyendas_cheque import cargar_leyendas, guardar_leyendas
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
 from ..parsers.lectura import EXTENSIONES
 from ..services.bigquery_repository import BigQueryRepository
+from ..textutils import normalizar
 
 # Color por grupo (acento de la tarjeta/tabla).
 _COLOR_CONCILIADOS = "#1baf7a"
@@ -177,6 +179,9 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     nombre_sistema = ft.Text("", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
     # Última conciliación calculada (para exportarla a Excel sin recalcular).
     ultimo_resultado: list[ResultadoConciliacion | None] = [None]
+    # Leyendas de devolución de cheque (editables desde el modal, persistidas en JSON).
+    # Se envuelve en lista para poder reasignar leyendas_ref[0] dentro de los closures.
+    leyendas_ref: list[list[str]] = [cargar_leyendas()]
 
     # El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
     # la pestaña se construye aunque BigQuery no esté configurado en ese momento.
@@ -378,6 +383,79 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         on_click=lambda e: page.run_task(exportar_excel, e),
     )
 
+    # --- Modal: leyendas de devolución de cheque (configurables) ----------------
+    def _abrir_leyendas(_e=None) -> None:
+        """Modal discreto para agregar/quitar las leyendas con las que se identifica
+        una devolución de cheque. Se guardan en el JSON al instante."""
+        lista_col = ft.Column(spacing=2, scroll=ft.ScrollMode.AUTO, height=200)
+        nuevo_tf = ft.TextField(label="Nueva leyenda", dense=True, expand=True,
+                                hint_text="p. ej. DEVOLUCION CHEQUE")
+
+        def _refrescar() -> None:
+            lista_col.controls.clear()
+            if not leyendas_ref[0]:
+                lista_col.controls.append(
+                    ft.Text("Sin leyendas: no se apartará ninguna devolución de cheque.",
+                            italic=True, size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+                )
+            for ley in leyendas_ref[0]:
+                lista_col.controls.append(
+                    ft.Row(
+                        [
+                            ft.Icon(ft.Icons.LABEL_OUTLINE, size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(ley, expand=True, selectable=True),
+                            ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18, tooltip="Quitar",
+                                          on_click=lambda _e, l=ley: _quitar(l)),
+                        ],
+                        spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    )
+                )
+            page.update()
+
+        def _agregar(_e=None) -> None:
+            val = (nuevo_tf.value or "").strip()
+            if val and not any(normalizar(val) == normalizar(x) for x in leyendas_ref[0]):
+                leyendas_ref[0] = leyendas_ref[0] + [val]
+                guardar_leyendas(leyendas_ref[0])
+            nuevo_tf.value = ""
+            _refrescar()
+
+        def _quitar(objetivo: str) -> None:
+            leyendas_ref[0] = [x for x in leyendas_ref[0] if x != objetivo]
+            guardar_leyendas(leyendas_ref[0])
+            _refrescar()
+
+        nuevo_tf.on_submit = _agregar
+        _refrescar()
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Leyendas de devolución de cheque"),
+            content=ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(
+                            "Un movimiento del banco se aparta como devolución de cheque si su "
+                            "texto CONTIENE alguna de estas leyendas (sin distinguir mayúsculas ni acentos).",
+                            size=12, color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.Divider(height=1),
+                        lista_col,
+                        ft.Row([nuevo_tf, ft.FilledButton("Agregar", on_click=_agregar)], spacing=8),
+                    ],
+                    tight=True, spacing=10,
+                ),
+                width=470,
+            ),
+            actions=[ft.TextButton("Cerrar", on_click=lambda _e: page.pop_dialog())],
+        )
+        page.show_dialog(dlg)
+
+    boton_leyendas = ft.IconButton(
+        icon=ft.Icons.RULE,
+        tooltip="Leyendas de devolución de cheque",
+        on_click=_abrir_leyendas,
+    )
+
     # --- Origen de los datos del "sistema" para comparar ------------------------
     async def on_cargar_sistema(_e) -> None:
         archivos = await file_picker.pick_files(
@@ -446,7 +524,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 wrap=True,
             ),
             ft.Row(
-                [progress, estado_text, ft.Container(expand=True), boton_exportar_excel, boton_limpiar_resultados, boton_conciliar],
+                [progress, estado_text, ft.Container(expand=True), boton_leyendas, boton_exportar_excel, boton_limpiar_resultados, boton_conciliar],
                 spacing=12,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
@@ -553,8 +631,12 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         filas_banco = [[_banco(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.solo_banco]
         filas_cheques = [[_banco(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.devoluciones_cheque]
         filas_repetidos = [
+            # Conciliación (folio) + Banco (de raw, para no confundir el banco del
+            # duplicado). En la nube la descripción no se cruza (aguja = solo
+            # referencia): se muestra el concepto guardado en raw como contexto.
             [str(m.raw.get("CONCILIACION") or ""), str(m.raw.get("BANCO") or ""),
-             _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)]
+             _fmt_fecha(m.fecha), m.descripcion or str(m.raw.get("concepto") or ""),
+             m.referencia, _fmt_importe(m.importe)]
             for m in res.posibles_repetidos_sistema
         ]
         filas_fuera = [[_origen_fuera(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.fuera_de_rango]
@@ -690,7 +772,7 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 origen_txt = "nube"
 
             # 3. Conciliar (todos los bancos juntos) y renderizar.
-            resultado = conciliar(mov_banco, mov_sistema)
+            resultado = conciliar(mov_banco, mov_sistema, leyendas_ref[0])
             _render(resultado)
             estado_text.value = f"Bancos: {', '.join(resumen)} · Sistema ({origen_txt}): {len(mov_sistema)} mov."
             if problemas:

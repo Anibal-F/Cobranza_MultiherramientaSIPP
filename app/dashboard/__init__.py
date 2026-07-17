@@ -1,6 +1,6 @@
 """Pestaña 'Dashboard Ingresos' (paquete modular):
 
-- consultas.py    → capa de datos (BigQuery: cliente + todas las queries)
+- app/services/dashboard_repository.py → capa de datos (BigQuery: DashboardRepository)
 - componentes.py  → piezas visuales compartidas (paleta, KPIs, dona, ranking, timeline)
 - segmentado.py   → sub-pestaña 'Segmentado' (la vista agregada original)
 - explorador.py   → sub-pestañas 'Timeline' y 'Detalle' (explorador abierto con filtros)
@@ -64,8 +64,15 @@ def construir_tab_dashboard(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     contenido = ft.Column(
         expand=True,
+        spacing=0,
         controls=[
-            ft.Container(content=selector, padding=ft.Padding(left=20, right=20, top=12, bottom=0)),
+            # Borde inferior: separa visualmente el selector del contenido de
+            # abajo (antes flotaba sin ninguna división).
+            ft.Container(
+                content=selector,
+                padding=ft.Padding(left=20, right=20, top=14, bottom=14),
+                border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT)),
+            ),
             area,
         ],
     )

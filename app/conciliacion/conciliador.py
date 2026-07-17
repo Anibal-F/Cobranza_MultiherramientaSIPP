@@ -12,25 +12,21 @@ referencia (y razón social); la tabla en la nube trae de_Referencia y de_Concep
 y ambos se usan como texto a buscar. Cada banco/lado aporta sus columnas al construir
 el MovimientoConciliacion; aquí solo se comparan.
 
-La leyenda que identifica una devolución de cheque es CONFIGURABLE (los usuarios
-aún no dan la exacta): se ajusta LEYENDA_DEVOLUCION_CHEQUE sin tocar la lógica.
+Las leyendas que identifican una devolución de cheque son CONFIGURABLES (los
+usuarios aún no dan las exactas): se editan desde la UI y se guardan en un JSON
+(ver leyendas_cheque.py) sin tocar esta lógica.
 """
 
-import re
 from collections import defaultdict
 from datetime import date
 
 from ..textutils import normalizar
+from .leyendas_cheque import cargar_leyendas, es_devolucion
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
 
-# Leyenda (regex) que marca un movimiento como devolución de cheque. Default:
-# cualquier variante que contenga "CHEQUE"/"CHEQUES". Ajustar cuando los usuarios
-# proporcionen la leyenda exacta (p. ej. r"DEV\.?\s*CHEQUE").
-LEYENDA_DEVOLUCION_CHEQUE = re.compile(r"CHEQUE", re.IGNORECASE)
 
-
-def es_devolucion_cheque(m: MovimientoConciliacion) -> bool:
-    return bool(LEYENDA_DEVOLUCION_CHEQUE.search(m.texto))
+def es_devolucion_cheque(m: MovimientoConciliacion, leyendas: list[str]) -> bool:
+    return es_devolucion(m.texto, leyendas)
 
 
 def _ventana_comun(
@@ -54,8 +50,14 @@ def _ventana_comun(
 def conciliar(
     mov_banco: list[MovimientoConciliacion],
     mov_sistema: list[MovimientoConciliacion],
+    leyendas: list[str] | None = None,
 ) -> ResultadoConciliacion:
-    """Concilia las dos listas y devuelve los 4 grupos del requerimiento."""
+    """Concilia las dos listas y devuelve los grupos del requerimiento.
+
+    `leyendas` son las leyendas de devolución de cheque; si es None se cargan del
+    JSON configurable (leyendas_cheque.cargar_leyendas)."""
+    if leyendas is None:
+        leyendas = cargar_leyendas()
     # 0. Acotar por la ventana común de fechas: los movimientos (de cualquier lado)
     #    cuya fecha caiga fuera se apartan y NO se consideran para conciliar ni para
     #    detectar duplicados. Las fechas nulas no se pueden ubicar → se conservan.
@@ -72,8 +74,8 @@ def conciliar(
         mov_sistema = [m for m in mov_sistema if _dentro(m)]
 
     # 1. Apartar devoluciones de cheque del lado banco (antes de comparar).
-    devoluciones = [m for m in mov_banco if es_devolucion_cheque(m)]
-    banco = [m for m in mov_banco if not es_devolucion_cheque(m)]
+    devoluciones = [m for m in mov_banco if es_devolucion_cheque(m, leyendas)]
+    banco = [m for m in mov_banco if not es_devolucion_cheque(m, leyendas)]
 
     # 2. Agrupar el sistema por importe (2 decimales) para acotar la búsqueda;
     #    cada movimiento del sistema se consume una sola vez. Se guardan sus dos

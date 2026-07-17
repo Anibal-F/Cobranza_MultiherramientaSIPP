@@ -17,15 +17,21 @@ from google.cloud import bigquery
 from .bigquery_cliente import TABLA, cliente_bigquery
 
 # --- Configuración de columnas del lado "Sistema" -------------------------------
-# La tabla nueva es el formato de IgresosClientes MÁS de_CuentaBancaria, de_Referencia
-# y de_Concepto. El conciliador compara la referencia y el concepto del sistema contra
-# el concepto/referencia del banco (ver conciliador.py), así que aquí se mapean esos
-# campos a las llaves canónicas de MovimientoConciliacion.
+# La tabla `IgresosClientes` trae de_CuentaBancaria, de_Referencia y de_Concepto.
+#
+# DECISIÓN DE NEGOCIO (2026-07-17): el sistema aporta como ÚNICA aguja de match la
+# REFERENCIA (de_Referencia). El conciliador la compara contra el concepto Y la
+# referencia del banco (ver conciliador.py). de_Concepto NO se cruza: viene vacío en
+# el 73% de las filas y, cuando existe, difiere de de_Referencia, así que usarlo como
+# segunda aguja generaría matches no deseados. Se conserva en `raw` (llave 'concepto')
+# solo para display/auditoría. Por eso `descripcion` se emite como literal vacío: así
+# el conciliador no lo toma como aguja (ver el `a and ...` en conciliador.conciliar).
 #
 # Cada COL_* se interpola tal cual en el SELECT: puede ser el NOMBRE de una columna
 # real o una EXPRESIÓN/LITERAL SQL. Ajustar aquí si cambian los nombres de columna.
-COL_DESCRIPCION = "de_Concepto"     # concepto del movimiento (una de las agujas)
-COL_REFERENCIA = "de_Referencia"    # referencia del movimiento (la otra aguja)
+COL_DESCRIPCION = "''"              # el sistema NO aporta concepto como aguja (solo referencia)
+COL_REFERENCIA = "de_Referencia"    # ÚNICA aguja de match del lado sistema
+COL_CONCEPTO = "de_Concepto"        # solo display/auditoría (en `raw`), NO se cruza
 COL_IMPORTE = "im_Movimiento"
 COL_FECHA = "fh_Envio"
 COL_CUENTA = "de_CuentaBancaria"    # cuenta bancaria (se expone en `raw`, no se cruza)
@@ -73,13 +79,14 @@ class BigQueryRepository:
             condiciones.append("nb_Empresa = @empresa")
             parametros.append(bigquery.ScalarQueryParameter("empresa", "STRING", filtros["empresa"]))
         if filtros.get("cuenta"):
-            condiciones.append("nb_Cuenta = @cuenta")
+            condiciones.append(f"{COL_CUENTA} = @cuenta")
             parametros.append(bigquery.ScalarQueryParameter("cuenta", "STRING", filtros["cuenta"]))
 
         query = f"""
             SELECT
                 {COL_DESCRIPCION} AS descripcion,
                 {COL_REFERENCIA} AS referencia,
+                {COL_CONCEPTO} AS concepto,
                 {COL_IMPORTE} AS importe,
                 DATE({COL_FECHA}) AS fecha,
                 {COL_CUENTA} AS cuenta
