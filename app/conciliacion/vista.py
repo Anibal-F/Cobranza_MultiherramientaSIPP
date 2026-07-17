@@ -394,7 +394,10 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         cols_repetidos = [("Conciliación", 110.0), ("Fecha", 90.0), ("Descripción", DataColumnSize.L),
                           ("Referencia", 150.0), ("Importe", 120.0)]
         filas_repetidos = [
-            [str(m.raw.get("CONCILIACION") or ""), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)]
+            # En la nube la descripción no se cruza (aguja = solo referencia), pero se
+            # muestra el concepto guardado en raw para dar contexto al revisar.
+            [str(m.raw.get("CONCILIACION") or ""), _fmt_fecha(m.fecha),
+             m.descripcion or str(m.raw.get("concepto") or ""), m.referencia, _fmt_importe(m.importe)]
             for m in res.posibles_repetidos_sistema
         ]
 

@@ -38,7 +38,10 @@ class MovimientoConciliacion:
             fecha=fila.get("fecha"),
             descripcion=str(fila.get("descripcion") or ""),
             referencia=str(fila.get("referencia") or ""),
-            importe=round(float(fila.get("importe") or 0), 2),
+            # abs(): el lado banco maneja abonos positivos; se normaliza el importe del
+            # sistema a valor absoluto igual que el lector de Excel (ingresos_diversos),
+            # por si algún día im_Movimiento trae signos (hoy es 100% positivo).
+            importe=round(abs(float(fila.get("importe") or 0)), 2),
             naturaleza="A",
             origen="SISTEMA",
             raw=dict(fila),
