@@ -33,14 +33,39 @@ from .componentes import (
     placeholder_carga,
     sombra_tarjeta,
 )
-from .consultas import (
-    LIMITE_FILAS_DETALLE,
-    MONEDA_USD,
-    consultar_catalogo,
-    consultar_detalle_completo_periodo,
-    consultar_detalle_movimientos,
-    consultar_serie_temporal,
-)
+from ..services.dashboard_repository import LIMITE_FILAS_DETALLE, MONEDA_USD, DashboardRepository
+
+# El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
+# no falla al importar este módulo si aún no hay credenciales configuradas.
+_repo_holder: list[DashboardRepository | None] = [None]
+
+
+def _repo() -> DashboardRepository:
+    if _repo_holder[0] is None:
+        _repo_holder[0] = DashboardRepository()
+    return _repo_holder[0]
+
+
+async def _consultar_catalogo(columna: str) -> list[str]:
+    return await asyncio.to_thread(_repo().valores_distintos, columna)
+
+
+async def _consultar_serie_temporal(
+    fi: date, ff: date, periodo: str, empresas: list[str], sucursales: list[str], tipos: list[str], filial: str
+) -> list[dict]:
+    return await asyncio.to_thread(_repo().serie_temporal, fi, ff, periodo, empresas, sucursales, tipos, filial)
+
+
+async def _consultar_detalle_movimientos(
+    fi: date, ff: date, empresas: list[str], sucursales: list[str], tipos: list[str], filial: str
+) -> tuple[list[dict], bool]:
+    filas = await asyncio.to_thread(_repo().detalle_movimientos, fi, ff, empresas, sucursales, tipos, filial)
+    truncado = len(filas) > LIMITE_FILAS_DETALLE
+    return filas[:LIMITE_FILAS_DETALLE], truncado
+
+
+async def _consultar_detalle_completo_periodo(fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    return await asyncio.to_thread(_repo().detalle_completo_periodo, fecha_inicio, fecha_fin)
 
 
 def _es_usd(fila: dict) -> bool:
@@ -131,11 +156,11 @@ class Explorador:
 
         fi, ff = self.rango
         tareas = [
-            consultar_serie_temporal(fi, ff, self.periodo, self.empresas, self.sucursales, self.tipos_negocio, self.filial),
-            consultar_detalle_movimientos(fi, ff, self.empresas, self.sucursales, self.tipos_negocio, self.filial),
+            _consultar_serie_temporal(fi, ff, self.periodo, self.empresas, self.sucursales, self.tipos_negocio, self.filial),
+            _consultar_detalle_movimientos(fi, ff, self.empresas, self.sucursales, self.tipos_negocio, self.filial),
         ]
         faltantes = [c for c, v in self.catalogo.items() if v is None]
-        tareas += [consultar_catalogo(c) for c in faltantes]
+        tareas += [_consultar_catalogo(c) for c in faltantes]
         resultados = await asyncio.gather(*tareas, return_exceptions=True)
 
         r_serie, r_detalle, *r_catalogos = resultados
@@ -342,6 +367,10 @@ class Explorador:
             f"Tipo de negocio: {', '.join(self.tipos_negocio) if self.tipos_negocio else 'todos los tipos de negocio'}.",
             filial_txt,
             f"El Timeline agrupa los totales {periodo_txt}.",
+            "En TODAS las consultas de este explorador (Timeline, Detalle y sus catálogos de filtro) "
+            "se descartan por completo los movimientos cuya cuenta bancaria (de_CuentaBancaria) sea "
+            "'Gastos No Deducibles' o 'Petroplazas Monederos' — son cuentas de control interno, no "
+            "ingresos reales. Este filtro no se puede desactivar.",
             "El tipo de negocio se reclasifica en tres casos: cuentas bancarias "
             "'Abastecedora SF /AENE' o 'Petroplazas SF' se cuentan como 'SF'; los "
             "clientes de 'Público en general' de Petro Smart se cuentan como "
@@ -630,7 +659,7 @@ class Explorador:
 
             fi, ff = self.rango
             try:
-                filas_export = await consultar_detalle_completo_periodo(fi, ff)
+                filas_export = await _consultar_detalle_completo_periodo(fi, ff)
             except Exception as error:  # noqa: BLE001 - se muestra en estado_exportar
                 boton_exportar.disabled = False
                 estado_exportar.value = f"No se pudo consultar BigQuery: {error}"

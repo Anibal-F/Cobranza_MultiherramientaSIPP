@@ -1,6 +1,6 @@
 """Pestaña 'Dashboard Ingresos' (paquete modular):
 
-- consultas.py    → capa de datos (BigQuery: cliente + todas las queries)
+- app/services/dashboard_repository.py → capa de datos (BigQuery: DashboardRepository)
 - componentes.py  → piezas visuales compartidas (paleta, KPIs, dona, ranking, timeline)
 - segmentado.py   → sub-pestaña 'Segmentado' (la vista agregada original)
 - explorador.py   → sub-pestañas 'Timeline' y 'Detalle' (explorador abierto con filtros)

@@ -2,36 +2,17 @@
 efectivamente cobrado en el periodo seleccionado (por defecto, la semana
 anterior a hoy), sobre `Tableros.IgresosClientes`.
 
-Reglas de negocio (pedidas directamente, no vía el Config_Filtros de Excel
-que usa el resto del Dashboard Ingresos):
-
-- Se excluyen registros cuya Razón Social (de_RazonSocial) sea exactamente
-  'Abastecedora de Combustibles del Pacifico', 'ACP Combustibles' o
-  'Petro Smart Combustibles'.
-- Los registros cuya Razón Social EMPIECE CON 'Petroplazas' (en los datos
-  aparecen variantes: PETROPLAZAS, PETROPLAZAS AEROPUERTO, PETROPLAZAS
-  ESTACIONES) se reclasifican como segmento 'Petroplazas', sin importar su
-  nb_TipoDeNegocio original.
-- Se excluye nb_TipoDeNegocio = 'GasPetroil' exactamente — pero DESPUÉS de
-  la reclasificación de Petroplazas, así que un registro de Petroplazas que
-  originalmente traía GasPetroil sigue contando como Petroplazas, no se
-  descarta.
-- Se excluyen registros cuya Sucursal (nb_sucursal) CONTENGA 'GAS',
-  'AUTOTANQUE', 'GC' o 'Corporativo' (insensible a mayúsculas).
-- Los registros en dólares (nb_Moneda = 'Dolar (USD)') se mantienen separados
-  de los pesos originales y se convierten a MXN con el promedio diario de
-  `DocumentosClientesCobranza.im_TipoCambio`. Si la fecha exacta no tiene tipo
-  de cambio, se usa la fecha disponible más cercana, igual que en Dashboard
-  Ingresos.
-- La columna Movimiento (im_Movimiento) es la que se suma, agrupada por
-  segmento, filtrada por fh_Envio dentro del rango seleccionado.
+Las reglas de negocio y las consultas a BigQuery viven en
+`app/services/cobranza_semanal_repository.py` (capa de datos); este módulo
+solo arma la UI del panel — ver ese archivo para el detalle de cada regla
+(exclusiones de razón social/sucursal, reclasificación de Petroplazas,
+conversión de USD, etc.).
 """
 
 import asyncio
 from datetime import date, datetime, timedelta
 
 import flet as ft
-from google.cloud import bigquery
 
 from ..dashboard.componentes import (
     color_slot,
@@ -43,230 +24,17 @@ from ..dashboard.componentes import (
     sombra_tarjeta,
     tile_compacta,
 )
-from ..services.bigquery_cliente import cliente_bigquery
+from ..services.cobranza_semanal_repository import SEGMENTOS, CobranzaSemanalRepository
 
-TABLA = "sipp-app.Tableros.IgresosClientes"
-TABLA_COBRANZA_FX = "sipp-app.Tableros.DocumentosClientesCobranza"
-
-RAZON_SOCIAL_EXCLUIDA = [
-    "ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
-    "ACP COMBUSTIBLES",
-    "PETRO SMART COMBUSTIBLES",
-]
-SUCURSAL_EXCLUIDA_CONTIENE = ["gas", "autotanque", "gc", "corporativo"]
-MONEDA_USD = "dolar (usd)"
-
-SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
-
-_SEGMENTO_POR_FILA = """CASE
-        WHEN STARTS_WITH(UPPER(TRIM(de_RazonSocial)), 'PETROPLAZAS') THEN 'Petroplazas'
-        WHEN nb_TipoDeNegocio = 'Distribuidora' THEN 'Distribuidora'
-        WHEN nb_TipoDeNegocio = 'Asociados' THEN 'Asociados'
-    END"""
-
-_CTE_FX_DIARIO = f"""fx_diario AS (
-        SELECT DATE(fh_Deposito_Mostrar) AS fecha, AVG(im_TipoCambio) AS tipo_cambio
-        FROM `{TABLA_COBRANZA_FX}`
-        WHERE nb_TipoMoneda = 'Dolar (USD)'
-        GROUP BY fecha
-    )"""
-
-_CTE_FX_CERCANO = """fx_cercano AS (
-        SELECT
-            f.fecha,
-            fx.tipo_cambio,
-            ROW_NUMBER() OVER (
-                PARTITION BY f.fecha ORDER BY ABS(DATE_DIFF(f.fecha, fx.fecha, DAY)) ASC
-            ) AS rn
-        FROM (
-            SELECT DISTINCT fecha
-            FROM filas
-            WHERE LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-        ) AS f
-        CROSS JOIN fx_diario AS fx
-    )"""
+# El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
+# no falla al importar este módulo si aún no hay credenciales configuradas.
+_repo_holder: list[CobranzaSemanalRepository | None] = [None]
 
 
-def _parametros_cobranza(fecha_inicio: date, fecha_fin: date) -> list:
-    parametros = [
-        bigquery.ArrayQueryParameter("razon_social_excluida", "STRING", RAZON_SOCIAL_EXCLUIDA),
-        bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
-        bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
-        bigquery.ScalarQueryParameter("moneda_usd", "STRING", MONEDA_USD),
-    ]
-    for i, palabra in enumerate(SUCURSAL_EXCLUIDA_CONTIENE):
-        parametros.append(bigquery.ScalarQueryParameter(f"sucursal_excluida_{i}", "STRING", f"%{palabra}%"))
-    return parametros
-
-
-def _condiciones_sucursal() -> str:
-    return " AND ".join(
-        f"NOT LOWER(IFNULL(nb_sucursal, '')) LIKE @sucursal_excluida_{i}"
-        for i in range(len(SUCURSAL_EXCLUIDA_CONTIENE))
-    )
-
-
-def obtener_cobranza_por_segmento(fecha_inicio: date, fecha_fin: date) -> list[dict]:
-    """Total cobrado (im_Movimiento) por segmento en [fecha_inicio, fecha_fin]
-    (sobre fh_Envio), separando USD, su conversión y el total final en MXN."""
-    cliente = cliente_bigquery()
-    query = f"""
-        WITH {_CTE_FX_DIARIO},
-        filas AS (
-            SELECT
-                {_SEGMENTO_POR_FILA} AS segmento,
-                DATE(fh_Envio) AS fecha,
-                im_Movimiento,
-                nb_Moneda
-            FROM `{TABLA}`
-            WHERE UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
-              AND {_condiciones_sucursal()}
-              AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
-        ),
-        {_CTE_FX_CERCANO}
-        SELECT
-            segmento,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) != @moneda_usd THEN im_Movimiento ELSE 0 END) AS total_mxn,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd THEN im_Movimiento ELSE 0 END) AS total_usd,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd AND fxc.tipo_cambio IS NOT NULL
-                     THEN im_Movimiento * fxc.tipo_cambio ELSE 0 END) AS total_usd_convertido,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd AND fxc.tipo_cambio IS NULL
-                     THEN im_Movimiento ELSE 0 END) AS total_usd_sin_tc
-        FROM filas
-        LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
-        WHERE segmento IS NOT NULL
-        GROUP BY segmento
-    """
-    job_config = bigquery.QueryJobConfig(query_parameters=_parametros_cobranza(fecha_inicio, fecha_fin))
-    filas = cliente.query(query, job_config=job_config).result()
-    return [dict(fila.items()) for fila in filas]
-
-
-async def consultar_cobranza_por_segmento(fecha_inicio: date, fecha_fin: date) -> list[dict]:
-    return await asyncio.to_thread(obtener_cobranza_por_segmento, fecha_inicio, fecha_fin)
-
-
-def obtener_ingresos_significativos(
-    fecha_inicio: date, fecha_fin: date, segmento: str | None = None
-) -> list[dict]:
-    """Top 20 de ingresos agregados por razón social y ordenados por su total
-    final en MXN. `segmento=None` incluye los tres segmentos."""
-    cliente = cliente_bigquery()
-    query = f"""
-        WITH {_CTE_FX_DIARIO},
-        filas AS (
-            SELECT
-                {_SEGMENTO_POR_FILA} AS segmento,
-                TRIM(de_RazonSocial) AS razon_social,
-                DATE(fh_Envio) AS fecha,
-                im_Movimiento,
-                nb_Moneda
-            FROM `{TABLA}`
-            WHERE UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
-              AND {_condiciones_sucursal()}
-              AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
-        ),
-        {_CTE_FX_CERCANO},
-        agregados AS (
-            SELECT
-                razon_social,
-                STRING_AGG(DISTINCT segmento, ', ' ORDER BY segmento) AS segmento,
-                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) != @moneda_usd
-                         THEN im_Movimiento ELSE 0 END) AS total_mxn,
-                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-                         THEN im_Movimiento ELSE 0 END) AS total_usd,
-                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-                              AND fxc.tipo_cambio IS NOT NULL
-                         THEN im_Movimiento * fxc.tipo_cambio ELSE 0 END) AS total_usd_convertido,
-                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-                              AND fxc.tipo_cambio IS NULL
-                         THEN im_Movimiento ELSE 0 END) AS total_usd_sin_tc
-            FROM filas
-            LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
-            WHERE segmento IS NOT NULL
-              AND (@segmento IS NULL OR segmento = @segmento)
-              AND razon_social IS NOT NULL
-              AND razon_social != ''
-            GROUP BY razon_social
-        )
-        SELECT *, total_mxn + total_usd_convertido AS total_final
-        FROM agregados
-        ORDER BY total_final DESC
-        LIMIT 20
-    """
-    parametros = _parametros_cobranza(fecha_inicio, fecha_fin)
-    parametros.append(bigquery.ScalarQueryParameter("segmento", "STRING", segmento))
-    filas = cliente.query(
-        query,
-        job_config=bigquery.QueryJobConfig(query_parameters=parametros),
-    ).result()
-    return [dict(fila.items()) for fila in filas]
-
-
-async def consultar_ingresos_significativos(
-    fecha_inicio: date, fecha_fin: date, segmento: str | None = None
-) -> list[dict]:
-    return await asyncio.to_thread(obtener_ingresos_significativos, fecha_inicio, fecha_fin, segmento)
-
-
-def obtener_ingresos_por_dia(
-    fecha_inicio: date, fecha_fin: date, segmento: str | None = None
-) -> list[dict]:
-    """Ingresos agregados por día dentro del periodo y segmento seleccionados,
-    con el mismo esquema monetario del concentrado y del Top 20."""
-    cliente = cliente_bigquery()
-    query = f"""
-        WITH {_CTE_FX_DIARIO},
-        filas AS (
-            SELECT
-                {_SEGMENTO_POR_FILA} AS segmento,
-                DATE(fh_Envio) AS fecha,
-                im_Movimiento,
-                nb_Moneda
-            FROM `{TABLA}`
-            WHERE UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
-              AND {_condiciones_sucursal()}
-              AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
-        ),
-        {_CTE_FX_CERCANO}
-        SELECT
-            filas.fecha,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) != @moneda_usd
-                     THEN im_Movimiento ELSE 0 END) AS total_mxn,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-                     THEN im_Movimiento ELSE 0 END) AS total_usd,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-                          AND fxc.tipo_cambio IS NOT NULL
-                     THEN im_Movimiento * fxc.tipo_cambio ELSE 0 END) AS total_usd_convertido,
-            SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
-                          AND fxc.tipo_cambio IS NULL
-                     THEN im_Movimiento ELSE 0 END) AS total_usd_sin_tc
-        FROM filas
-        LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
-        WHERE segmento IS NOT NULL
-          AND (@segmento IS NULL OR segmento = @segmento)
-        GROUP BY filas.fecha
-        ORDER BY filas.fecha
-    """
-    parametros = _parametros_cobranza(fecha_inicio, fecha_fin)
-    parametros.append(bigquery.ScalarQueryParameter("segmento", "STRING", segmento))
-    filas = cliente.query(
-        query,
-        job_config=bigquery.QueryJobConfig(query_parameters=parametros),
-    ).result()
-    return [
-        {
-            **dict(fila.items()),
-            "total_final": (fila["total_mxn"] or 0) + (fila["total_usd_convertido"] or 0),
-        }
-        for fila in filas
-    ]
-
-
-async def consultar_ingresos_por_dia(
-    fecha_inicio: date, fecha_fin: date, segmento: str | None = None
-) -> list[dict]:
-    return await asyncio.to_thread(obtener_ingresos_por_dia, fecha_inicio, fecha_fin, segmento)
+def _repo() -> CobranzaSemanalRepository:
+    if _repo_holder[0] is None:
+        _repo_holder[0] = CobranzaSemanalRepository()
+    return _repo_holder[0]
 
 
 def construir_panel_cobranza(page: ft.Page) -> ft.Control:
@@ -541,9 +309,9 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
 
         fecha_inicio, fecha_fin = rango_sel[0]
         resultado, significativos, por_dia = await asyncio.gather(
-            consultar_cobranza_por_segmento(fecha_inicio, fecha_fin),
-            consultar_ingresos_significativos(fecha_inicio, fecha_fin, segmento_significativos[0]),
-            consultar_ingresos_por_dia(fecha_inicio, fecha_fin, segmento_significativos[0]),
+            asyncio.to_thread(_repo().cobranza_por_segmento, fecha_inicio, fecha_fin),
+            asyncio.to_thread(_repo().ingresos_significativos, fecha_inicio, fecha_fin, segmento_significativos[0]),
+            asyncio.to_thread(_repo().ingresos_por_dia, fecha_inicio, fecha_fin, segmento_significativos[0]),
             return_exceptions=True,
         )
 
@@ -606,12 +374,17 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
             "Los registros cuya Razón Social empiece con 'Petroplazas' (incluye variantes como "
             "PETROPLAZAS AEROPUERTO o PETROPLAZAS ESTACIONES) se cuentan como segmento 'Petroplazas', "
             "sin importar su tipo de negocio original.",
-            "Se excluye el tipo de negocio 'GasPetroil' — salvo que ya se haya reclasificado como "
-            "Petroplazas por el punto anterior.",
+            "Solo se cuentan los tipos de negocio 'Distribuidora' y 'Asociados'; cualquier otro "
+            "(por ejemplo 'GasPetroil', o vacío) se excluye — salvo que ya se haya reclasificado "
+            "como Petroplazas por el punto anterior.",
             "Se excluyen las sucursales cuyo nombre contenga 'GAS', 'AUTOTANQUE', 'GC' o 'Corporativo'.",
-            "Los registros en dólares se muestran separados y se convierten a MXN con el promedio "
-            "diario de im_TipoCambio en DocumentosClientesCobranza. Si no existe tipo de cambio en "
-            "la fecha exacta, se usa la fecha disponible más cercana.",
+            "Los registros en dólares se muestran separados (columna 'USD') y se convierten a MXN "
+            "(columna 'MXN convertido') con el promedio diario de im_TipoCambio en "
+            "DocumentosClientesCobranza. Si no existe tipo de cambio en la fecha exacta, se usa la "
+            "fecha disponible más cercana. La columna 'USD sin TC' (en rojo cuando tiene saldo) es la "
+            "parte del USD para la que no existe NINGÚN tipo de cambio en toda la historia de Cobranza "
+            "— no se descarta ni se convierte con un valor inventado, y queda fuera de 'Total final' "
+            "(= MXN + MXN convertido) porque no hay con qué convertirla.",
             "Ingresos Significativos muestra los 20 mayores ingresos agregados por Razón Social, "
             "ordenados por Total final = MXN + USD convertido. Puede filtrarse por Distribuidora, "
             "Asociados, Petroplazas o Todos.",

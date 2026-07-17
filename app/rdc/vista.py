@@ -3,6 +3,7 @@ Asociados y Petroplazas — réplica de las macros `CargarAntiguedadSaldos` /
 `CargarAntiguedadAsociados` del Excel de Proyección, sobre la tabla
 `documentosClientes_AntiguedadSaldosVencidoPorClienteDetalle` de BigQuery."""
 
+import asyncio
 import math
 import os
 from datetime import date, datetime, timedelta
@@ -19,8 +20,18 @@ from ..dashboard.componentes import (
     sombra_tarjeta,
     tile_compacta,
 )
+from ..services.rdc_repository import SEGMENTOS, RdcRepository
 from .cobranza import construir_panel_cobranza
-from .consultas import SEGMENTOS, consultar_antiguedad_saldos, consultar_detalle_periodo
+
+# El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
+# no falla al importar este módulo si aún no hay credenciales configuradas.
+_repo_holder: list[RdcRepository | None] = [None]
+
+
+def _repo() -> RdcRepository:
+    if _repo_holder[0] is None:
+        _repo_holder[0] = RdcRepository()
+    return _repo_holder[0]
 
 # Columnas de fecha en el detalle crudo (SELECT * de la tabla): se formatean
 # como fecha en el Excel en vez de dejarlas como el datetime completo de BigQuery.
@@ -308,7 +319,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
         fecha_inicio, fecha_fin = rango_sel[0]
         try:
-            resultado = await consultar_antiguedad_saldos(fecha_inicio, fecha_fin)
+            resultado = await asyncio.to_thread(_repo().antiguedad_saldos, fecha_inicio, fecha_fin)
         except Exception as error:  # noqa: BLE001 - se muestra en la sección, igual que el dashboard de ingresos
             resultado = error
 
@@ -360,8 +371,10 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             "en el reporte de Distribuidora como en el de Asociados.",
             "El segmento GasPetroil (y filas sin tipo de negocio) no entra en ninguna categoría — "
             "la macro original nunca los procesaba.",
-            "Se excluyen filas sin cliente o sin factura, el cliente 'ICV' y los folios que "
-            "empiezan con 'FCOR' (el filtro configurado en Config_Filtros > Antigüedad de Saldos).",
+            "Se excluyen filas sin cliente o sin factura, el cliente 'ICV', las filas cuyo nombre de "
+            "cliente contenga la palabra 'totales' (filas de subtotal del reporte, no clientes reales) "
+            "y los folios que empiezan con 'FCOR' (el filtro configurado en Config_Filtros > "
+            "Antigüedad de Saldos).",
             "El saldo vigente (im_CarteraVigente) solo se suma si la fecha de vencimiento de la "
             "factura cae dentro del rango de fechas seleccionado.",
             "El vencido a 30 días (im_Vencido30Dias) se suma completo, sin filtrar por fecha — es "
@@ -400,7 +413,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
         fecha_inicio, fecha_fin = rango_sel[0]
         try:
-            detalle = await consultar_detalle_periodo(fecha_inicio, fecha_fin)
+            detalle = await asyncio.to_thread(_repo().detalle_periodo, fecha_inicio, fecha_fin)
             wb = _construir_workbook_reporte(ultimo_items[0], detalle)
         except Exception as error:  # noqa: BLE001 - se muestra en estado_text, igual que el resto de la pestaña
             estado_text.value = f"No se pudo generar el Excel: {error}"
