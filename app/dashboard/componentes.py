@@ -216,13 +216,16 @@ def encabezado_seccion(icono, color: str, titulo: str, subtitulo: str, chips: li
     )
 
 
-def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "") -> ft.Container:
+def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "", formatear=None) -> ft.Container:
     """Tarjeta grande de la banda superior (hero): ícono en acento + valor
-    grande + etiqueta. `valor` puede ser una Exception (consulta fallida)."""
+    grande + etiqueta. `valor` puede ser una Exception (consulta fallida).
+    `formatear` por defecto es `formato_compacto` (monto en $) — pásalo
+    explícito para KPIs que no son monetarios (ej. un conteo de facturas)."""
+    formatear = formatear or formato_compacto
     if isinstance(valor, Exception):
         valor_texto, valor_color = "—", ft.Colors.ON_SURFACE_VARIANT
     else:
-        valor_texto, valor_color = formato_compacto(valor), ft.Colors.ON_SURFACE
+        valor_texto, valor_color = formatear(valor), ft.Colors.ON_SURFACE
     contenido = [
         ft.Row(
             [

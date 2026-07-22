@@ -1,9 +1,11 @@
 """Pestaña 'Dashboards': agrupa bajo una sola pestaña de nivel superior los
-dos dashboards de BigQuery de la app, con un SegmentedButton para alternar
-entre sub-pestañas:
+dashboards de BigQuery de la app, con un SegmentedButton para alternar entre
+sub-pestañas:
 
 - 'Ingresos Mensuales' → ingresos diversos mensuales (app/dashboard).
 - 'Proyección y Cobranza Semanal' → antigüedad de saldos / RDC (app/rdc).
+- 'Cumplimiento de Cobro' → facturas por fecha de vencimiento, KPIs y top de
+  empresas (app/cumplimiento).
 
 No se usa un segundo ft.Tabs anidado — main.py ya tiene uno de nivel superior
 y anidarlos da problemas de render en Flutter (mismo criterio que
@@ -12,12 +14,13 @@ igual)."""
 
 import flet as ft
 
+from .cumplimiento import construir_tab_cumplimiento
 from .dashboard import construir_tab_dashboard
 from .rdc import construir_tab_rdc
 
 __all__ = ["construir_tab_dashboards"]
 
-_VALORES_SUBTAB = ("ingresos", "proyeccion")
+_VALORES_SUBTAB = ("ingresos", "proyeccion", "cumplimiento")
 
 
 def construir_tab_dashboards(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
@@ -28,6 +31,7 @@ def construir_tab_dashboards(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     intercambia cuál árbol de controles está montado en `area`."""
     _, contenido_ingresos = construir_tab_dashboard(page)
     _, contenido_rdc = construir_tab_rdc(page)
+    _, contenido_cumplimiento = construir_tab_cumplimiento(page)
 
     area = ft.Column(expand=True, controls=[contenido_ingresos])
 
@@ -35,15 +39,22 @@ def construir_tab_dashboards(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         segments=[
             ft.Segment(value="ingresos", icon=ft.Icons.BAR_CHART, label=ft.Text("Ingresos Mensuales")),
             ft.Segment(value="proyeccion", icon=ft.Icons.HISTORY_EDU, label=ft.Text("Proyección y Cobranza Semanal")),
+            ft.Segment(value="cumplimiento", icon=ft.Icons.FACT_CHECK_OUTLINED, label=ft.Text("Cumplimiento de Cobro")),
         ],
         selected=["ingresos"],
     )
+
+    _CONTENIDO_POR_VALOR = {
+        "ingresos": contenido_ingresos,
+        "proyeccion": contenido_rdc,
+        "cumplimiento": contenido_cumplimiento,
+    }
 
     def _on_cambiar_subtab(e) -> None:
         valor = e.control.selected[0] if e.control.selected else "ingresos"
         if valor not in _VALORES_SUBTAB:
             valor = "ingresos"
-        area.controls = [contenido_ingresos if valor == "ingresos" else contenido_rdc]
+        area.controls = [_CONTENIDO_POR_VALOR[valor]]
         page.update()
 
     selector.on_change = _on_cambiar_subtab

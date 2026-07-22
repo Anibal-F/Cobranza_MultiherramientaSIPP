@@ -104,6 +104,16 @@ class CobranzaSemanalRepository:
             for i in range(len(SUCURSAL_EXCLUIDA_CONTIENE))
         )
 
+    def _parametros_segmentos(self, segmentos: list[str] | None) -> list:
+        """`segmentos` vacío o None = sin filtro (los tres segmentos). Se manda
+        siempre un booleano + un array (en vez de un solo STRING nullable) para
+        soportar selección múltiple sin tener que armar el SQL condicionalmente."""
+        valores = segmentos or []
+        return [
+            bigquery.ScalarQueryParameter("filtrar_segmento", "BOOL", bool(valores)),
+            bigquery.ArrayQueryParameter("segmentos", "STRING", valores),
+        ]
+
     def cobranza_por_segmento(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Total cobrado (im_Movimiento) por segmento en [fecha_inicio, fecha_fin]
         (sobre fh_Envio), separando USD, su conversión y el total final en MXN."""
@@ -139,10 +149,11 @@ class CobranzaSemanalRepository:
         return [dict(fila.items()) for fila in filas]
 
     def ingresos_significativos(
-        self, fecha_inicio: date, fecha_fin: date, segmento: str | None = None
+        self, fecha_inicio: date, fecha_fin: date, segmentos: list[str] | None = None
     ) -> list[dict]:
         """Top 20 de ingresos agregados por razón social y ordenados por su total
-        final en MXN. `segmento=None` incluye los tres segmentos."""
+        final en MXN. `segmentos` vacío o None incluye los tres segmentos; con uno
+        o varios valores de SEGMENTOS, solo agrega los de esos tipos de negocio."""
         query = f"""
             WITH {_CTE_FX_DIARIO},
             filas AS (
@@ -175,7 +186,7 @@ class CobranzaSemanalRepository:
                 FROM filas
                 LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
                 WHERE segmento IS NOT NULL
-                  AND (@segmento IS NULL OR segmento = @segmento)
+                  AND (NOT @filtrar_segmento OR segmento IN UNNEST(@segmentos))
                   AND razon_social IS NOT NULL
                   AND razon_social != ''
                 GROUP BY razon_social
@@ -185,8 +196,7 @@ class CobranzaSemanalRepository:
             ORDER BY total_final DESC
             LIMIT 20
         """
-        parametros = self._parametros(fecha_inicio, fecha_fin)
-        parametros.append(bigquery.ScalarQueryParameter("segmento", "STRING", segmento))
+        parametros = self._parametros(fecha_inicio, fecha_fin) + self._parametros_segmentos(segmentos)
         filas = self._cliente.query(
             query,
             job_config=bigquery.QueryJobConfig(query_parameters=parametros),
@@ -194,10 +204,12 @@ class CobranzaSemanalRepository:
         return [dict(fila.items()) for fila in filas]
 
     def ingresos_por_dia(
-        self, fecha_inicio: date, fecha_fin: date, segmento: str | None = None
+        self, fecha_inicio: date, fecha_fin: date, segmentos: list[str] | None = None
     ) -> list[dict]:
-        """Ingresos agregados por día dentro del periodo y segmento seleccionados,
-        con el mismo esquema monetario del concentrado y del Top 20."""
+        """Ingresos agregados por día Y por tipo de negocio dentro del periodo y
+        segmento(s) seleccionados (una fila por combinación fecha/segmento, no un
+        total combinado por día), con el mismo esquema monetario del concentrado
+        y del Top 20."""
         query = f"""
             WITH {_CTE_FX_DIARIO},
             filas AS (
@@ -214,6 +226,7 @@ class CobranzaSemanalRepository:
             {_CTE_FX_CERCANO}
             SELECT
                 filas.fecha,
+                filas.segmento,
                 SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) != @moneda_usd
                          THEN im_Movimiento ELSE 0 END) AS total_mxn,
                 SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
@@ -227,12 +240,11 @@ class CobranzaSemanalRepository:
             FROM filas
             LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
             WHERE segmento IS NOT NULL
-              AND (@segmento IS NULL OR segmento = @segmento)
-            GROUP BY filas.fecha
-            ORDER BY filas.fecha
+              AND (NOT @filtrar_segmento OR segmento IN UNNEST(@segmentos))
+            GROUP BY filas.fecha, filas.segmento
+            ORDER BY filas.fecha, filas.segmento
         """
-        parametros = self._parametros(fecha_inicio, fecha_fin)
-        parametros.append(bigquery.ScalarQueryParameter("segmento", "STRING", segmento))
+        parametros = self._parametros(fecha_inicio, fecha_fin) + self._parametros_segmentos(segmentos)
         filas = self._cliente.query(
             query,
             job_config=bigquery.QueryJobConfig(query_parameters=parametros),

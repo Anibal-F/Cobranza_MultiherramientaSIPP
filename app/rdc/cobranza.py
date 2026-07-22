@@ -43,7 +43,7 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
     hoy = date.today()
     hace_una_semana = hoy - timedelta(days=7)
     rango_sel: list[tuple[date, date]] = [(hace_una_semana, hoy)]
-    segmento_significativos: list[str | None] = [None]
+    segmentos_significativos: list[list[str]] = [[]]  # [] = Todos (los 3 segmentos)
 
     def _dark() -> bool:
         return page.theme_mode == ft.ThemeMode.DARK
@@ -231,48 +231,73 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
                 column_spacing=14,
             )
 
-            filas_dia = []
-            for fila in por_dia:
-                sin_tc = fila.get("total_usd_sin_tc") or 0
-                filas_dia.append(ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(fila["fecha"].strftime("%d/%m/%Y"), size=10)),
-                    ft.DataCell(ft.Text(f"${(fila.get('total_mxn') or 0):,.2f}", size=10)),
-                    ft.DataCell(ft.Text(
-                        f"US${(fila.get('total_usd') or 0):,.2f}" if fila.get("total_usd") else "—", size=10
-                    )),
-                    ft.DataCell(ft.Text(
-                        f"${(fila.get('total_usd_convertido') or 0):,.2f}"
-                        if fila.get("total_usd_convertido") else "—", size=10
-                    )),
-                    ft.DataCell(ft.Text(f"${(fila.get('total_final') or 0):,.2f}", size=10,
-                                        weight=ft.FontWeight.W_600)),
-                    ft.DataCell(ft.Text(f"US${sin_tc:,.2f}" if sin_tc else "—", size=10,
-                                        color=ft.Colors.RED_600 if sin_tc else ft.Colors.ON_SURFACE_VARIANT)),
-                ]))
-            tabla_dia = ft.DataTable(
-                columns=[
-                    ft.DataColumn(ft.Text("Fecha", size=10)),
-                    ft.DataColumn(ft.Text("MXN", size=10), numeric=True),
-                    ft.DataColumn(ft.Text("USD", size=10), numeric=True),
-                    ft.DataColumn(ft.Text("MXN convertido", size=10), numeric=True),
-                    ft.DataColumn(ft.Text("Total final", size=10), numeric=True),
-                    ft.DataColumn(ft.Text("USD sin TC", size=10), numeric=True),
-                ],
-                rows=filas_dia,
-                data_row_max_height=32,
-                heading_row_height=34,
-                column_spacing=14,
-            )
+            def _tabla_dia(filas: list[dict]) -> ft.DataTable:
+                filas_dia = []
+                for fila in filas:
+                    sin_tc = fila.get("total_usd_sin_tc") or 0
+                    filas_dia.append(ft.DataRow(cells=[
+                        ft.DataCell(ft.Text(fila["fecha"].strftime("%d/%m/%Y"), size=10)),
+                        ft.DataCell(ft.Text(f"${(fila.get('total_mxn') or 0):,.2f}", size=10)),
+                        ft.DataCell(ft.Text(
+                            f"US${(fila.get('total_usd') or 0):,.2f}" if fila.get("total_usd") else "—", size=10
+                        )),
+                        ft.DataCell(ft.Text(
+                            f"${(fila.get('total_usd_convertido') or 0):,.2f}"
+                            if fila.get("total_usd_convertido") else "—", size=10
+                        )),
+                        ft.DataCell(ft.Text(f"${(fila.get('total_final') or 0):,.2f}", size=10,
+                                            weight=ft.FontWeight.W_600)),
+                        ft.DataCell(ft.Text(f"US${sin_tc:,.2f}" if sin_tc else "—", size=10,
+                                            color=ft.Colors.RED_600 if sin_tc else ft.Colors.ON_SURFACE_VARIANT)),
+                    ]))
+                return ft.DataTable(
+                    columns=[
+                        ft.DataColumn(ft.Text("Fecha", size=10)),
+                        ft.DataColumn(ft.Text("MXN", size=10), numeric=True),
+                        ft.DataColumn(ft.Text("USD", size=10), numeric=True),
+                        ft.DataColumn(ft.Text("MXN convertido", size=10), numeric=True),
+                        ft.DataColumn(ft.Text("Total final", size=10), numeric=True),
+                        ft.DataColumn(ft.Text("USD sin TC", size=10), numeric=True),
+                    ],
+                    rows=filas_dia,
+                    data_row_max_height=32,
+                    heading_row_height=34,
+                    column_spacing=14,
+                )
+
+            # Con más de un tipo de negocio presente en el periodo, una tabla por
+            # fecha con columna "Tipo de negocio" queda difícil de leer (fechas
+            # repetidas, una por segmento) — mejor una tabla POR tipo de negocio,
+            # cada una ordenada por fecha. Con uno solo (o ninguno), la tabla
+            # única de siempre.
+            segmentos_en_dia = [s for s in SEGMENTOS if any(f.get("segmento") == s for f in por_dia)]
+            if len(segmentos_en_dia) > 1:
+                bloques_dia = []
+                for segmento in segmentos_en_dia:
+                    filas_segmento = [f for f in por_dia if f.get("segmento") == segmento]
+                    bloques_dia.append(
+                        ft.Column(
+                            [
+                                ft.Text(segmento, size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE),
+                                ft.Row([_tabla_dia(filas_segmento)], scroll=ft.ScrollMode.ALWAYS),
+                            ],
+                            spacing=6,
+                        )
+                    )
+                contenido_dia: ft.Control = ft.Column(bloques_dia, spacing=14)
+            else:
+                contenido_dia = ft.Row([_tabla_dia(por_dia)], scroll=ft.ScrollMode.ALWAYS)
+
             seccion_significativos.content = ft.Container(
                 content=ft.Column(
                     [
                         encabezado_seccion(
                             ft.Icons.STAR_OUTLINE, color_slot(4, dark),
                             "Ingresos Significativos", "Top 20 agregado por razón social · ordenado por total final en MXN",
-                            [filtro_segmento],
+                            [_construir_filtro_segmento()],
                         ),
                         ft.Divider(height=1),
-                        ft.Row([tabla_top], scroll=ft.ScrollMode.AUTO),
+                        ft.Row([tabla_top], scroll=ft.ScrollMode.ALWAYS),
                         ft.Divider(height=1),
                         ft.Row(
                             [
@@ -283,11 +308,12 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
                             spacing=6,
                         ),
                         ft.Text(
-                            "Desglose diario de todos los ingresos del periodo con el filtro seleccionado.",
+                            "Desglose diario de todos los ingresos del periodo con el filtro seleccionado; "
+                            "con más de un tipo de negocio, una tabla por tipo de negocio.",
                             size=10,
                             color=ft.Colors.ON_SURFACE_VARIANT,
                         ),
-                        ft.Row([tabla_dia], scroll=ft.ScrollMode.AUTO),
+                        contenido_dia,
                     ],
                     spacing=10,
                 ),
@@ -310,8 +336,8 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
         fecha_inicio, fecha_fin = rango_sel[0]
         resultado, significativos, por_dia = await asyncio.gather(
             asyncio.to_thread(_repo().cobranza_por_segmento, fecha_inicio, fecha_fin),
-            asyncio.to_thread(_repo().ingresos_significativos, fecha_inicio, fecha_fin, segmento_significativos[0]),
-            asyncio.to_thread(_repo().ingresos_por_dia, fecha_inicio, fecha_fin, segmento_significativos[0]),
+            asyncio.to_thread(_repo().ingresos_significativos, fecha_inicio, fecha_fin, segmentos_significativos[0]),
+            asyncio.to_thread(_repo().ingresos_por_dia, fecha_inicio, fecha_fin, segmentos_significativos[0]),
             return_exceptions=True,
         )
 
@@ -354,18 +380,80 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
         on_click=lambda _e: page.show_dialog(date_range_picker),
     )
 
-    def on_cambiar_segmento(e) -> None:
-        segmento_significativos[0] = None if e.control.value == "Todos" else e.control.value
-        page.run_task(cargar)
+    # Dropdown anclado (PopupMenuButton), NO modal: un PopupMenuItem con un
+    # Checkbox propio por tipo de negocio, igual que el mismo patrón en
+    # app/dashboard/explorador.py. Se reconstruye en cada `_refrescar` (ver más
+    # abajo) para reflejar la selección vigente en su resumen.
+    def _resumen_segmentos(seleccionados: list[str]) -> str:
+        if not seleccionados:
+            return "Todos"
+        if len(seleccionados) == 1:
+            return seleccionados[0]
+        return f"{len(seleccionados)} seleccionados"
 
-    filtro_segmento = ft.Dropdown(
-        label="Tipo de negocio",
-        value="Todos",
-        width=170,
-        dense=True,
-        options=[ft.dropdown.Option("Todos")] + [ft.dropdown.Option(segmento) for segmento in SEGMENTOS],
-        on_select=on_cambiar_segmento,
-    )
+    def _construir_filtro_segmento() -> ft.PopupMenuButton:
+        seleccion_previa = set(segmentos_significativos[0])
+        pendiente: dict[str, bool] = {segmento: (segmento in seleccion_previa) for segmento in SEGMENTOS}
+        checks: list[ft.Checkbox] = []
+
+        def _marcar_todos(_e) -> None:
+            for chk in checks:
+                chk.value = True
+                pendiente[chk.label] = True
+            page.update()
+
+        def _limpiar(_e) -> None:
+            for chk in checks:
+                chk.value = False
+                pendiente[chk.label] = False
+            page.update()
+
+        def _toggle(segmento: str):
+            def _h(e) -> None:
+                pendiente[segmento] = e.control.value
+            return _h
+
+        def _aplicar(_e) -> None:
+            segmentos_significativos[0] = [segmento for segmento in SEGMENTOS if pendiente[segmento]]
+            page.run_task(cargar)
+
+        filas_valor = []
+        for segmento in SEGMENTOS:
+            chk = ft.Checkbox(value=pendiente[segmento], label=segmento, on_change=_toggle(segmento))
+            checks.append(chk)
+            filas_valor.append(ft.PopupMenuItem(content=ft.Row([chk])))
+
+        items = [
+            ft.PopupMenuItem(
+                content=ft.Row([
+                    ft.TextButton("Limpiar", on_click=_limpiar),
+                    ft.TextButton("Todos", on_click=_marcar_todos),
+                ]),
+            ),
+            *filas_valor,
+            ft.PopupMenuItem(
+                content=ft.Container(
+                    content=ft.Text("Aplicar", weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                    alignment=ft.Alignment.CENTER,
+                ),
+                on_click=_aplicar,
+            ),
+        ]
+
+        return ft.PopupMenuButton(
+            content=ft.Container(
+                content=ft.Row(
+                    [ft.Icon(ft.Icons.CATEGORY_OUTLINED, size=16), ft.Text("Tipo de negocio", size=13),
+                     ft.Text(_resumen_segmentos(segmentos_significativos[0]), size=12,
+                             color=ft.Colors.ON_SURFACE_VARIANT)],
+                    spacing=6, tight=True,
+                ),
+                padding=ft.Padding(left=12, right=12, top=6, bottom=6),
+                border=ft.Border.all(1, ft.Colors.OUTLINE),
+                border_radius=8,
+            ),
+            items=items,
+        )
 
     def _abrir_info(_e) -> None:
         lineas = [
@@ -386,11 +474,13 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
             "— no se descarta ni se convierte con un valor inventado, y queda fuera de 'Total final' "
             "(= MXN + MXN convertido) porque no hay con qué convertirla.",
             "Ingresos Significativos muestra los 20 mayores ingresos agregados por Razón Social, "
-            "ordenados por Total final = MXN + USD convertido. Puede filtrarse por Distribuidora, "
-            "Asociados, Petroplazas o Todos.",
-            "Dentro de Ingresos Significativos, el apartado Ingresos por día agrega todos los "
-            "movimientos de cada fecha del periodo y respeta el mismo filtro de tipo de negocio "
-            "y el mismo tratamiento de MXN, USD, conversión y USD sin tipo de cambio.",
+            "ordenados por Total final = MXN + USD convertido. Puede filtrarse por uno o varios "
+            "tipos de negocio (Distribuidora, Asociados, Petroplazas) a la vez; sin ninguno marcado "
+            "se muestran los tres.",
+            "Dentro de Ingresos Significativos, el apartado Ingresos por día agrega los movimientos de "
+            "cada fecha del periodo por tipo de negocio (una fila por día y tipo de negocio, no un total "
+            "combinado por día), respeta el mismo filtro de tipo de negocio y el mismo tratamiento de "
+            "MXN, USD, conversión y USD sin tipo de cambio.",
             "La fecha usada para filtrar es fh_Envio; por defecto se muestra la semana anterior a hoy "
             "(espejo de la semana a futuro que muestra el panel de Proyección, a la izquierda).",
         ]
@@ -479,28 +569,57 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
             for celda in fila_celdas:
                 celda.number_format = "#,##0.00"
 
-        ws_dia = wb.create_sheet(nombre_hoja_valido("Ingresos por dia", nombres_usados))
-        escribir_hoja_excel(
-            ws_dia,
-            ["Fecha", "MXN", "USD", "MXN convertido", "Total final", "USD sin TC"],
-            [
+        # Igual que en pantalla: con más de un tipo de negocio presente, una
+        # tabla por tipo de negocio (apiladas en la misma hoja, con su nombre
+        # como título) en vez de una sola tabla con columna "Tipo de negocio".
+        def _escribir_bloque_dia(ws, fila_inicio: int, titulo: str | None, filas: list[dict]) -> int:
+            """Escribe encabezado + filas de un bloque de 'Ingresos por día' (con
+            un título en negritas arriba si `titulo` no es None) y devuelve la
+            fila donde debe empezar el siguiente bloque."""
+            from openpyxl.styles import Font
+
+            if titulo is not None:
+                ws.cell(row=fila_inicio, column=1, value=titulo).font = Font(bold=True, size=12)
+                fila_encabezado = fila_inicio + 1
+            else:
+                fila_encabezado = fila_inicio
+            escribir_hoja_excel(
+                ws,
+                ["Fecha", "MXN", "USD", "MXN convertido", "Total final", "USD sin TC"],
                 [
-                    fila["fecha"],
-                    round(fila.get("total_mxn") or 0, 2),
-                    round(fila.get("total_usd") or 0, 2),
-                    round(fila.get("total_usd_convertido") or 0, 2),
-                    round(fila.get("total_final") or 0, 2),
-                    round(fila.get("total_usd_sin_tc") or 0, 2),
-                ]
-                for fila in por_dia
-            ],
-        )
-        for fila_celdas in ws_dia.iter_rows(min_row=2, min_col=1, max_col=1):
-            for celda in fila_celdas:
-                celda.number_format = "dd/mm/yyyy"
-        for fila_celdas in ws_dia.iter_rows(min_row=2, min_col=2, max_col=6):
-            for celda in fila_celdas:
-                celda.number_format = "#,##0.00"
+                    [
+                        fila["fecha"],
+                        round(fila.get("total_mxn") or 0, 2),
+                        round(fila.get("total_usd") or 0, 2),
+                        round(fila.get("total_usd_convertido") or 0, 2),
+                        round(fila.get("total_final") or 0, 2),
+                        round(fila.get("total_usd_sin_tc") or 0, 2),
+                    ]
+                    for fila in filas
+                ],
+                fila_inicio=fila_encabezado,
+            )
+            primera_fila_datos = fila_encabezado + 1
+            ultima_fila_datos = fila_encabezado + len(filas)
+            for fila_celdas in ws.iter_rows(min_row=primera_fila_datos, max_row=ultima_fila_datos,
+                                            min_col=1, max_col=1):
+                for celda in fila_celdas:
+                    celda.number_format = "dd/mm/yyyy"
+            for fila_celdas in ws.iter_rows(min_row=primera_fila_datos, max_row=ultima_fila_datos,
+                                            min_col=2, max_col=6):
+                for celda in fila_celdas:
+                    celda.number_format = "#,##0.00"
+            return ultima_fila_datos + 2  # +1 fila en blanco de separación antes del siguiente bloque
+
+        ws_dia = wb.create_sheet(nombre_hoja_valido("Ingresos por dia", nombres_usados))
+        segmentos_en_dia = [s for s in SEGMENTOS if any(f.get("segmento") == s for f in por_dia)]
+        if len(segmentos_en_dia) > 1:
+            fila_actual = 1
+            for segmento in segmentos_en_dia:
+                filas_segmento = [f for f in por_dia if f.get("segmento") == segmento]
+                fila_actual = _escribir_bloque_dia(ws_dia, fila_actual, segmento, filas_segmento)
+        else:
+            _escribir_bloque_dia(ws_dia, 1, None, por_dia)
 
         fecha_inicio, fecha_fin = rango_sel[0]
         nombre_def = f"rdc_cobranza_{fecha_inicio:%Y%m%d}_{fecha_fin:%Y%m%d}.xlsx"
