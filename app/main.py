@@ -1666,6 +1666,10 @@ def main(page: ft.Page) -> None:
         _actualizar_boton_spei()
         refrescar_resumen()
         refrescar_tabla()
+        # Búsqueda AUTOMÁTICA de folios por API (segundo plano, sin abrir el RPA):
+        # en cuanto hay movimientos con folio pendiente, se resuelven y se avisa.
+        if movimientos:
+            page.run_task(_auto_folios_api)
 
     file_picker = ft.FilePicker()
 
@@ -2056,6 +2060,62 @@ def main(page: ft.Page) -> None:
             return
         _abrir_dialogo_rpa_folios(restantes, prefijo=(f"{n_api} resuelto(s) por API · " if n_api else ""))
 
+    _auto_folios_en_curso = [False]
+
+    async def _auto_folios_api() -> None:
+        """AUTOMÁTICO tras cargar el archivo: busca por API los folios de los
+        movimientos aún no identificados (en segundo plano, SIN abrir el RPA) y
+        avisa el resultado. El RPA (navegador + credenciales) queda para el botón
+        'Buscar Folios en SIPP'. Reentrancia protegida con `_auto_folios_en_curso`."""
+        if not FOLIOS_POR_API or _auto_folios_en_curso[0]:
+            return
+        empresa = empresa_ref[0]
+        if not empresa.api_empresa:
+            return
+        candidatos = extraer_folios_pendientes(movimientos)
+        if not candidatos:
+            return
+        _auto_folios_en_curso[0] = True
+        try:
+            antes = sum(1 for m in movimientos if m.identificado_por_folio)
+            estado_text.value = f"Buscando {len(candidatos)} folio(s) por API…"
+            page.update()
+            try:
+                resultados = await asyncio.to_thread(
+                    buscar_folios_api, candidatos, empresa.api_empresa, movimientos,
+                    lambda _m, _l="info": None,
+                )
+                propuestas = aplicar_resultados_folios(
+                    candidatos, resultados, movimientos, log_fn=lambda *a, **k: None
+                )
+                agregadas = guardar_nuevas_cuentas(CATALOGO_PATH, catalogo, propuestas)
+                catalogo.extend(agregadas)
+                if agregadas:
+                    catalogo_info_text.value = f"Catálogo de clientes cargado: {len(catalogo)} cuentas"
+            except SippAPIError:
+                estado_text.value = (
+                    "No se pudieron buscar folios por API. Usa 'Buscar Folios en SIPP' para el RPA."
+                )
+                page.update()
+                return
+            except Exception:  # noqa: BLE001 — no debe romper la carga del archivo
+                return
+            n = sum(1 for m in movimientos if m.identificado_por_folio) - antes
+            restantes = len(extraer_folios_pendientes(movimientos))
+            refrescar_resumen()
+            refrescar_tabla()
+            historial_guardar_snapshot()
+            msg = (
+                f"✓ API: {n} folio(s) identificado(s) automáticamente."
+                if n else "API: ningún folio nuevo se identificó automáticamente."
+            )
+            if restantes:
+                msg += f" Quedan {restantes} folio(s) — usa 'Buscar Folios en SIPP' (RPA)."
+            estado_text.value = msg
+            page.update()
+        finally:
+            _auto_folios_en_curso[0] = False
+
     def on_click_buscar_sipp(_e) -> None:
         if not movimientos:
             estado_text.value = "Primero carga un archivo bancario."
@@ -2128,8 +2188,8 @@ def main(page: ft.Page) -> None:
 
     boton_sync_clientes = ft.IconButton(
         icon=ft.Icons.CLOUD_SYNC,
-        tooltip="Sincronizar clientes desde la API de SIPP (complementa el catálogo local)",
-        icon_color=NAVY,
+        tooltip="Sincronizar clientes del SIPP (razones sociales) desde la API",
+        icon_color=ft.Colors.WHITE,  # va en el encabezado azul
         on_click=lambda e: page.run_task(_sincronizar_clientes_api),
     )
 
@@ -3826,6 +3886,19 @@ def main(page: ft.Page) -> None:
         on_click=on_click_tema,
     )
 
+    def _ir_a_catalogos(_e=None) -> None:
+        # Catálogos ya no es pestaña: se abre como vista superpuesta (overlay).
+        # `overlay_catalogos` se define más abajo; existe al momento del clic.
+        overlay_catalogos.visible = True
+        page.update()
+
+    boton_catalogos_header = ft.IconButton(
+        icon=ft.Icons.FOLDER_OPEN,
+        icon_color=ft.Colors.WHITE,
+        tooltip="Ir a Catálogos (catálogo de cuentas de clientes)",
+        on_click=_ir_a_catalogos,
+    )
+
     # --- Actualizaciones desde GitHub ---
     update_estado_text = ft.Text("")
     update_progress = ft.ProgressRing(width=18, height=18, visible=False)
@@ -3978,6 +4051,8 @@ def main(page: ft.Page) -> None:
                     if es_modo_test()
                     else []
                 ),
+                boton_catalogos_header,
+                boton_sync_clientes,
                 boton_update,
                 boton_tema,
             ],
@@ -4051,7 +4126,6 @@ def main(page: ft.Page) -> None:
                     archivo_nombre_text,
                     banco_detectado_text,
                     ft.Container(expand=True),
-                    boton_sync_clientes,
                     boton_ayuda_csv,
                 ],
                 spacing=16,
@@ -4216,8 +4290,11 @@ def main(page: ft.Page) -> None:
     tab_dashboards, contenido_dashboards = construir_tab_dashboards(page)
     tab_conciliaciones, contenido_conciliaciones = construir_tab_conciliaciones(page)
 
+    # Catálogos ya NO es pestaña: se abre desde el ícono 📁 del encabezado como
+    # vista superpuesta (overlay_catalogos, definido abajo). Por eso la barra tiene
+    # 4 pestañas y el índice 1 sigue siendo "Extracción de Contados" (on_tabs_change).
     tabs = ft.Tabs(
-        length=5,
+        length=4,
         selected_index=0,
         expand=True,
         on_change=on_tabs_change,
@@ -4228,16 +4305,46 @@ def main(page: ft.Page) -> None:
                     tabs=[
                         ft.Tab(label="Identificación Bancaria", icon=ft.Icons.ACCOUNT_BALANCE),
                         ft.Tab(label="Extracción de Contados", icon=ft.Icons.MAIL_OUTLINE),
-                        ft.Tab(label="Catálogos", icon=ft.Icons.FOLDER_OPEN),
                         tab_dashboards,
                         tab_conciliaciones,
                     ],
                 ),
                 ft.TabBarView(
                     expand=True,
-                    controls=[contenido_conciliacion, contenido_o365, contenido_catalogos, contenido_dashboards, contenido_conciliaciones],
+                    controls=[contenido_conciliacion, contenido_o365, contenido_dashboards, contenido_conciliaciones],
                 ),
             ],
+        ),
+    )
+
+    # Vista superpuesta de Catálogos (se muestra con el ícono 📁 del encabezado).
+    def _cerrar_catalogos(_e=None) -> None:
+        overlay_catalogos.visible = False
+        page.update()
+
+    overlay_catalogos = ft.Container(
+        visible=False,
+        expand=True,
+        bgcolor=ft.Colors.SURFACE,
+        content=ft.Column(
+            [
+                ft.Container(
+                    content=ft.Row(
+                        [
+                            ft.IconButton(ft.Icons.ARROW_BACK, tooltip="Volver", on_click=_cerrar_catalogos),
+                            ft.Icon(ft.Icons.FOLDER_OPEN, color=NAVY),
+                            ft.Text("Catálogos", size=18, weight=ft.FontWeight.BOLD),
+                        ],
+                        spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    padding=ft.Padding(left=8, right=8, top=6, bottom=6),
+                    bgcolor=ft.Colors.with_opacity(0.06, NAVY),
+                ),
+                ft.Container(content=contenido_catalogos, expand=True),
+            ],
+            expand=True,
+            spacing=0,
         ),
     )
 
@@ -4254,7 +4361,9 @@ def main(page: ft.Page) -> None:
         ft.Column(
             [
                 encabezado,
-                tabs,
+                # Las pestañas y la vista de Catálogos comparten el mismo espacio;
+                # el overlay (Catálogos) se muestra encima cuando se abre con 📁.
+                ft.Stack([tabs, overlay_catalogos], expand=True),
             ],
             expand=True,
             spacing=0,
