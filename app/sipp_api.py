@@ -7,9 +7,11 @@ clientes y con el RPA de folios:
   - GET /api/clientes          -> maestro de clientes (id, RFC, razón social).
   - GET /api/clientes/sucursales -> plazas (sucursales) por cliente.
 
-Estado: la API está SOLO en ambiente de pruebas. El token puede cambiar al pasar
-a producción, por eso URL y token son configurables por variable de entorno
-(SIPP_API_URL / SIPP_API_TOKEN) y caen al valor de test si no se definen.
+Estado: la API está en PRODUCCIÓN (liberada 2026-07-21). URL y token son
+configurables por variable de entorno (SIPP_API_URL / SIPP_API_TOKEN) y caen al
+valor productivo si no se definen. Para volver al ambiente de pruebas, exportar:
+  SIPP_API_URL=https://us-central1-soluciones-petroil.cloudfunctions.net/billing-toolkit-testing
+  SIPP_API_TOKEN=P6sgpjDWQayUBuURQTDQ4JVio2upEfrP4Cqg
 
 Cada función lanza `SippAPIError` ante un fallo (red, token, formato) para que el
 llamador pueda caer a la fuente local (CSV / RPA) — ver el diseño "API primero,
@@ -21,12 +23,9 @@ from datetime import date
 
 import requests
 
-# URL y token: configurables por entorno; default = ambiente de pruebas del doc.
-BASE_URL = os.environ.get(
-    "SIPP_API_URL",
-    "https://us-central1-soluciones-petroil.cloudfunctions.net/billing-toolkit-testing",
-).rstrip("/")
-AUTH_TOKEN = os.environ.get("SIPP_API_TOKEN", "P6sgpjDWQayUBuURQTDQ4JVio2upEfrP4Cqg")
+# URL y token: configurables por entorno; default = ambiente PRODUCTIVO.
+BASE_URL = os.environ.get("SIPP_API_URL", "https://billing-toolkit.petroil.com.mx").rstrip("/")
+AUTH_TOKEN = os.environ.get("SIPP_API_TOKEN", "RnTcrAzgAYE2Gc9sRjZHyWGMD8BB6k797GuG")
 
 TIMEOUT = 30          # segundos por petición
 PAGE_SIZE = 100       # la API topa el pageSize en 100 (aunque se pida más)
@@ -124,9 +123,26 @@ def contar_facturas(empresa: str, fecha_inicio: date, fecha_fin: date) -> int:
 
 
 def obtener_facturas(
-    empresa: str, fecha_inicio: date, fecha_fin: date, log_fn=None
+    empresa: str,
+    fecha_inicio: date | None = None,
+    fecha_fin: date | None = None,
+    folio: str | None = None,
+    uuid: str | None = None,
+    log_fn=None,
 ) -> list[dict]:
-    """Facturas de clientes de `empresa` (razón social) con VENCIMIENTO en el
-    rango dado. Cada fila: fl_FolioDocumento, fh_Documento, fh_Vencimiento,
-    im_Total, im_SaldoFactura, de_UUID, de_RazonSocialCliente, nb_Sucursal."""
-    return _paginar("/api/facturas", _params_facturas(empresa, fecha_inicio, fecha_fin), log_fn)
+    """Facturas de clientes de `empresa` (razón social). Filtros opcionales:
+    - `folio`: folio INTERNO exacto (serie + número, ej. 'FCL183653').
+    - `uuid`: folio FISCAL (UUID del CFDI).
+    - `fecha_inicio`/`fecha_fin`: rango de VENCIMIENTO (ya no obligatorio en la API).
+    Cada fila: fl_FolioDocumento, fh_Documento, fh_Vencimiento, im_Total,
+    im_SaldoFactura, de_UUID, de_RazonSocialCliente, nb_Sucursal."""
+    params: dict = {"empresa": empresa}
+    if fecha_inicio is not None:
+        params["fechaVencimientoInicio"] = fecha_inicio.isoformat()
+    if fecha_fin is not None:
+        params["fechaVencimientoFin"] = fecha_fin.isoformat()
+    if folio:
+        params["folio"] = folio
+    if uuid:
+        params["uuid"] = uuid
+    return _paginar("/api/facturas", params, log_fn)
