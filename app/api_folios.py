@@ -1,66 +1,47 @@
 """Identificación de folios por la API de SIPP (alternativa al RPA).
 
-El param `folio` de /api/facturas solo acepta el UUID de la factura (que no
-tenemos: los movimientos bancarios traen el NÚMERO de folio, ej. FLM192206). Por
-eso se traen las facturas de la empresa por un rango de VENCIMIENTO acotado a las
-fechas de la extracción y se cruza `fl_FolioDocumento` del lado nuestro.
+/api/facturas ya permite BUSCAR por folio INTERNO exacto (serie + número, ej.
+'FCL183653') sin exigir rango de vencimiento (TI lo habilitó 2026-07-17). Por eso
+se consulta folio por folio directamente: rápido, exacto y sin descargar ventanas.
 
 Devuelve el mismo shape que el RPA (`{(folio, abono): (cliente, sucursal)}`) para
-reutilizar `rpa_folios.aplicar_resultados_folios`. Lo que la API no resuelva se
-deja al RPA como respaldo.
+reutilizar `rpa_folios.aplicar_resultados_folios`. Lo que la API no resuelva
+(p. ej. folios sin serie, que la API no matchea) se deja al RPA como respaldo.
 """
 
 import re
-from datetime import date, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 from . import sipp_api
 from .models import Movimiento
 
-# Interruptor: resolver folios por la API ANTES del RPA. HOY EN False: la API de
-# /api/facturas aún no permite BUSCAR por folio interno (fl_FolioDocumento) —solo
-# filtra por el UUID fiscal—, así que se sigue con el RPA. TI ya entendió la
-# solicitud y la trabajará; poner en True cuando habiliten el filtro por folio
-# interno (idealmente sin exigir rango de vencimiento). Ver memoria [[api-sipp]].
-FOLIOS_POR_API = False
+# Interruptor: resolver folios por la API ANTES del RPA. En True: la API ya busca
+# por folio interno (fl_FolioDocumento). El RPA queda como respaldo para lo que la
+# API no resuelva. Ver memoria [[api-sipp]].
+FOLIOS_POR_API = True
+
+# Consultas concurrentes a la API (una por folio). La API responde ~0.5s por folio;
+# con paralelismo moderado la búsqueda completa se mantiene ágil.
+_MAX_CONCURRENCIA = 8
 
 
 def _norm_folio(texto: str) -> str:
-    """Solo alfanuméricos, en mayúsculas: 'FLM 192206' -> 'FLM192206'."""
+    """Solo alfanuméricos, en mayúsculas: 'FLM 192206' -> 'FLM192206'. Es el formato
+    exacto que espera el parámetro `folio` de la API (concatenado, sin espacios)."""
     return re.sub(r"[^A-Z0-9]", "", (texto or "").upper())
 
 
-def _solo_numero(folio_norm: str) -> str:
-    """Quita la serie de sucursal (F + 2 letras) y los ceros a la izquierda:
-    'FMT034107' -> '34107'. Para cruzar candidatos que vienen SIN serie."""
-    sin_serie = re.sub(r"^F[A-Z]{2}", "", folio_norm)
-    return sin_serie.lstrip("0") or "0"
-
-
-# Máximo de facturas que se acepta paginar para una ventana. Si la ventana trae
-# más (el volumen de vencimientos es muy dispar entre meses), se cae al RPA en vez
-# de paginar cientos de veces. Ajustable si el desempeño lo permite.
-LIMITE_FACTURAS = 5000
-
-
-def ventana_vencimiento(
-    movimientos: list[Movimiento], meses_atras: int = 3, dias_adelante: int = 20
-) -> tuple[date, date]:
-    """Rango de vencimiento a consultar, derivado de las fechas de la extracción:
-    un pago normalmente salda facturas vencidas en los meses previos (a veces se
-    paga por anticipado, de ahí el margen hacia adelante). Las facturas más viejas
-    que este rango (o si la ventana es enorme) se resuelven con el RPA de respaldo."""
-    fechas = [m.fecha for m in movimientos if m.fecha]
-    base_min = min(fechas) if fechas else date.today()
-    base_max = max(fechas) if fechas else date.today()
-    return (base_min - timedelta(days=meses_atras * 30), base_max + timedelta(days=dias_adelante))
+def _tiene_serie(folio_norm: str) -> bool:
+    """True si el folio trae serie de sucursal (F + 2 letras + dígitos). La API solo
+    matchea el folio COMPLETO (serie+número); un folio solo-número no resuelve."""
+    return bool(re.match(r"^F[A-Z]{2}\d+$", folio_norm))
 
 
 def _elegir(facturas: list[dict], abono: float) -> dict | None:
-    """Ante varias facturas con el mismo número de folio, elige la que corresponde
-    al pago. Prioriza: importe (total o saldo) == abono; luego saldo pendiente;
-    si todas son del mismo cliente, la primera. Si no hay forma de decidir con
-    confianza (clientes distintos y sin match de importe), devuelve None para que
-    lo resuelva el RPA."""
+    """Ante varias facturas con el mismo folio, elige la que corresponde al pago.
+    Prioriza: importe (total o saldo) == abono; luego, si todas son del mismo
+    cliente, la que tenga saldo. Si hay clientes distintos y ningún importe calza,
+    devuelve None (ambiguo) para que lo resuelva el RPA."""
     if len(facturas) == 1:
         return facturas[0]
 
@@ -75,64 +56,54 @@ def _elegir(facturas: list[dict], abono: float) -> dict | None:
 
     clientes = {(f.get("de_RazonSocialCliente") or "").strip() for f in facturas}
     if len(clientes) == 1:
-        # Mismo cliente en todas: da igual cuál factura; prefiere una con saldo.
         pendientes = [f for f in facturas if (f.get("im_SaldoFactura") or 0) > 0]
         return (pendientes or facturas)[0]
 
-    # Clientes distintos y sin match de importe: ambiguo -> respaldo RPA.
     return None
 
 
 def buscar_folios_api(
     candidatos: list[tuple[Movimiento, str]],
     empresa_api: str,
-    movimientos: list[Movimiento],
+    movimientos: list[Movimiento] | None = None,
     log_fn=print,
 ) -> dict[tuple[str, float], tuple[str, str]]:
-    """Resuelve por API los folios candidatos. Devuelve
+    """Resuelve por API los folios candidatos consultando por folio INTERNO. Devuelve
     {(folio, abono): (cliente, sucursal)} solo para los que resolvió con confianza.
     NO modifica los movimientos (eso lo hace rpa_folios.aplicar_resultados_folios).
 
-    Lanza sipp_api.SippAPIError si la API no está disponible (el llamador cae al RPA).
+    Lanza sipp_api.SippAPIError si la API no responde (el llamador cae al RPA).
     """
     if not candidatos:
         return {}
 
-    inicio, fin = ventana_vencimiento(movimientos)
-    # Sondeo: si la ventana trae demasiadas facturas, no se pagina (sería lento);
-    # esos folios se resuelven por RPA.
-    total = sipp_api.contar_facturas(empresa_api, inicio, fin)
-    log_fn(
-        f"API: {total} factura(s) con vencimiento {inicio.isoformat()} … {fin.isoformat()} "
-        f"para {empresa_api}.",
-        "info",
-    )
-    if total > LIMITE_FACTURAS:
+    # Folios únicos a consultar; los que traen serie (la API los matchea exacto).
+    folios_unicos = sorted({_norm_folio(folio) for _, folio in candidatos if _norm_folio(folio)})
+    consultables = [f for f in folios_unicos if _tiene_serie(f)]
+    sin_serie = len(folios_unicos) - len(consultables)
+    if sin_serie:
         log_fn(
-            f"API: ventana con {total} facturas (> {LIMITE_FACTURAS}); se omite la API "
-            "y se usará el RPA para estos folios.",
-            "warn",
+            f"API: {sin_serie} folio(s) sin serie (solo número) no los busca la API; "
+            "se dejan al RPA.",
+            "info",
         )
+    if not consultables:
         return {}
-    facturas = sipp_api.obtener_facturas(empresa_api, inicio, fin, log_fn=log_fn)
-    log_fn(f"API: {len(facturas)} factura(s) traídas; cruzando folios…", "info")
+    log_fn(f"API: consultando {len(consultables)} folio(s) interno(s)…", "info")
 
+    def _consultar(folio_norm: str) -> tuple[str, list[dict]]:
+        return folio_norm, sipp_api.obtener_facturas(empresa_api, folio=folio_norm)
+
+    # Concurrencia moderada; una SippAPIError (API caída) se propaga para caer al RPA.
     por_folio: dict[str, list[dict]] = {}
-    por_numero: dict[str, list[dict]] = {}
-    for f in facturas:
-        norm = _norm_folio(f.get("fl_FolioDocumento"))
-        if not norm:
-            continue
-        por_folio.setdefault(norm, []).append(f)
-        por_numero.setdefault(_solo_numero(norm), []).append(f)
+    with ThreadPoolExecutor(max_workers=_MAX_CONCURRENCIA) as pool:
+        for folio_norm, facturas in pool.map(_consultar, consultables):
+            if facturas:
+                por_folio[folio_norm] = facturas
 
     resultados: dict[tuple[str, float], tuple[str, str]] = {}
     for mov, folio in candidatos:
-        norm = _norm_folio(folio)
-        candidatas = por_folio.get(norm)
-        if not candidatas:
-            # Candidato sin serie de sucursal: cruzar por número.
-            candidatas = por_numero.get(_solo_numero(norm))
+        candidatas = por_folio.get(_norm_folio(folio))
         if not candidatas:
             continue
         elegida = _elegir(candidatas, mov.abono)
