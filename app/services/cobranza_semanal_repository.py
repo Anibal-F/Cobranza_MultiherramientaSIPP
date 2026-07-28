@@ -27,7 +27,7 @@ que usa el resto del Dashboard Ingresos):
   segmento, filtrada por fh_Envio dentro del rango seleccionado.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from google.cloud import bigquery
 
@@ -113,6 +113,12 @@ class CobranzaSemanalRepository:
             bigquery.ScalarQueryParameter("filtrar_segmento", "BOOL", bool(valores)),
             bigquery.ArrayQueryParameter("segmentos", "STRING", valores),
         ]
+
+    def ultima_actualizacion(self) -> datetime | None:
+        """Fecha/hora (UTC) de la última carga del extractor a `Tableros.IgresosClientes`,
+        vía el metadato `last_modified_time` de la tabla en BigQuery. No depende de
+        conocer el extractor en sí (vive fuera de este repo), solo lee la tabla."""
+        return self._cliente.get_table(self._tabla).modified
 
     def cobranza_por_segmento(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Total cobrado (im_Movimiento) por segmento en [fecha_inicio, fecha_fin]
