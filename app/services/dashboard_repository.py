@@ -216,6 +216,65 @@ class DashboardRepository:
         filas = self._cliente.query(query, job_config=job_config).result()
         return [dict(fila.items()) for fila in filas]
 
+    def top_razon_social(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
+        """Top 20 de ingresos agregados por Razón Social (de_RazonSocial),
+        ordenados por su total final en MXN — mismo segmento principal que
+        `agregado_segmento_principal` (Asociados/Distribuidora, 3 empresas
+        principales, excluye pagos entre filiales y sucursales de GAS,
+        Autotanque, Corporativo o sin asignar), sin volver a segmentar por
+        tipo de negocio ni ningún otro criterio: un solo ranking general del
+        periodo (equivalente a 'Ingresos Significativos' en Proyección/Cobranza
+        Semanal, pero sin el filtro de tipo de cliente)."""
+        query = f"""
+            WITH {_CTE_FX_DIARIO},
+            filas AS (
+                SELECT
+                    TRIM(de_RazonSocial) AS razon_social,
+                    DATE(fh_Envio) AS fecha,
+                    im_Movimiento,
+                    nb_Moneda
+                FROM `{self._tabla}`
+                WHERE nb_Empresa IN UNNEST(@empresas)
+                  AND ({TIPO_NEGOCIO_EFECTIVO}) IN UNNEST(@tipos_negocio)
+                  AND sn_PagoFilial = 'NO'
+                  AND nb_sucursal IS NOT NULL
+                  AND nb_sucursal != ''
+                  AND NOT LOWER(nb_sucursal) LIKE '%gas%'
+                  AND NOT LOWER(nb_sucursal) LIKE '%autotanque%'
+                  AND NOT LOWER(nb_sucursal) LIKE '%corporativo%'
+                  AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
+                  AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
+            ),
+            {_CTE_FX_CERCANO},
+            agregados AS (
+                SELECT
+                    razon_social,
+                    {_expr_suma_mxn()} AS total_mxn,
+                    {_expr_suma_usd()} AS total_usd,
+                    {_expr_suma_usd_convertido()} AS total_usd_convertido,
+                    {_expr_suma_usd_sin_tc()} AS total_usd_sin_tc
+                FROM filas
+                LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
+                WHERE razon_social IS NOT NULL AND razon_social != ''
+                GROUP BY razon_social
+            )
+            SELECT *, total_mxn + total_usd_convertido AS total_final
+            FROM agregados
+            ORDER BY total_final DESC
+            LIMIT 20
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ArrayQueryParameter("empresas", "STRING", EMPRESAS_DASHBOARD),
+                bigquery.ArrayQueryParameter("tipos_negocio", "STRING", TIPOS_NEGOCIO_DASHBOARD),
+                bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
+                bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
+                _param_moneda_usd(),
+            ]
+        )
+        filas = self._cliente.query(query, job_config=job_config).result()
+        return [dict(fila.items()) for fila in filas]
+
     def agregado_sucursal_gas(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Total de im_Movimiento por sucursal para el segmento GasPetroil (las
         mismas 3 empresas, pero tipo de negocio GasPetroil en vez de
