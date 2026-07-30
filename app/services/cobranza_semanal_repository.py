@@ -8,10 +8,11 @@ que usa el resto del Dashboard Ingresos):
 - Se excluyen registros cuya Razón Social (de_RazonSocial) sea exactamente
   'Abastecedora de Combustibles del Pacifico', 'ACP Combustibles' o
   'Petro Smart Combustibles'.
-- Los registros cuya Razón Social EMPIECE CON 'Petroplazas' (en los datos
-  aparecen variantes: PETROPLAZAS, PETROPLAZAS AEROPUERTO, PETROPLAZAS
-  ESTACIONES) se reclasifican como segmento 'Petroplazas', sin importar su
-  nb_TipoDeNegocio original.
+- Los registros cuya Razón Social sea EXACTAMENTE 'Petroplazas' se reclasifican
+  como segmento 'Petroplazas', sin importar su nb_TipoDeNegocio original. Las
+  variantes (PETROPLAZAS AEROPUERTO, PETROPLAZAS ESTACIONES, etc.) NO entran en
+  esta reclasificación — se quedan con su nb_TipoDeNegocio real (normalmente
+  Asociados).
 - Se excluye nb_TipoDeNegocio = 'GasPetroil' exactamente — pero DESPUÉS de
   la reclasificación de Petroplazas, así que un registro de Petroplazas que
   originalmente traía GasPetroil sigue contando como Petroplazas, no se
@@ -47,7 +48,7 @@ MONEDA_USD = "dolar (usd)"
 SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
 
 _SEGMENTO_POR_FILA = """CASE
-        WHEN STARTS_WITH(UPPER(TRIM(de_RazonSocial)), 'PETROPLAZAS') THEN 'Petroplazas'
+        WHEN UPPER(TRIM(de_RazonSocial)) = 'PETROPLAZAS' THEN 'Petroplazas'
         WHEN nb_TipoDeNegocio = 'Distribuidora' THEN 'Distribuidora'
         WHEN nb_TipoDeNegocio = 'Asociados' THEN 'Asociados'
     END"""
