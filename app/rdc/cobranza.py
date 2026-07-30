@@ -471,9 +471,10 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
         lineas = [
             "Se excluyen registros cuya Razón Social sea exactamente 'Abastecedora de Combustibles "
             "del Pacifico', 'ACP Combustibles' o 'Petro Smart Combustibles'.",
-            "Los registros cuya Razón Social empiece con 'Petroplazas' (incluye variantes como "
-            "PETROPLAZAS AEROPUERTO o PETROPLAZAS ESTACIONES) se cuentan como segmento 'Petroplazas', "
-            "sin importar su tipo de negocio original.",
+            "Los registros cuya Razón Social sea EXACTAMENTE 'Petroplazas' se cuentan como segmento "
+            "'Petroplazas', sin importar su tipo de negocio original. Variantes como PETROPLAZAS "
+            "AEROPUERTO o PETROPLAZAS ESTACIONES NO se reclasifican — se quedan con su tipo de negocio "
+            "real (normalmente Asociados).",
             "Solo se cuentan los tipos de negocio 'Distribuidora' y 'Asociados'; cualquier otro "
             "(por ejemplo 'GasPetroil', o vacío) se excluye — salvo que ya se haya reclasificado "
             "como Petroplazas por el punto anterior.",
