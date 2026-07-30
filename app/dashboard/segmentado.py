@@ -99,6 +99,10 @@ async def _consultar_no_identificado(fecha_inicio: date, fecha_fin: date) -> tup
     return resultado["total"], resultado["total_usd"]
 
 
+async def _consultar_top_razon_social(fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    return await asyncio.to_thread(_repo().top_razon_social, fecha_inicio, fecha_fin)
+
+
 # (titulo, subtitulo, consulta, vista, icono) — vista: "donut" (composición
 # parte-todo) o "ranked" (leaderboard con muchas categorías). El color de cada
 # tarjeta sale de su posición en esta lista (color_slot(indice, dark)) — así
@@ -303,6 +307,97 @@ def _construir_seccion_otras_empresas(resultado, dark: bool) -> ft.Container:
     )
 
 
+_TITULO_TOP_RAZON_SOCIAL = "Ingresos Significativos"
+_SUBTITULO_TOP_RAZON_SOCIAL = (
+    "Top 20 por Razón Social · mismo segmento principal (Asociados y Distribuidora, 3 empresas "
+    "principales, excluye pagos entre filiales, GAS, Autotanque y Corporativo) · sin segmentar por "
+    "tipo de cliente"
+)
+
+
+def _construir_tabla_top_razon_social(items: list[dict], dark: bool) -> ft.Control:
+    hay_sin_tc = any(it.get("total_usd_sin_tc") for it in items)
+    columnas = [
+        ft.DataColumn(ft.Text("#", size=11), numeric=True),
+        ft.DataColumn(ft.Text("Razón social", size=11)),
+        ft.DataColumn(ft.Text("MXN", size=11), numeric=True),
+        ft.DataColumn(ft.Text("USD", size=11), numeric=True),
+        ft.DataColumn(ft.Text("MXN convertido", size=11), numeric=True),
+        ft.DataColumn(ft.Text("Total final", size=11), numeric=True),
+    ]
+    if hay_sin_tc:
+        columnas.append(ft.DataColumn(ft.Text("USD sin TC", size=11), numeric=True))
+
+    filas = []
+    for i, it in enumerate(items):
+        sin_tc = it.get("total_usd_sin_tc") or 0
+        celdas = [
+            ft.DataCell(
+                ft.Row(
+                    [
+                        ft.Container(width=8, height=8, bgcolor=color_slot(i, dark), border_radius=4),
+                        ft.Text(str(i + 1), size=11),
+                    ],
+                    spacing=6,
+                )
+            ),
+            ft.DataCell(ft.Container(
+                ft.Text(it["razon_social"], size=11, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS,
+                        tooltip=it["razon_social"]),
+                width=210,
+            )),
+            ft.DataCell(ft.Text(f"${(it.get('total_mxn') or 0):,.2f}", size=11)),
+            ft.DataCell(ft.Text(
+                f"US${(it.get('total_usd') or 0):,.2f}" if it.get("total_usd") else "—", size=11
+            )),
+            ft.DataCell(ft.Text(
+                f"${(it.get('total_usd_convertido') or 0):,.2f}" if it.get("total_usd_convertido") else "—", size=11
+            )),
+            ft.DataCell(ft.Text(f"${(it.get('total_final') or 0):,.2f}", size=11, weight=ft.FontWeight.W_600)),
+        ]
+        if hay_sin_tc:
+            celdas.append(ft.DataCell(ft.Text(f"US${sin_tc:,.2f}" if sin_tc else "—", size=11,
+                                               color=ft.Colors.RED_600 if sin_tc else ft.Colors.ON_SURFACE_VARIANT)))
+        filas.append(ft.DataRow(cells=celdas))
+
+    tabla = ft.DataTable(columns=columnas, rows=filas, data_row_max_height=40, heading_row_height=32,
+                         column_spacing=14)
+    return ft.Column([tabla], scroll=ft.ScrollMode.AUTO, height=340)
+
+
+def _construir_seccion_top_razon_social(resultado, dark: bool) -> ft.Container:
+    """Card de 'Ingresos Significativos': siempre en tabla, ranking general del
+    periodo (sin toggle gráfica/tabla ni filtro de segmento — a diferencia del
+    mismo apartado en Proyección/Cobranza Semanal, aquí no se segmenta por
+    tipo de cliente)."""
+    chips: list[ft.Control] = []
+    if isinstance(resultado, Exception):
+        cuerpo: ft.Control = ft.Container(
+            content=ft.Text(f"No se pudo consultar: {resultado}", size=11, color=ft.Colors.RED_600),
+            height=120,
+            alignment=ft.Alignment.CENTER,
+        )
+    elif not resultado:
+        cuerpo = estado_vacio()
+    else:
+        total = sum(it.get("total_final") or 0 for it in resultado)
+        chips.append(chip_total(total))
+        cuerpo = _construir_tabla_top_razon_social(resultado, dark)
+
+    cabecera = encabezado_seccion(
+        ft.Icons.STAR_OUTLINE, color_slot(4, dark), _TITULO_TOP_RAZON_SOCIAL, _SUBTITULO_TOP_RAZON_SOCIAL, chips
+    )
+    return ft.Container(
+        content=ft.Column([cabecera, ft.Divider(height=1), cuerpo], spacing=10),
+        padding=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
+        border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+        border_radius=12,
+        shadow=sombra_tarjeta(),
+        col={"xs": 12, "lg": 6},
+    )
+
+
 def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     """Contenido de la sub-pestaña 'Segmentado'. Se construye UNA sola vez al
     armar la pestaña (dispara sus consultas al inicio); sus refrescos internos
@@ -310,7 +405,7 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     hoy = date.today()
     primer_dia_mes = hoy.replace(day=1)
     rango_sel: list[tuple[date, date]] = [(primer_dia_mes, hoy)]
-    resultados_actuales: list[list] = [[[] for _ in _SECCIONES] + [0, []]]
+    resultados_actuales: list[list] = [[[] for _ in _SECCIONES] + [0, [], []]]
     en_tabla = [False]  # False = gráfica, True = tabla, aplica a todas las secciones a la vez
 
     def _dark() -> bool:
@@ -344,21 +439,23 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     )
     cuerpo = ft.Column([hero_contenedor, secciones_contenedor], spacing=20, opacity=1.0, animate_opacity=200)
 
-    def _total_seguro(resultado) -> float:
-        """MXN. `resultado` es una lista de (etiqueta, mxn, usd, usd_convertido,
-        usd_sin_tc) por categoría — nunca se mezcla con el USD."""
+    def _valor_por_etiqueta(resultado, etiqueta: str) -> float:
+        """MXN de una sola categoría dentro de un resultado de sección
+        (etiqueta, mxn, usd, usd_convertido, usd_sin_tc), 0 si no aparece o la
+        consulta falló — nunca se mezcla con el USD."""
         if isinstance(resultado, Exception) or not resultado:
             return 0
-        return sum(mxn for _et, mxn, _usd, _conv, _sin_tc in resultado)
+        return next((mxn for et, mxn, _usd, _conv, _sin_tc in resultado if et == etiqueta), 0)
 
-    def _usd_seguro(resultado) -> float:
+    def _valor_usd_por_etiqueta(resultado, etiqueta: str) -> float:
+        """USD de una sola categoría (mismo contrato que `_valor_por_etiqueta`)."""
         if isinstance(resultado, Exception) or not resultado:
             return 0
-        return sum(usd for _et, _mxn, usd, _conv, _sin_tc in resultado)
+        return next((usd for et, _mxn, usd, _conv, _sin_tc in resultado if et == etiqueta), 0)
 
     def _refrescar_todo() -> None:
         dark = _dark()
-        *resultados_secciones, total_no_identificado, resultado_otras = resultados_actuales[0]
+        *resultados_secciones, total_no_identificado, resultado_otras, resultado_top = resultados_actuales[0]
         if isinstance(total_no_identificado, tuple):
             total_no_id_mxn, total_no_id_usd = total_no_identificado
         else:
@@ -366,21 +463,19 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
 
         # Banda hero: los grandes indicadores del periodo, en MXN únicamente.
         # No hay una tarjeta "USD total" aquí porque las secciones NO son
-        # conjuntos disjuntos (ej. "Sin identificar" se cruza con "Ingresos
-        # identificados") — sumar su USD daría un número que cuenta filas dos
+        # conjuntos disjuntos (ej. "Sin identificar" se cruza con "Distribuidora"
+        # y "Asociados") — sumar su USD daría un número que cuenta filas dos
         # veces. El USD de cada sección se muestra en su propia pastilla,
         # junto a su tarjeta (ver _construir_seccion), donde sí es correcto.
-        res_empresa = resultados_secciones[0] if resultados_secciones else []
-        res_gas = resultados_secciones[3] if len(resultados_secciones) > 3 else []
+        res_tipo_negocio = resultados_secciones[1] if len(resultados_secciones) > 1 else []
         subtexto_no_id = "sn_Identificada = NO en el rango"
         if total_no_id_usd:
             subtexto_no_id += f" · USD ${total_no_id_usd:,.2f} aparte"
         hero_contenedor.controls = [
-            hero_tile("Ingresos identificados", _total_seguro(res_empresa), color_slot(0, dark),
-                      ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
-                      "Asociados y Distribuidora (segmento principal)"),
-            hero_tile("Gaseras", _total_seguro(res_gas), color_slot(1, dark),
-                      ft.Icons.LOCAL_GAS_STATION_OUTLINED, "Segmento GasPetroil"),
+            hero_tile("Distribuidora", _valor_por_etiqueta(res_tipo_negocio, "Distribuidora"), color_slot(0, dark),
+                      ft.Icons.LOCAL_SHIPPING_OUTLINED, "Tipo de negocio Distribuidora (segmento principal)"),
+            hero_tile("Asociados", _valor_por_etiqueta(res_tipo_negocio, "Asociados"), color_slot(1, dark),
+                      ft.Icons.HANDSHAKE_OUTLINED, "Tipo de negocio Asociados (segmento principal)"),
             hero_tile("Sin identificar", total_no_id_mxn, "#e34948",
                       ft.Icons.HELP_OUTLINE, subtexto_no_id),
         ]
@@ -390,7 +485,10 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
                                 icono, color_slot(i, dark))
             for i, ((titulo_s, subtitulo_s, _consulta, vista, icono), resultado)
             in enumerate(zip(_SECCIONES, resultados_secciones))
-        ] + [_construir_seccion_otras_empresas(resultado_otras, dark)]
+        ] + [
+            _construir_seccion_otras_empresas(resultado_otras, dark),
+            _construir_seccion_top_razon_social(resultado_top, dark),
+        ]
 
     async def cargar(_e=None) -> None:
         cuerpo.opacity = 0.5  # mantiene el render anterior visible (sin salto de layout) mientras carga
@@ -404,6 +502,7 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
             *(consulta(fecha_inicio, fecha_fin) for _titulo, _subtitulo, consulta, _vista, _icono in _SECCIONES),
             _consultar_no_identificado(fecha_inicio, fecha_fin),
             _consultar_otras_empresas(fecha_inicio, fecha_fin),
+            _consultar_top_razon_social(fecha_inicio, fecha_fin),
             return_exceptions=True,
         )
         resultados_actuales[0] = resultados
@@ -420,14 +519,14 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     async def exportar_excel(_e) -> None:
         """Descarga un Excel con una hoja 'Resumen' (KPIs del periodo) + una
         hoja por sección (Empresa, Tipo de negocio, Sucursal, Sucursal
-        Gas, SF, Otras empresas), con los mismos filtros que ya aplica
-        esta vista (Asociados/Distribuidora, excluye pagos entre filiales,
-        GAS/Autotanque/sin sucursal — ver botón ⓘ)."""
+        Gas, SF, Otras empresas, Ingresos Significativos), con los mismos
+        filtros que ya aplica esta vista (Asociados/Distribuidora, excluye
+        pagos entre filiales, GAS/Autotanque/sin sucursal — ver botón ⓘ)."""
         boton_exportar.disabled = True
         page.update()
 
         fecha_inicio, fecha_fin = rango_sel[0]
-        *resultados_secciones, total_no_identificado, resultado_otras = resultados_actuales[0]
+        *resultados_secciones, total_no_identificado, resultado_otras, resultado_top = resultados_actuales[0]
         if isinstance(total_no_identificado, tuple):
             total_no_id_mxn, total_no_id_usd = total_no_identificado
         else:
@@ -438,15 +537,16 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
         wb = openpyxl.Workbook()
         ws_resumen = wb.active
         ws_resumen.title = "Resumen"
-        res_empresa = resultados_secciones[0] if resultados_secciones else []
-        res_gas = resultados_secciones[3] if len(resultados_secciones) > 3 else []
+        res_tipo_negocio = resultados_secciones[1] if len(resultados_secciones) > 1 else []
         escribir_hoja_excel(
             ws_resumen,
             ["Indicador", "Total MXN", "Total USD"],
             [
                 ["Periodo", f"{fecha_inicio.strftime('%d/%m/%Y')} – {fecha_fin.strftime('%d/%m/%Y')}", ""],
-                ["Ingresos identificados", round(_total_seguro(res_empresa), 2), round(_usd_seguro(res_empresa), 2)],
-                ["Gaseras", round(_total_seguro(res_gas), 2), round(_usd_seguro(res_gas), 2)],
+                ["Distribuidora", round(_valor_por_etiqueta(res_tipo_negocio, "Distribuidora"), 2),
+                 round(_valor_usd_por_etiqueta(res_tipo_negocio, "Distribuidora"), 2)],
+                ["Asociados", round(_valor_por_etiqueta(res_tipo_negocio, "Asociados"), 2),
+                 round(_valor_usd_por_etiqueta(res_tipo_negocio, "Asociados"), 2)],
                 ["Sin identificar", round(total_no_id_mxn, 2), round(total_no_id_usd, 2)],
             ],
         )
@@ -486,6 +586,28 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
                 ws_otras,
                 ["Empresa", "Filial NO", "Filial SI", "Total", "USD sin tipo de cambio"],
                 filas_otras,
+            )
+
+        ws_top = wb.create_sheet(nombre_hoja_valido(_TITULO_TOP_RAZON_SOCIAL, usados))
+        if isinstance(resultado_top, Exception):
+            escribir_hoja_excel(ws_top, ["Error"], [[f"No se pudo consultar: {resultado_top}"]])
+        else:
+            filas_top = [
+                [
+                    puesto,
+                    it["razon_social"],
+                    round(it.get("total_mxn") or 0, 2),
+                    round(it.get("total_usd") or 0, 2),
+                    round(it.get("total_usd_convertido") or 0, 2),
+                    round(it.get("total_final") or 0, 2),
+                    round(it.get("total_usd_sin_tc") or 0, 2),
+                ]
+                for puesto, it in enumerate(resultado_top, start=1)
+            ]
+            escribir_hoja_excel(
+                ws_top,
+                ["#", "Razón social", "MXN", "USD", "MXN convertido", "Total final", "USD sin tipo de cambio"],
+                filas_top,
             )
 
         nombre_def = f"dashboard_segmentado_{fecha_inicio:%Y%m%d}_{fecha_fin:%Y%m%d}.xlsx"
@@ -567,6 +689,12 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
             "Sin identificar: suma de todos los movimientos marcados como no "
             "identificados en el periodo, sin importar empresa, sucursal o tipo "
             "de negocio.",
+            "Ingresos Significativos: Top 20 de clientes (Razón Social) con mayor ingreso en el "
+            "periodo, sobre el mismo segmento principal que 'Empresa', 'Tipo de negocio' y "
+            "'Sucursal' (Asociados y Distribuidora, 3 empresas principales, excluye pagos entre "
+            "filiales, GAS, Autotanque y Corporativo) — sin segmentar por tipo de cliente, es un "
+            "solo ranking general (equivalente al mismo apartado en Proyección/Cobranza Semanal, "
+            "pero sin el filtro de Distribuidora/Asociados/Petroplazas).",
             "El tipo de negocio se reclasifica antes de agrupar, en este orden: "
             "de_CuentaBancaria = 'Abastecedora SF /AENE' o 'Petroplazas SF' se cuenta "
             "como 'SF'; los "

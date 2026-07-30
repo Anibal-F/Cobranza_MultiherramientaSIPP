@@ -35,6 +35,13 @@ def formato_compacto(valor: float) -> str:
     return f"{signo}${valor:,.2f}"
 
 
+def formato_moneda(valor: float) -> str:
+    """$580,497,376.78 -> $580,497,376.78 (monto completo, sin abreviar; el
+    detalle chico debajo del número grande en `hero_tile`)."""
+    signo = "-" if valor < 0 else ""
+    return f"{signo}${abs(valor):,.2f}"
+
+
 def preparar_tema_date_picker(page: ft.Page) -> None:
     """El diálogo compacto (entry_mode=INPUT) del DateRangePicker es angosto y
     el texto grande del rango ("Jul 1 – Jul 7") se corta a 2 líneas con el
@@ -220,12 +227,17 @@ def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "", forma
     """Tarjeta grande de la banda superior (hero): ícono en acento + valor
     grande + etiqueta. `valor` puede ser una Exception (consulta fallida).
     `formatear` por defecto es `formato_compacto` (monto en $) — pásalo
-    explícito para KPIs que no son monetarios (ej. un conteo de facturas)."""
+    explícito para KPIs que no son monetarios (ej. un conteo de facturas).
+    Con el formateador por defecto, debajo del monto abreviado se agrega el
+    monto completo (`formato_moneda`) en letra chica pero legible — solo
+    aplica al monto en $, no a KPIs no monetarios con `formatear` explícito."""
+    usa_formato_compacto = formatear is None
     formatear = formatear or formato_compacto
     if isinstance(valor, Exception):
-        valor_texto, valor_color = "—", ft.Colors.ON_SURFACE_VARIANT
+        valor_texto, valor_color, valor_completo = "—", ft.Colors.ON_SURFACE_VARIANT, None
     else:
         valor_texto, valor_color = formatear(valor), ft.Colors.ON_SURFACE
+        valor_completo = formato_moneda(valor) if usa_formato_compacto else None
     contenido = [
         ft.Row(
             [
@@ -243,6 +255,8 @@ def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "", forma
         ),
         ft.Text(valor_texto, size=26, weight=ft.FontWeight.W_700, color=valor_color),
     ]
+    if valor_completo:
+        contenido.append(ft.Text(valor_completo, size=11, color=ft.Colors.ON_SURFACE_VARIANT))
     if subtexto:
         contenido.append(ft.Text(subtexto, size=10, color=ft.Colors.ON_SURFACE_VARIANT))
     return ft.Container(
@@ -257,7 +271,7 @@ def hero_tile(etiqueta: str, valor, color: str, icono, subtexto: str = "", forma
         ),
         border_radius=12,
         shadow=sombra_tarjeta(),
-        height=124,  # alto fijo → las 4 tarjetas del hero quedan uniformes
+        height=144,  # alto fijo → las tarjetas del hero quedan uniformes (+20 vs antes por la línea de monto completo)
         col={"xs": 12, "sm": 6, "lg": 3},  # ancho responsivo: 4 por fila en pantallas anchas
     )
 
