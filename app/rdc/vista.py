@@ -1,7 +1,8 @@
 """Pestaña 'RDC': antigüedad de saldos vencidos, segmentada en Distribuidora,
-Asociados y Petroplazas — réplica de las macros `CargarAntiguedadSaldos` /
-`CargarAntiguedadAsociados` del Excel de Proyección, sobre la tabla
-`documentosClientes_AntiguedadSaldosVencidoPorClienteDetalle` de BigQuery."""
+Asociados, Petroplazas y Sin identificar — réplica de las macros
+`CargarAntiguedadSaldos` / `CargarAntiguedadAsociados` del Excel de Proyección,
+sobre la tabla `documentosClientes_AntiguedadSaldosVencidoPorClienteDetalle`
+de BigQuery."""
 
 import asyncio
 import math
@@ -134,6 +135,19 @@ def _construir_tabla_segmentos(items: list[tuple[str, float, float]]) -> ft.Cont
                 ]
             )
         )
+    total_vigente = sum(vigente for _s, vigente, _v3 in items)
+    total_vencido30 = sum(vencido30 for _s, _v, vencido30 in items)
+    filas.append(
+        ft.DataRow(
+            cells=[
+                ft.DataCell(ft.Text("Total", size=12, weight=ft.FontWeight.W_700)),
+                ft.DataCell(ft.Text(f"${total_vigente:,.2f}", size=12, weight=ft.FontWeight.W_700)),
+                ft.DataCell(ft.Text(f"${total_vencido30:,.2f}", size=12, weight=ft.FontWeight.W_700)),
+                ft.DataCell(ft.Text(f"${total_vigente + total_vencido30:,.2f}", size=12,
+                                    weight=ft.FontWeight.W_700)),
+            ]
+        )
+    )
     return ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Segmento", size=12)),
@@ -223,8 +237,8 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     titulo = ft.Text("Proyección", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
     subtitulo = ft.Text(
-        "Distribuidora, Asociados y Petroplazas · el saldo vigente se filtra por fecha de vencimiento "
-        "dentro del rango; el vencido a 30 días es el acumulado total a la fecha de corte.",
+        "Distribuidora, Asociados, Petroplazas y Sin identificar · el saldo vigente se filtra por fecha "
+        "de vencimiento dentro del rango; el vencido a 30 días es el acumulado total a la fecha de corte.",
         size=12,
         color=ft.Colors.ON_SURFACE_VARIANT,
     )
@@ -276,7 +290,8 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         col_tercio = {"xs": 12, "sm": 4}
         hero_contenedor.controls = [
             tile_compacta("Total cartera", total_vigente + total_vencido30, color_slot(2, dark),
-                          ft.Icons.ACCOUNT_BALANCE_OUTLINED, "Distribuidora + Asociados + Petroplazas",
+                          ft.Icons.ACCOUNT_BALANCE_OUTLINED,
+                          "Distribuidora + Asociados + Petroplazas + Sin identificar",
                           col=col_tercio),
             tile_compacta("Saldo vigente", total_vigente, color_slot(_COLOR_SLOT_VIGENTE, dark),
                           ft.Icons.SCHEDULE_OUTLINED, "Facturas con vencimiento en el rango seleccionado",
@@ -291,7 +306,8 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 [
                     encabezado_seccion(
                         ft.Icons.BAR_CHART_OUTLINED, color_slot(2, dark),
-                        "Vigente vs. vencido a 30 días", "Por segmento: Distribuidora, Asociados y Petroplazas",
+                        "Vigente vs. vencido a 30 días",
+                        "Por segmento: Distribuidora, Asociados, Petroplazas y Sin identificar",
                         [_leyenda_metricas(dark)],
                     ),
                     ft.Divider(height=1),
