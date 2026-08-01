@@ -22,6 +22,18 @@ TABLA = "sipp-app.Tableros.documentosClientes_AntiguedadSaldosVencidoPorClienteD
 # se excluyen. Si se agregan más prefijos en esa hoja, se agregan aquí.
 PREFIJOS_FACTURA_EXCLUIDOS = ["FCOR"]
 
+# Pedido directo del usuario (2026-08-01): estos 3 no son clientes reales para
+# efectos de Proyección — son las mismas 3 razones sociales que ya excluyen
+# Cobranza Semanal (cobranza_semanal_repository.RAZON_SOCIAL_EXCLUIDA) y
+# Dashboard Ingresos, pero ese filtro nunca se había replicado aquí. Coincidencia
+# EXACTA (no por prefijo/LIKE) — nombres parecidos de clientes reales (ej.
+# "Abastecedora de Combustible Estacion Dimas") deben seguir contando.
+CLIENTES_EXCLUIDOS = [
+    "ABASTECEDORA DE COMBUSTIBLES DEL PACIFICO",
+    "ACP COMBUSTIBLES",
+    "PETRO SMART COMBUSTIBLES",
+]
+
 # Orden de despliegue de los 3 tipos de negocio que maneja la macro.
 SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
 
@@ -60,6 +72,8 @@ class RdcRepository:
           de fecha — la macro sumaba la columna J de cada fila sin condicionarla a
           la fecha de vencimiento (comportamiento asimétrico, pero fiel al
           original).
+        - Se excluyen por completo (coincidencia exacta) los clientes de
+          CLIENTES_EXCLUIDOS — no son clientes reales para este concentrado.
         """
         query = f"""
             WITH filas AS (
@@ -73,6 +87,7 @@ class RdcRepository:
                   AND fl_FolioDocumento IS NOT NULL AND TRIM(fl_FolioDocumento) != ''
                   AND UPPER(TRIM(nb_Cliente)) != 'ICV'
                   AND NOT LOWER(nb_Cliente) LIKE '%totales%'
+                  AND UPPER(TRIM(nb_Cliente)) NOT IN UNNEST(@clientes_excluidos)
                   AND NOT EXISTS (
                       SELECT 1 FROM UNNEST(@prefijos_excluidos) AS prefijo
                       WHERE STARTS_WITH(UPPER(TRIM(fl_FolioDocumento)), prefijo)
@@ -90,6 +105,7 @@ class RdcRepository:
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ArrayQueryParameter("prefijos_excluidos", "STRING", PREFIJOS_FACTURA_EXCLUIDOS),
+                bigquery.ArrayQueryParameter("clientes_excluidos", "STRING", CLIENTES_EXCLUIDOS),
                 bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
                 bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
             ]
