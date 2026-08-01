@@ -34,17 +34,23 @@ CLIENTES_EXCLUIDOS = [
     "PETRO SMART COMBUSTIBLES",
 ]
 
-# Orden de despliegue de los 3 tipos de negocio que maneja la macro.
-SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
+# Orden de despliegue: los 3 tipos de negocio que maneja la macro + 'Sin
+# identificar' (pedido directo del usuario, 2026-08-01: ya no se descartan del
+# concentrado las filas sin cliente/folio o con un tipo de negocio que no cae
+# en ninguno de los 3 segmentos — se suman aparte en vez de desaparecer).
+SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas", "Sin identificar"]
 
 # Petroplazas se separa por nombre de cliente, sin importar nb_TipoDeNegocio —
 # así aparecía tanto en el reporte de Distribuidora como en el de Asociados en
-# la macro original. El resto de las filas se agrupa por nb_TipoDeNegocio.
-# GasPetroil (y tipo nulo) quedan fuera: la macro nunca los tocaba.
+# la macro original. El resto de las filas se agrupa por nb_TipoDeNegocio;
+# GasPetroil, tipo nulo, o cliente/folio vacíos caen en 'Sin identificar' —
+# la macro original las descartaba, pero el usuario pidió que ya no se pierdan
+# del concentrado.
 _SEGMENTO_POR_FILA = """CASE
         WHEN UPPER(TRIM(nb_Cliente)) = 'PETROPLAZAS' THEN 'Petroplazas'
         WHEN nb_TipoDeNegocio = 'Distribuidora' THEN 'Distribuidora'
         WHEN nb_TipoDeNegocio = 'Asociados' THEN 'Asociados'
+        ELSE 'Sin identificar'
     END"""
 
 
@@ -62,7 +68,7 @@ class RdcRepository:
 
     def antiguedad_saldos(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Saldo vigente y vencido a 30 días por segmento (Distribuidora, Asociados,
-        Petroplazas).
+        Petroplazas, Sin identificar).
 
         - Saldo vigente (im_CarteraVigente) solo cuenta si fh_Vencimiento cae en
           [fecha_inicio, fecha_fin] — igual que la columna H del Excel, que la
@@ -72,8 +78,15 @@ class RdcRepository:
           de fecha — la macro sumaba la columna J de cada fila sin condicionarla a
           la fecha de vencimiento (comportamiento asimétrico, pero fiel al
           original).
-        - Se excluyen por completo (coincidencia exacta) los clientes de
-          CLIENTES_EXCLUIDOS — no son clientes reales para este concentrado.
+        - Se excluyen por completo (coincidencia exacta, no se cuentan ni como
+          'Sin identificar') los clientes de CLIENTES_EXCLUIDOS, las filas
+          'ICV'/'Totales' y los folios con prefijo excluido (FCOR) — son basura
+          o entidades deliberadamente fuera del concentrado, no clientes sin
+          identificar.
+        - Cliente vacío, folio vacío, o tipo de negocio que no cae en Distribuidora/
+          Asociados/Petroplazas: en vez de descartarse (como hacía la macro
+          original), se agrupan en el segmento 'Sin identificar' — nada se pierde
+          del total.
         """
         query = f"""
             WITH filas AS (
@@ -83,14 +96,12 @@ class RdcRepository:
                     im_Vencido30Dias,
                     fh_Vencimiento
                 FROM `{self._tabla}`
-                WHERE nb_Cliente IS NOT NULL AND TRIM(nb_Cliente) != ''
-                  AND fl_FolioDocumento IS NOT NULL AND TRIM(fl_FolioDocumento) != ''
-                  AND UPPER(TRIM(nb_Cliente)) != 'ICV'
-                  AND NOT LOWER(nb_Cliente) LIKE '%totales%'
-                  AND UPPER(TRIM(nb_Cliente)) NOT IN UNNEST(@clientes_excluidos)
+                WHERE IFNULL(UPPER(TRIM(nb_Cliente)), '') != 'ICV'
+                  AND NOT LOWER(IFNULL(nb_Cliente, '')) LIKE '%totales%'
+                  AND IFNULL(UPPER(TRIM(nb_Cliente)), '') NOT IN UNNEST(@clientes_excluidos)
                   AND NOT EXISTS (
                       SELECT 1 FROM UNNEST(@prefijos_excluidos) AS prefijo
-                      WHERE STARTS_WITH(UPPER(TRIM(fl_FolioDocumento)), prefijo)
+                      WHERE STARTS_WITH(UPPER(TRIM(IFNULL(fl_FolioDocumento, ''))), prefijo)
                   )
             )
             SELECT
@@ -99,7 +110,6 @@ class RdcRepository:
                          THEN im_CarteraVigente ELSE 0 END) AS saldo_vigente,
                 SUM(im_Vencido30Dias) AS saldo_vencido_30
             FROM filas
-            WHERE segmento IS NOT NULL
             GROUP BY segmento
         """
         job_config = bigquery.QueryJobConfig(
