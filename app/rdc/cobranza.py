@@ -469,6 +469,9 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
 
     def _abrir_info(_e) -> None:
         lineas = [
+            "Solo cuentan movimientos de las 3 empresas principales (nb_Empresa): Abastecedora, "
+            "ACP Combustibles y Petro Smart — igual que el segmento principal de Dashboard Ingresos. "
+            "Cualquier otra empresa (ej. Mazpark Logístico, Elyon Logistics, GC Motors) queda fuera.",
             "Se excluyen registros cuya Razón Social sea exactamente 'Abastecedora de Combustibles "
             "del Pacifico', 'ACP Combustibles' o 'Petro Smart Combustibles'.",
             "Los registros cuya Razón Social sea EXACTAMENTE 'Petroplazas' se cuentan como segmento "

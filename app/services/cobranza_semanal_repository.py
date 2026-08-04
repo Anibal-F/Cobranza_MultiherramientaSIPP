@@ -5,6 +5,11 @@ sobre `Tableros.IgresosClientes`.
 Reglas de negocio (pedidas directamente, no vía el Config_Filtros de Excel
 que usa el resto del Dashboard Ingresos):
 
+- Solo cuentan movimientos de las 3 empresas principales (nb_Empresa):
+  Abastecedora, ACP Combustibles y Petro Smart — igual que el segmento
+  principal de Dashboard Ingresos (EMPRESAS_DASHBOARD). Cualquier otra
+  empresa (ej. Mazpark Logístico, Elyon Logistics, GC Motors) queda fuera,
+  sin importar su tipo de negocio o razón social.
 - Se excluyen registros cuya Razón Social (de_RazonSocial) sea exactamente
   'Abastecedora de Combustibles del Pacifico', 'ACP Combustibles' o
   'Petro Smart Combustibles'.
@@ -43,6 +48,11 @@ RAZON_SOCIAL_EXCLUIDA = [
     "PETRO SMART COMBUSTIBLES",
 ]
 SUCURSAL_EXCLUIDA_CONTIENE = ["gas", "autotanque", "gc", "corporativo"]
+# Mismas 3 empresas principales que Dashboard Ingresos (EMPRESAS_DASHBOARD en
+# dashboard_repository.py) — pedido directo del usuario (2026-08-03): Cobranza
+# Semanal no traía este filtro y estaba sumando movimientos de OTRAS empresas
+# (ej. Mazpark Logístico, Elyon Logistics) que no deben contar aquí.
+EMPRESAS_PRINCIPALES = ["Abastecedora", "ACP Combustibles", "Petro Smart"]
 MONEDA_USD = "dolar (usd)"
 
 SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
@@ -91,6 +101,7 @@ class CobranzaSemanalRepository:
     def _parametros(self, fecha_inicio: date, fecha_fin: date) -> list:
         parametros = [
             bigquery.ArrayQueryParameter("razon_social_excluida", "STRING", RAZON_SOCIAL_EXCLUIDA),
+            bigquery.ArrayQueryParameter("empresas", "STRING", EMPRESAS_PRINCIPALES),
             bigquery.ScalarQueryParameter("fecha_inicio", "DATE", fecha_inicio),
             bigquery.ScalarQueryParameter("fecha_fin", "DATE", fecha_fin),
             bigquery.ScalarQueryParameter("moneda_usd", "STRING", MONEDA_USD),
@@ -133,7 +144,8 @@ class CobranzaSemanalRepository:
                     im_Movimiento,
                     nb_Moneda
                 FROM `{self._tabla}`
-                WHERE UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
+                WHERE nb_Empresa IN UNNEST(@empresas)
+                  AND UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
                   AND {self._condiciones_sucursal()}
                   AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
             ),
@@ -171,7 +183,8 @@ class CobranzaSemanalRepository:
                     im_Movimiento,
                     nb_Moneda
                 FROM `{self._tabla}`
-                WHERE UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
+                WHERE nb_Empresa IN UNNEST(@empresas)
+                  AND UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
                   AND {self._condiciones_sucursal()}
                   AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
             ),
@@ -226,7 +239,8 @@ class CobranzaSemanalRepository:
                     im_Movimiento,
                     nb_Moneda
                 FROM `{self._tabla}`
-                WHERE UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
+                WHERE nb_Empresa IN UNNEST(@empresas)
+                  AND UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
                   AND {self._condiciones_sucursal()}
                   AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
             ),
