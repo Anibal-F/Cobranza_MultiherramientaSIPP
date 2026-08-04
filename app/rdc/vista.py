@@ -1,8 +1,7 @@
 """Pestaña 'RDC': antigüedad de saldos vencidos, segmentada en Distribuidora,
-Asociados, Petroplazas y Sin identificar — réplica de las macros
-`CargarAntiguedadSaldos` / `CargarAntiguedadAsociados` del Excel de Proyección,
-sobre la tabla `documentosClientes_AntiguedadSaldosVencidoPorClienteDetalle`
-de BigQuery."""
+Asociados y Petroplazas — réplica de las macros `CargarAntiguedadSaldos` /
+`CargarAntiguedadAsociados` del Excel de Proyección, sobre la tabla
+`documentosClientes_AntiguedadSaldosVencidoPorClienteDetalle` de BigQuery."""
 
 import asyncio
 import math
@@ -237,8 +236,8 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     titulo = ft.Text("Proyección", size=20, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE)
     subtitulo = ft.Text(
-        "Distribuidora, Asociados, Petroplazas y Sin identificar · el saldo vigente se filtra por fecha "
-        "de vencimiento dentro del rango; el vencido a 30 días es el acumulado total a la fecha de corte.",
+        "Distribuidora, Asociados y Petroplazas · el saldo vigente se filtra por fecha de vencimiento "
+        "dentro del rango; el vencido a 30 días es el acumulado total a la fecha de corte.",
         size=12,
         color=ft.Colors.ON_SURFACE_VARIANT,
     )
@@ -290,8 +289,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         col_tercio = {"xs": 12, "sm": 4}
         hero_contenedor.controls = [
             tile_compacta("Total cartera", total_vigente + total_vencido30, color_slot(2, dark),
-                          ft.Icons.ACCOUNT_BALANCE_OUTLINED,
-                          "Distribuidora + Asociados + Petroplazas + Sin identificar",
+                          ft.Icons.ACCOUNT_BALANCE_OUTLINED, "Distribuidora + Asociados + Petroplazas",
                           col=col_tercio),
             tile_compacta("Saldo vigente", total_vigente, color_slot(_COLOR_SLOT_VIGENTE, dark),
                           ft.Icons.SCHEDULE_OUTLINED, "Facturas con vencimiento en el rango seleccionado",
@@ -306,8 +304,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                 [
                     encabezado_seccion(
                         ft.Icons.BAR_CHART_OUTLINED, color_slot(2, dark),
-                        "Vigente vs. vencido a 30 días",
-                        "Por segmento: Distribuidora, Asociados, Petroplazas y Sin identificar",
+                        "Vigente vs. vencido a 30 días", "Por segmento: Distribuidora, Asociados y Petroplazas",
                         [_leyenda_metricas(dark)],
                     ),
                     ft.Divider(height=1),
