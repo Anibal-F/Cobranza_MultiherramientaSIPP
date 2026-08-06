@@ -277,17 +277,34 @@ class DashboardRepository:
 
     def agregado_sucursal_gas(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Total de im_Movimiento por sucursal para el segmento GasPetroil (las
-        mismas 3 empresas, pero tipo de negocio GasPetroil en vez de
-        Asociados/Distribuidora — usando el tipo de negocio "efectivo", ver
-        TIPO_NEGOCIO_EFECTIVO). Aquí NO se excluyen sucursales de GAS/Autotanque
-        — son precisamente el objeto de esta vista. Ordenado de mayor a menor."""
+        mismas 3 empresas). Una fila entra aquí si CUALQUIERA de estas dos
+        condiciones se cumple:
+
+        - Su tipo de negocio "efectivo" (ver TIPO_NEGOCIO_EFECTIVO) es GasPetroil,
+          sin importar el nombre de la sucursal (hay sucursales GasPetroil que no
+          se llaman "... GAS ..." ni "Autotanque", ej. "Ciudad Obregon").
+        - Su SUCURSAL contiene "gas" o "autotanque" en el nombre, sin importar su
+          tipo de negocio — pedido directo del usuario (2026-08-04): hay clientes
+          (Distribuidora/Asociados) que venden en una sucursal de gas pero están
+          registrados con ese tipo de negocio, no GasPetroil. Antes esas filas no
+          aparecían en NINGUNA sección del dashboard: 'Sucursal' (segmento
+          principal) las excluye por el nombre de sucursal, y esta vista las
+          excluía por no ser GasPetroil. Ahora si la sucursal es de gas, cuenta
+          aquí sin importar el tipo de negocio.
+
+        Aquí NO se excluyen sucursales de GAS/Autotanque — son precisamente el
+        objeto de esta vista. Ordenado de mayor a menor."""
         query = f"""
             WITH {_CTE_FX_DIARIO},
             filas AS (
                 SELECT nb_sucursal AS etiqueta, DATE(fh_Envio) AS fecha, im_Movimiento, nb_Moneda
                 FROM `{self._tabla}`
                 WHERE nb_Empresa IN UNNEST(@empresas)
-                  AND ({TIPO_NEGOCIO_EFECTIVO}) = 'GasPetroil'
+                  AND (
+                      ({TIPO_NEGOCIO_EFECTIVO}) = 'GasPetroil'
+                      OR LOWER(nb_sucursal) LIKE '%gas%'
+                      OR LOWER(nb_sucursal) LIKE '%autotanque%'
+                  )
                   AND sn_PagoFilial = 'NO'
                   AND nb_sucursal IS NOT NULL
                   AND nb_sucursal != ''
