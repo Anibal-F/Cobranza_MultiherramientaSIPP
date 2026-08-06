@@ -131,8 +131,8 @@ _SECCIONES = [
     ),
     (
         "Sucursal (Gaseras)",
-        "Segmento GasPetroil o sucursal de gas/autotanque (sin importar tipo de negocio) · excluye "
-        "pagos entre filiales",
+        "Sucursal que contenga \"gas\" en el nombre (sin importar tipo de negocio) · excluye pagos "
+        "entre filiales",
         _consultar_sucursal_gas,
         "ranked",
         ft.Icons.LOCAL_GAS_STATION_OUTLINED,
@@ -670,13 +670,9 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
             "incluyen pagos entre filiales ni movimientos de sucursales de GAS, "
             "Autotanque, Corporativo o sin sucursal asignada.",
             "Gaseras (Sucursal Gasolineras): mismas 3 empresas principales. Entra una fila si el "
-            "segmento (tipo de negocio efectivo) es GasPetroil, O si el nombre de la sucursal "
-            "contiene 'gas' o 'autotanque' — sin importar el tipo de negocio del cliente. Esto "
-            "último cubre clientes registrados como Distribuidora/Asociados que venden en una "
-            "sucursal de gas: antes no aparecían en ninguna sección (ni aquí, por no ser GasPetroil, "
-            "ni en 'Sucursal', que excluye sucursales de gas por nombre). Aquí sí se incluyen las "
-            "sucursales de GAS y Autotanque, porque son precisamente el objeto de esta vista (solo se "
-            "excluyen las filas sin ninguna sucursal asignada). Tampoco incluye pagos entre filiales.",
+            "nombre de la sucursal contiene 'gas' — sin importar el tipo de negocio del cliente "
+            "(Distribuidora, Asociados, GasPetroil, lo que sea) ni si es Autotanque. Tampoco incluye "
+            "pagos entre filiales.",
             "SF: mismas 3 empresas principales, pero solo el segmento SF (cuentas "
             "bancarias de_CuentaBancaria = 'Abastecedora SF /AENE' o 'Petroplazas SF', "
             "reclasificadas como tipo de negocio 'SF'). Excluye pagos entre filiales, pero a "
