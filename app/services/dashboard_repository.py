@@ -277,18 +277,18 @@ class DashboardRepository:
 
     def agregado_sucursal_gas(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Total de im_Movimiento por sucursal, para las mismas 3 empresas
-        principales, cuya SUCURSAL contenga la palabra "gas" en el nombre —
-        sin importar el tipo de negocio del cliente (Distribuidora, Asociados,
-        GasPetroil, lo que sea). Pedido directo del usuario (2026-08-04):
-        el criterio es puramente por sucursal, ya no se considera el tipo de
-        negocio ni "Autotanque". Ordenado de mayor a menor."""
+        principales, cuya SUCURSAL contenga la palabra "gas" o "autotanque" en
+        el nombre — sin importar el tipo de negocio del cliente (Distribuidora,
+        Asociados, GasPetroil, lo que sea). Pedido directo del usuario
+        (2026-08-04): el criterio es puramente por sucursal, ya no se considera
+        el tipo de negocio. Ordenado de mayor a menor."""
         query = f"""
             WITH {_CTE_FX_DIARIO},
             filas AS (
                 SELECT nb_sucursal AS etiqueta, DATE(fh_Envio) AS fecha, im_Movimiento, nb_Moneda
                 FROM `{self._tabla}`
                 WHERE nb_Empresa IN UNNEST(@empresas)
-                  AND LOWER(nb_sucursal) LIKE '%gas%'
+                  AND (LOWER(nb_sucursal) LIKE '%gas%' OR LOWER(nb_sucursal) LIKE '%autotanque%')
                   AND sn_PagoFilial = 'NO'
                   AND {FILTRO_CUENTA_BANCARIA_EXCLUIDA}
                   AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
