@@ -1,10 +1,39 @@
 import asyncio
+import logging
 import os
 import re
 import unicodedata
 from datetime import date, datetime
+from difflib import SequenceMatcher
 from typing import Callable, Dict, List, Optional, Tuple
 from playwright.async_api import async_playwright, Page
+
+from app import coincidencia_clientes as coincidencia
+from app import logs
+
+_log = logs.obtener_logger("rpa.automation")
+
+
+class ClienteNoConfiable(Exception):
+    """El combo de SIPP no ofreció ninguna opción que sea claramente el cliente.
+
+    Se lanza en vez de seleccionar "la primera que aparezca": capturar un pago al
+    cliente equivocado es mucho peor que dejar la fila pendiente. Quien la atrapa
+    registra la incidencia y sigue con el resto de los movimientos.
+    """
+
+    def __init__(self, buscado: str, motivo: str):
+        self.buscado = buscado
+        self.motivo = motivo
+        super().__init__(f"No se asignó '{buscado}': {motivo}")
+
+# Equivalencia entre los niveles que usa la UI del RPA y los de logging.
+_NIVELES_LOG = {
+    "info": logging.INFO,
+    "ok": logging.INFO,
+    "warn": logging.WARNING,
+    "error": logging.ERROR,
+}
 
 # URL de login de SIPP. Producción por default; con SIPP_ENV=test (o stage/qa)
 # el RPA apunta al entorno de pruebas. El resto de pantallas derivan su URL de
@@ -404,6 +433,10 @@ class RPAAutomation:
         self._base_navegacion = ""  # origen SIPP para navegar pestañas nuevas
         self.skipped: List[str] = []
         self.not_found: List[str] = []
+        # Movimientos que NO se capturaron porque el cliente no coincidía con
+        # ninguna opción de SIPP. Se le muestran al usuario al final (ver
+        # resumen_incidencias()) en vez de asignar un cliente equivocado.
+        self.incidencias_cliente: List[coincidencia.Incidencia] = []
         # Conteos de lo que el RPA REALMENTE hizo (no de lo que se le pidió). La UI
         # los pinta como resumen para que el usuario no tenga que leer el log crudo:
         # los mensajes técnicos (reintentos, volcados de HTML) iban en naranja/rojo y
@@ -476,11 +509,21 @@ class RPAAutomation:
         return {"no_viewport": True}
 
     def log(self, mensaje: str, nivel: str = "info") -> None:
-        """Envía el mensaje al callback de la UI y además a la terminal: los
-        diálogos de la app se cierran al terminar y sus logs se pierden, así que
-        la consola queda como registro persistente para depurar."""
+        """Envía el mensaje al callback de la UI y además al registro persistente.
+
+        Los diálogos de la app se cierran al terminar y sus logs se pierden, así
+        que todo pasa también por `app.logs`: archivo local JSON-lines + BigQuery.
+        """
         try:
             self._log_fn(mensaje, nivel)
+        except Exception:
+            pass
+        try:
+            _log.log(
+                _NIVELES_LOG.get(nivel, logging.INFO),
+                mensaje,
+                extra={"accion": "rpa", "nivel_rpa": nivel},
+            )
         except Exception:
             pass
         if self._log_fn is not print:
@@ -633,11 +676,19 @@ class RPAAutomation:
         await page.wait_for_timeout(2_500)
         self.log("Sesión guardada.", "ok")
 
-    async def _chosen_select(self, page: Page, ng_model: str, text_filter: str):
+    async def _chosen_select(
+        self, page: Page, ng_model: str, text_filter: str, validar: bool = False
+    ):
         """
         Interact with a chosen-enhanced <select> by clicking through its UI.
         Finds the chosen container associated with the select that has the given
         ng-model, opens it, types to filter, and clicks the matching option.
+
+        `validar=True` exige que la opción elegida corresponda de verdad al texto
+        buscado (ver app/coincidencia_clientes.py) y lanza `ClienteNoConfiable` si
+        no hay certeza. Se usa para el combo de CLIENTE, donde equivocarse manda el
+        pago a otra empresa. Para empresa/sucursal/cuenta bancaria —valores fijos
+        que nosotros mismos configuramos— se deja en False.
         """
         # Find the chosen container via JS (it's inserted right after the hidden select)
         container_id = await page.evaluate(f"""() => {{
@@ -695,34 +746,72 @@ class RPAAutomation:
                 "warn",
             )
 
-        # Elegir el mejor resultado visible: el que contenga el texto de búsqueda
-        # actual; si no, el primero. Se marca con un atributo para hacerle un clic
-        # real (chosen selecciona al hacer clic en el <li>).
-        hay = await container.evaluate(
-            """(c) => {
-                const norm = (t) => (t || '').trim().toLowerCase();
-                const buscado = norm(c.querySelector('.chosen-search input')?.value);
-                const visibles = Array.from(c.querySelectorAll('.chosen-results li.active-result'))
-                    .filter(li => { const s = getComputedStyle(li);
-                        return s.display !== 'none' && s.visibility !== 'hidden'; });
-                if (!visibles.length) return false;
-                let obj = visibles[0];
-                if (buscado) {
-                    const m = visibles.find(li => norm(li.textContent).includes(buscado));
-                    if (m) obj = m;
-                }
-                c.querySelectorAll('li[data-rpa-pick]').forEach(li => li.removeAttribute('data-rpa-pick'));
-                obj.setAttribute('data-rpa-pick', '1');
-                return true;
-            }"""
-        )
-        if not hay:
+        # Ya con la lista filtrada, se decide en Python cuál opción corresponde.
+        opciones = await self._textos_visibles_chosen(container)
+        if not opciones:
             raise RuntimeError(
                 f"No se encontró ningún resultado en el combo para '{text_filter}' "
                 f"(ng-model='{ng_model}')."
             )
+
+        if validar:
+            # ANTES: si el texto recortado ya no coincidía con nada, se tomaba la
+            # PRIMERA opción visible y se capturaba el pago a un cliente ajeno.
+            # AHORA: si no hay una coincidencia clara, no se elige nada.
+            veredicto = coincidencia.elegir(text_filter, opciones)
+            logs.evento(
+                _log,
+                "cliente_combo_evaluado",
+                nivel=logging.INFO if veredicto.aceptado else logging.WARNING,
+                buscado=text_filter,
+                elegido=veredicto.texto,
+                score=round(veredicto.score, 3),
+                motivo=veredicto.motivo,
+                opciones=opciones[:10],
+                total_opciones=len(opciones),
+                caracteres_borrados=borrados,
+            )
+            if not veredicto.aceptado:
+                # Se cierra el desplegable para no dejar la pantalla a medias.
+                try:
+                    await page.keyboard.press("Escape")
+                except Exception:
+                    pass
+                self.log(f"    ⚠️ {text_filter}: {veredicto.motivo}", "warn")
+                raise ClienteNoConfiable(text_filter, veredicto.motivo)
+            indice = veredicto.indice
+        else:
+            # Valores que nosotros configuramos (empresa, sucursal, cuenta): se
+            # prefiere el que contenga el texto buscado y si no, el primero.
+            buscado_norm = coincidencia.normalizar(text_filter)
+            indice = 0
+            for i, texto in enumerate(opciones):
+                if buscado_norm and buscado_norm in coincidencia.normalizar(texto):
+                    indice = i
+                    break
+
+        # Clic real sobre el <li> (chosen solo selecciona con un clic de verdad).
+        await container.evaluate(
+            """(c, i) => {
+                const visibles = Array.from(c.querySelectorAll('.chosen-results li.active-result'))
+                    .filter(li => { const s = getComputedStyle(li);
+                        return s.display !== 'none' && s.visibility !== 'hidden'; });
+                c.querySelectorAll('li[data-rpa-pick]').forEach(li => li.removeAttribute('data-rpa-pick'));
+                if (visibles[i]) visibles[i].setAttribute('data-rpa-pick', '1');
+            }""",
+            indice,
+        )
         await container.locator("li[data-rpa-pick='1']").first.click()
         await page.wait_for_timeout(300)
+
+    async def _textos_visibles_chosen(self, container) -> List[str]:
+        """Textos de las opciones VISIBLES del combo, en el orden en que se ven."""
+        return await container.evaluate(
+            """(c) => Array.from(c.querySelectorAll('.chosen-results li.active-result'))
+                .filter(li => { const s = getComputedStyle(li);
+                    return s.display !== 'none' && s.visibility !== 'hidden'; })
+                .map(li => (li.textContent || '').trim())"""
+        )
 
     async def _num_resultados_chosen(self, container) -> int:
         """Cuenta los resultados VISIBLES (li.active-result) de un combo chosen."""
@@ -1302,23 +1391,25 @@ class RPAAutomation:
                     count = await resultados.count()
                     guard += 1
 
-                elegido = None
-                if count == 1:
-                    elegido = resultados.first
-                elif count > 1:
-                    # Varias opciones: preferimos match exacto por texto; si no hay,
-                    # no adivinamos (se deja la fila vacía).
-                    exacto = combo.locator(
-                        f".chosen-results li.active-result:has-text('{cliente}')"
-                    ).first
-                    if await exacto.count():
-                        elegido = exacto
+                # Con la lista ya filtrada se decide en Python. Quedar en UNA sola
+                # opción NO basta: tras borrar caracteres esa única opción puede ser
+                # de otro cliente. Se exige parecido real con el nombre buscado
+                # (ver app/coincidencia_clientes.py); si no lo hay, la fila se deja
+                # vacía y se reporta, en vez de asignar a quien no es.
+                opciones = await self._textos_visibles_chosen(combo)
+                veredicto = coincidencia.elegir(cliente, opciones)
+                logs.evento(
+                    _log, "cliente_preview_evaluado",
+                    nivel=logging.INFO if veredicto.aceptado else logging.WARNING,
+                    fila=i, buscado=cliente, elegido=veredicto.texto,
+                    score=round(veredicto.score, 3), motivo=veredicto.motivo,
+                    opciones=opciones[:10], total_opciones=len(opciones),
+                    caracteres_borrados=guard,
+                )
+                if not veredicto.aceptado:
+                    raise ClienteNoConfiable(cliente, veredicto.motivo)
 
-                if elegido is None:
-                    raise RuntimeError(
-                        f"el dropdown no se redujo a una sola opción para '{cliente}'"
-                    )
-
+                elegido = resultados.nth(veredicto.indice)
                 cliente_asignado = (await elegido.inner_text()).strip()
                 await elegido.click()
                 await page.wait_for_timeout(200)
@@ -1388,6 +1479,14 @@ class RPAAutomation:
                     f"sucursal '{etiqueta_suc}' [{origen_suc}].",
                     "ok",
                 )
+            except ClienteNoConfiable as exc:
+                # La fila se queda vacía a propósito: el usuario la completa en SIPP.
+                self.contar("sin_cliente_confiable")
+                self.registrar_incidencia_cliente(
+                    fila=i + 1, cliente=exc.buscado, motivo=exc.motivo,
+                    referencia=referencia_modal,
+                )
+                omitidas += 1
             except Exception as exc:
                 self.contar("errores")
                 self.log(f"  Error llenando fila {i + 1} ({referencia_modal}): {exc}", "error")
@@ -1398,6 +1497,8 @@ class RPAAutomation:
             "cliente identificado (dejadas vacías).",
             "info",
         )
+        if self.incidencias_cliente:
+            self.log(self.resumen_incidencias(total_filas), "warn")
         return pendientes
 
     async def _agregar_movimientos_archivo_banco(self, page: Page) -> None:
@@ -1631,6 +1732,8 @@ class RPAAutomation:
             "en SIPP (sucursales e importes) y presiona Guardar cuando estés conforme.",
             "ok",
         )
+        if self.incidencias_cliente:
+            self.log(self.resumen_incidencias(len(movimientos)), "warn")
         return agregados
 
     async def _agregar_un_movimiento_manual(
@@ -1670,7 +1773,7 @@ class RPAAutomation:
                 self.log("    sin cliente: se captura solo el importe (a identificar en SIPP).", "warn")
             else:
                 paso = "seleccionar cliente"
-                await self._chosen_select(page, "ID_CLIENTE", cliente)
+                await self._chosen_select(page, "ID_CLIENTE", cliente, validar=True)
                 await page.wait_for_timeout(300)
 
                 # Deja UNA sola sucursal (SIPP agrega una por cada sucursal del
@@ -1697,6 +1800,16 @@ class RPAAutomation:
             self.contar("capturados_manual")
             self.log(f"  Movimiento {i + 1} agregado.", "ok")
             return True
+        except ClienteNoConfiable as exc:
+            # No es un error del RPA: es la salvaguarda funcionando. El movimiento
+            # se deja pendiente y se reporta al usuario al terminar.
+            self.contar("sin_cliente_confiable")
+            self.registrar_incidencia_cliente(
+                fila=i + 1, cliente=exc.buscado, motivo=exc.motivo,
+                referencia=referencia, monto=monto,
+            )
+            await self._cerrar_modal_agregar_silencioso(page)
+            return False
         except Exception as exc:
             self.contar("errores")
             self.log(f"  Error agregando movimiento {i + 1} en '{paso}': {exc}", "error")
@@ -1710,6 +1823,47 @@ class RPAAutomation:
             except Exception:
                 pass
             return False
+
+    async def _cerrar_modal_agregar_silencioso(self, page: Page) -> None:
+        """Oculta el modal 'Agregar Movimientos' para no bloquear el siguiente
+        movimiento, sin fallar si ya estaba cerrado."""
+        try:
+            await page.evaluate(
+                "() => { const m = document.querySelector('#divBloqueo_modalAgregarMovimientos');"
+                " if (m) m.classList.add('ng-hide'); }"
+            )
+        except Exception:
+            pass
+
+    def registrar_incidencia_cliente(
+        self, cliente: str, motivo: str, fila: Optional[int] = None,
+        referencia: str = "", monto: Optional[float] = None,
+    ) -> None:
+        """Anota un movimiento que se dejó SIN capturar por no poder identificar
+        al cliente con certeza, y lo deja en el log para soporte."""
+        self.incidencias_cliente.append(
+            coincidencia.Incidencia(
+                fila=fila, cliente_buscado=cliente, motivo=motivo,
+                referencia=referencia, monto=monto,
+            )
+        )
+        self.log(
+            f"  Movimiento {fila if fila is not None else ''} NO capturado: "
+            f"'{cliente}' — {motivo}",
+            "warn",
+        )
+        logs.evento(
+            _log, "cliente_no_asignado", nivel=logging.WARNING,
+            fila=fila, cliente=cliente, motivo=motivo,
+            referencia=referencia, monto=monto,
+        )
+
+    def resumen_incidencias(self, total_procesados: int = 0) -> str:
+        """Texto para mostrarle al usuario al terminar la corrida. Vacío si no
+        hubo incidencias."""
+        if not self.incidencias_cliente:
+            return ""
+        return coincidencia.resumen(self.incidencias_cliente, total_procesados)
 
     async def _esperar_cierre_modal_agregar(self, page: Page, timeout: int = 15_000) -> bool:
         """Espera a que el modal 'Agregar Movimientos' se cierre, detectando
@@ -2137,7 +2291,7 @@ class RPAAutomation:
 
                 paso = "seleccionar cliente"
                 self.log(f"  [paso] seleccionando cliente '{cliente}'...", "info")
-                await self._chosen_select(page, "ID_CLIENTE", cliente)
+                await self._chosen_select(page, "ID_CLIENTE", cliente, validar=True)
                 await page.wait_for_timeout(300)
 
                 # Deja UNA sola sucursal (si el cliente tiene varias, SIPP crea una
@@ -2172,6 +2326,15 @@ class RPAAutomation:
                 agregados += 1
                 self.contar("capturados_manual")
                 self.log(f"  Movimiento {i + 1} agregado: cliente '{cliente}', plaza '{plaza}'.", "ok")
+            except ClienteNoConfiable as exc:
+                # Salvaguarda: el combo no ofreció al cliente correcto. Se deja el
+                # pago pendiente y se le informa al usuario en el resumen final.
+                self.contar("sin_cliente_confiable")
+                self.registrar_incidencia_cliente(
+                    fila=i + 1, cliente=exc.buscado, motivo=exc.motivo,
+                    referencia=referencia, monto=monto,
+                )
+                await self._cerrar_modal_agregar_silencioso(page)
             except Exception as exc:
                 self.contar("errores")
                 self.log(
@@ -2180,6 +2343,8 @@ class RPAAutomation:
                 )
                 await self._volcar_html(page, f"modal_mov_{i + 1}")
 
+        if self.incidencias_cliente:
+            self.log(self.resumen_incidencias(len(pagos)), "warn")
         return agregados, comprobantes
 
     async def _valor_opcion_en_select(self, select_locator, nombre: str):
