@@ -1,0 +1,79 @@
+<!-- Doble de prueba del combo de clientes de SIPP.
+
+Reproduce la MISMA estructura de DOM y el mismo comportamiento que la librería
+`chosen` (la que usa SIPP): un <select> oculto, un div.chosen-container hermano,
+una caja de búsqueda y una lista <li class="active-result"> que se filtra con los
+eventos de teclado. Sirve para probar el RPA sin conectarse a SIPP.
+
+La lista de clientes se inyecta desde la prueba con window.cargarClientes([...]).
+-->
+<meta charset="utf-8">
+<title>Combo chosen (doble de prueba)</title>
+<style>
+  .chosen-container { position: relative; width: 420px; font-family: sans-serif; }
+  .chosen-drop { display: none; border: 1px solid #ccc; }
+  .chosen-container.chosen-with-drop .chosen-drop { display: block; }
+  .chosen-results { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
+  .chosen-results li { padding: 4px 8px; cursor: pointer; }
+  .chosen-results li.hidden-result { display: none; }
+</style>
+
+<select ng-model="ID_CLIENTE" style="display:none"></select>
+<div class="chosen-container">
+  <a class="chosen-single"><span>Seleccionar</span></a>
+  <div class="chosen-drop">
+    <div class="chosen-search"><input type="text" autocomplete="off"></div>
+    <ul class="chosen-results"></ul>
+  </div>
+</div>
+
+<script>
+const sel   = document.querySelector("select[ng-model='ID_CLIENTE']");
+const cont  = document.querySelector(".chosen-container");
+const lista = cont.querySelector(".chosen-results");
+const busca = cont.querySelector(".chosen-search input");
+const unico = cont.querySelector("a.chosen-single span");
+
+// Lo que la prueba consulta al final para saber qué se seleccionó.
+window.seleccionado = null;
+
+window.cargarClientes = function (clientes) {
+  sel.innerHTML = "";
+  lista.innerHTML = "";
+  clientes.forEach((texto, i) => {
+    sel.add(new Option(texto, String(i)));
+    const li = document.createElement("li");
+    li.className = "active-result";
+    li.textContent = texto;
+    li.addEventListener("mousedown", () => {   // chosen selecciona en mousedown
+      window.seleccionado = texto;
+      unico.textContent = texto;
+      cont.classList.remove("chosen-with-drop");
+    });
+    lista.appendChild(li);
+  });
+  window.seleccionado = null;
+  unico.textContent = "Seleccionar";
+};
+
+cont.querySelector("a.chosen-single").addEventListener("click", () => {
+  cont.classList.add("chosen-with-drop");
+  busca.value = "";
+  filtrar();
+  busca.focus();
+});
+
+// Filtrado idéntico al de chosen: por SUBCADENA, sin acentos y en minúsculas,
+// escuchando keyup (por eso el RPA teclea en vez de usar fill()).
+function filtrar() {
+  const q = busca.value.trim().toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  lista.querySelectorAll("li").forEach(li => {
+    const t = li.textContent.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "");
+    li.classList.toggle("hidden-result", q !== "" && !t.includes(q));
+    li.classList.toggle("active-result", q === "" || t.includes(q));
+  });
+}
+busca.addEventListener("keyup", filtrar);
+</script>

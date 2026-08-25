@@ -1,0 +1,8 @@
+# Dependencias SOLO para correr las pruebas (no se instalan en las máquinas de
+# los usuarios). Instalar con:  pip install -r requirements-dev.txt
+#
+# Correr las pruebas:           python -m pytest tests/ -v
+# Las pruebas con navegador necesitan además:
+#                               python -m playwright install chromium
+pytest>=8.0
+pytest-asyncio>=0.24

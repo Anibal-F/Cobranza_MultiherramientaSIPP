@@ -17,6 +17,9 @@ html_pages/
 *.html
 Reporte_Estado_de_Cuenta.xlsx
 
+# Excepción: el doble de prueba del combo de SIPP es código de pruebas, no datos.
+!tests/combo_chosen_falso.html
+
 historial_extracciones.json
 # Leyendas de devolución de cheque (configuración por máquina, editable en la UI)
 leyendas_cheque.json
