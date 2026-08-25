@@ -1,5 +1,6 @@
 import flet as ft
 
+from app import logs
 from app.main import main
 
 
@@ -19,5 +20,8 @@ def _fijar_appusermodelid() -> None:
 
 
 if __name__ == "__main__":
+    # Se configura ANTES que nada para que cualquier error de arranque quede
+    # registrado en el archivo local y en BigQuery (ver app/logs.py).
+    logs.configurar()
     _fijar_appusermodelid()
     ft.run(main)
