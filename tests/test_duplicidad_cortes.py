@@ -87,6 +87,20 @@ def test_el_mismo_movimiento_conserva_su_llave_entre_cortes(corte_1, corte_2):
 # ──────────────────────────────────────────────────────────
 
 
+def _marcar_repetidos(historial, movimientos, banco="BBVA"):
+    """Replica lo que hace la app en marcar_movimientos_ya_subidos().
+
+    Importante: se llama a claves_subidas() SIN `solo_subidos`, igual que
+    app/main.py. Basta con que el movimiento haya aparecido en una extracción
+    previa del mismo banco —subida a SIPP o no— para tratarlo como repetido.
+    """
+    repetidas = claves_subidas(historial, banco)
+    nuevos, repetidos = [], []
+    for m in movimientos:
+        (repetidos if clave_movimiento(m) in repetidas else nuevos).append(m)
+    return nuevos, repetidos
+
+
 def _historial_con(movimientos, banco="BBVA", subido=True):
     """Simula el historial que guarda la app tras subir una extracción."""
     return [{
@@ -104,36 +118,41 @@ def _historial_con(movimientos, banco="BBVA", subido=True):
 def test_tras_subir_el_primer_corte_solo_quedan_los_nuevos(corte_1, corte_2):
     """EL CASO QUE IMPORTA: con Corte_1 ya en SIPP, el Corte_2 debe aportar
     únicamente los 92 movimientos nuevos, no los 172."""
-    ya_subidas = claves_subidas(_historial_con(corte_1), "BBVA", solo_subidos=True)
-    nuevos = [m for m in corte_2 if clave_movimiento(m) not in ya_subidas]
+    nuevos, repetidos = _marcar_repetidos(_historial_con(corte_1), corte_2)
 
     assert len(nuevos) == 92, f"se subirían {len(nuevos)} movimiento(s) en vez de 92"
-    repetidos = len(corte_2) - len(nuevos)
-    assert repetidos == 80, f"se detectaron {repetidos} duplicados en vez de 80"
+    assert len(repetidos) == 80, f"se detectaron {len(repetidos)} duplicados en vez de 80"
 
 
 def test_volver_a_subir_el_mismo_corte_no_aporta_nada(corte_2):
     """Si el usuario carga dos veces el MISMO archivo, no debe subirse nada."""
-    ya_subidas = claves_subidas(_historial_con(corte_2), "BBVA", solo_subidos=True)
-    nuevos = [m for m in corte_2 if clave_movimiento(m) not in ya_subidas]
+    nuevos, _ = _marcar_repetidos(_historial_con(corte_2), corte_2)
     assert nuevos == [], f"{len(nuevos)} movimiento(s) se re-subirían a SIPP"
 
 
-def test_una_extraccion_no_subida_no_bloquea_movimientos(corte_1, corte_2):
-    """Solo lo marcado como subido a SIPP cuenta como duplicado: si la extracción
-    previa quedó sin subir, sus movimientos deben seguir disponibles."""
+def test_una_extraccion_guardada_pero_no_subida_tambien_cuenta_como_repetida(
+    corte_1, corte_2
+):
+    """Basta con haber VISTO el movimiento en un corte anterior, aunque esa
+    extracción nunca se haya subido a SIPP.
+
+    Es la regla que aplica la app (claves_subidas sin `solo_subidos`) y la que
+    confirmó el equipo: si el movimiento ya se trabajó en un corte previo, no
+    vuelve a aparecer como nuevo.
+    """
     historial = _historial_con(corte_1, subido=False)
-    ya_subidas = claves_subidas(historial, "BBVA", solo_subidos=True)
-    nuevos = [m for m in corte_2 if clave_movimiento(m) not in ya_subidas]
-    assert len(nuevos) == len(corte_2)
+    nuevos, repetidos = _marcar_repetidos(historial, corte_2)
+    assert len(repetidos) == 80, (
+        "una extracción sin subir debe marcar igual sus movimientos como repetidos"
+    )
+    assert len(nuevos) == 92
 
 
 def test_el_historial_de_otro_banco_no_afecta(corte_1, corte_2):
     """Un movimiento de Santander con la misma referencia no debe ocultar uno
     de BBVA."""
     historial = _historial_con(corte_1, banco="SANTANDER")
-    ya_subidas = claves_subidas(historial, "BBVA", solo_subidos=True)
-    nuevos = [m for m in corte_2 if clave_movimiento(m) not in ya_subidas]
+    nuevos, _ = _marcar_repetidos(historial, corte_2)
     assert len(nuevos) == len(corte_2)
 
 

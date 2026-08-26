@@ -399,7 +399,16 @@ def _emparejar_movimiento(
     if len(candidatos) == 1:
         return candidatos[0]
 
-    if importe_modal is not None:
+    # Respaldo SOLO cuando la fila del modal no trae referencia utilizable: ahí el
+    # importe es lo único con lo que se cuenta.
+    #
+    # Si la fila SÍ tiene referencia y no empató con ninguna pendiente, NO se
+    # adivina por importe. Las referencias de BBVA no son únicas (p. ej.
+    # 'REFBNTC00833576' aparece varias veces con importes distintos) y coinciden
+    # en monto con movimientos ajenos: emparejar a ciegas excluía la fila
+    # equivocada, con doble daño — se perdía un cobro nuevo y se volvía a subir
+    # el que ya estaba en SIPP.
+    if not ref_modal_norm and importe_modal is not None:
         solo_importe = [m for m in pendientes if abs(m[1] - importe_modal) <= 0.01]
         if len(solo_importe) == 1:
             return solo_importe[0]
