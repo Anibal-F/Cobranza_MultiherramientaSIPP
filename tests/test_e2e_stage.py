@@ -107,3 +107,101 @@ async def test_captura_los_validos_y_reporta_el_cliente_desconocido():
         finally:
             # Sin Guardar: al cerrar, SIPP descarta los movimientos de prueba.
             await navegador.close()
+
+
+# ──────────────────────────────────────────────────────────
+# Dedup incremental contra el buzón H2H real
+# ──────────────────────────────────────────────────────────
+
+# Fecha con lotes en el buzón H2H de stage. Si stage se repuebla, ajústala (o
+# pásala por MH_E2E_H2H_FECHA); la prueba se salta sola si no hay movimientos.
+FECHA_H2H = os.getenv("MH_E2E_H2H_FECHA", "13/02/2026")
+
+
+@pytest.mark.asyncio
+async def test_los_movimientos_de_un_corte_anterior_no_se_re_suben():
+    """El eslabón crítico del dedup, contra SIPP de verdad.
+
+    Con BBVA no se sube archivo: los movimientos los trae el buzón H2H y la única
+    forma de omitir los de un corte anterior es excluirlos en la previsualización.
+    Aquí se traen movimientos reales, se pide excluir la mitad y se comprueba
+    —leyendo `sn_Excluir` del propio Angular de SIPP, no lo que reporte el RPA—
+    que queden marcados exactamente esos.
+
+    No agrega al estado de cuenta ni guarda: al cerrar el navegador no queda nada.
+    """
+    os.environ["SIPP_ENV"] = "test"
+
+    from playwright.async_api import async_playwright
+
+    from rpa.automation import RPAAutomation
+
+    usuario, password = cargar_credenciales()
+    if not usuario:
+        pytest.skip("No hay credenciales de SIPP guardadas")
+
+    rpa = RPAAutomation(usuario, password, headless=True, log_fn=lambda m, n="info": None)
+    assert "stage" in rpa.base_url, f"la prueba NO debe correr contra {rpa.base_url}"
+
+    async with async_playwright() as p:
+        navegador = await p.chromium.launch(headless=True, slow_mo=30)
+        contexto = await navegador.new_context(**rpa._opciones_contexto(), locale="es-MX")
+        pagina = await contexto.new_page()
+        pagina.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+        try:
+            await rpa._login(pagina)
+            await rpa._configure_session(pagina)
+            rpa._base_navegacion = pagina.url.split("#")[0]
+            await rpa._navigate_to_ingresos_diversos_agregar(pagina)
+            await rpa._configurar_encabezado_ingresos_diversos(
+                pagina, CUENTA_BANCARIA, FECHA_OPERACION
+            )
+
+            if not await rpa._traer_movimientos_h2h(pagina, FECHA_H2H, FECHA_H2H):
+                pytest.skip(f"El buzón H2H de stage no tiene lotes el {FECHA_H2H}")
+
+            filas = await rpa._leer_filas_preview(pagina)
+            assert len(filas) >= 4, f"hacen falta más movimientos para probar ({len(filas)})"
+
+            # Se simula que las filas de índice PAR ya venían en un corte anterior.
+            repetidas = [(ref, imp) for i, (ref, imp) in enumerate(filas) if i % 2 == 0 and imp]
+            esperados = {i for i, (ref, imp) in enumerate(filas) if i % 2 == 0 and imp}
+
+            excluidos = await rpa._eliminar_filas_preview(pagina, repetidas)
+
+            de_mas = excluidos - esperados
+            de_menos = esperados - excluidos
+            assert not de_mas, (
+                f"se excluyeron filas que SÍ debían subirse (ese cobro se perdería): {sorted(de_mas)}"
+            )
+            assert not de_menos, (
+                f"quedaron sin excluir filas de un corte anterior "
+                f"(se volverían a subir a SIPP): {sorted(de_menos)}"
+            )
+
+            # Comprobación independiente en el estado interno de SIPP.
+            marcadas = await pagina.evaluate("""() => {
+                const out = [];
+                document.querySelectorAll("#modal-bodymodalDatosBanco [id^='EditarMovimiento_']")
+                  .forEach(el => {
+                    const tr = el.closest('tr');
+                    const i = parseInt(el.id.replace('EditarMovimiento_',''));
+                    let excl = null;
+                    try {
+                      const sc = window.angular && angular.element(tr).scope();
+                      const it = sc && (sc.item || sc.mov || sc.row || (sc.$parent && sc.$parent.item));
+                      if (it) excl = !!(it.sn_Excluir || it.snExcluir);
+                    } catch (e) {}
+                    out.push({i, excl});
+                  });
+                return out;
+            }""")
+            en_sipp = {m["i"] for m in marcadas if m["excl"]}
+            if any(m["excl"] is not None for m in marcadas):
+                assert en_sipp == esperados, (
+                    "SIPP no quedó con las filas correctas marcadas como excluidas"
+                )
+            assert rpa.contadores.get("errores") is None
+        finally:
+            # Sin "Agregar al estado de cuenta" y sin Guardar.
+            await navegador.close()
