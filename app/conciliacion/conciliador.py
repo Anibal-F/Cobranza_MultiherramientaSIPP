@@ -25,6 +25,12 @@ from .leyendas_cheque import cargar_leyendas, es_devolucion
 from .modelo import MovimientoConciliacion, ResultadoConciliacion
 
 
+# Largo mínimo de la referencia del banco para buscarla DENTRO del texto del
+# sistema (2ª pasada del emparejamiento). Con menos caracteres un número suelto
+# puede aparecer por casualidad en un texto largo y conciliar lo que no es.
+LONGITUD_MINIMA_AGUJA_BANCO = 6
+
+
 def es_devolucion_cheque(m: MovimientoConciliacion, leyendas: list[str]) -> bool:
     return es_devolucion(m.texto, leyendas)
 
@@ -92,14 +98,33 @@ def conciliar(
     for b in banco:
         # Texto del banco donde se busca: su concepto/descripción y su referencia.
         texto_banco = (normalizar(b.descripcion), normalizar(b.referencia))
+        candidatos = [
+            (s, ar, ac)
+            for s, ar, ac in por_importe.get(round(b.importe, 2), [])
+            if id(s) not in consumidos
+        ]
         elegido = None
-        for s, aguja_ref, aguja_con in por_importe.get(round(b.importe, 2), []):
-            if id(s) in consumidos:
-                continue
-            # Alguna aguja del sistema (referencia o concepto) aparece en el banco.
+        # 1ª pasada: alguna aguja del SISTEMA aparece en el texto del banco.
+        for s, aguja_ref, aguja_con in candidatos:
             if any(a and (a in texto_banco[0] or a in texto_banco[1]) for a in (aguja_ref, aguja_con)):
                 elegido = s
                 break
+        # 2ª pasada (solo si la anterior no encontró nada): al revés, la referencia
+        # del BANCO aparece dentro del texto del sistema. Hace falta porque SIPP
+        # guarda la referencia concatenada con más datos y entonces no cabe dentro
+        # del texto del banco: p. ej. banco '0034131073' contra sistema
+        # 'PAGO CUENTA DE TERCERO / 0034131073 BNET 0476697690'.
+        # Se exige una aguja larga (LONGITUD_MINIMA_AGUJA_BANCO) para que un número
+        # corto no coincida por casualidad dentro de un texto largo.
+        if elegido is None:
+            for s, aguja_ref, aguja_con in candidatos:
+                if any(
+                    a and len(a) >= LONGITUD_MINIMA_AGUJA_BANCO
+                    and (a in aguja_ref or a in aguja_con)
+                    for a in texto_banco
+                ):
+                    elegido = s
+                    break
         if elegido is not None:
             consumidos.add(id(elegido))
             conciliados.append((b, elegido))

@@ -195,6 +195,14 @@ Notas de Python:
 - `id(s)` es la identidad del objeto en memoria; con `consumidos` evitamos usar dos
   veces el mismo movimiento del sistema.
 - `aguja in concepto` es "¿la referencia del sistema está contenida en el texto?".
+- Desde 2026-08-27 hay una **segunda pasada** en sentido contrario: si ninguna aguja
+  del sistema apareció en el texto del banco, se busca la referencia del BANCO dentro
+  de la referencia/concepto del sistema. Motivo: SIPP guarda la referencia concatenada
+  (`PAGO CUENTA DE TERCERO / 0034131073 BNET 0476697690`), así que es más larga que la
+  del banco (`0034131073`) y nunca cabía dentro de ella. La segunda pasada corre solo
+  cuando la primera no encontró nada, de modo que los emparejamientos que ya
+  funcionaban no cambian, y exige `LONGITUD_MINIMA_AGUJA_BANCO` (6) caracteres para no
+  cruzar movimientos ajenos por una coincidencia de pocos dígitos.
 
 ### Posibles repetidos en sistema
 
