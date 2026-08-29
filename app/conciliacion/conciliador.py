@@ -35,6 +35,12 @@ def es_devolucion_cheque(m: MovimientoConciliacion, leyendas: list[str]) -> bool
     return es_devolucion(m.texto, leyendas)
 
 
+def _rango(movimientos: list[MovimientoConciliacion]) -> tuple[date, date] | None:
+    """Primer y último día con datos de un lado; None si ninguno trae fecha."""
+    fechas = [m.fecha for m in movimientos if m.fecha]
+    return (min(fechas), max(fechas)) if fechas else None
+
+
 def _ventana_comun(
     mov_banco: list[MovimientoConciliacion],
     mov_sistema: list[MovimientoConciliacion],
@@ -64,6 +70,11 @@ def conciliar(
     JSON configurable (leyendas_cheque.cargar_leyendas)."""
     if leyendas is None:
         leyendas = cargar_leyendas()
+    # Rango propio de cada lado, ANTES de filtrar: más abajo `mov_banco` y
+    # `mov_sistema` se reasignan con lo que cae dentro de la ventana, y si los
+    # archivos no se traslapan quedarían vacíos.
+    rango_banco = _rango(mov_banco)
+    rango_sistema = _rango(mov_sistema)
     # 0. Acotar por la ventana común de fechas: los movimientos (de cualquier lado)
     #    cuya fecha caiga fuera se apartan y NO se consideran para conciliar ni para
     #    detectar duplicados. Las fechas nulas no se pueden ubicar → se conservan.
@@ -142,6 +153,8 @@ def conciliar(
         posibles_repetidos_sistema=_posibles_repetidos(mov_sistema),
         fuera_de_rango=fuera_de_rango,
         ventana=ventana,
+        rango_banco=rango_banco,
+        rango_sistema=rango_sistema,
     )
 
 

@@ -67,8 +67,27 @@ class ResultadoConciliacion:
     # cuentan como duplicados. Se distinguen por su `origen` ("BANCO:*" / "SISTEMA").
     fuera_de_rango: list[MovimientoConciliacion] = field(default_factory=list)
     # Ventana común (inicio, fin) usada para filtrar por fecha, o None si no se pudo
-    # calcular (algún lado sin fechas) y por tanto no se filtró.
+    # calcular (algún lado sin fechas) y por tanto no se filtró. Si los archivos no
+    # comparten ningún día, inicio > fin: ver `hay_traslape`.
     ventana: Optional[tuple[date, date]] = None
+    # Rango de fechas propio de cada lado (inicio, fin), para poder explicarle al
+    # usuario POR QUÉ no hubo traslape.
+    rango_banco: Optional[tuple[date, date]] = None
+    rango_sistema: Optional[tuple[date, date]] = None
+
+    @property
+    def hay_traslape(self) -> bool:
+        """False cuando los dos archivos no comparten ni un solo día.
+
+        Pasa cuando alguien sube el estado de cuenta de un día y el reporte del
+        sistema de otro: no hay nada que conciliar y TODO cae en `fuera_de_rango`.
+        En ese caso `ventana` queda invertida (inicio > fin), que como texto no le
+        dice nada al usuario; la UI usa esta propiedad para avisarlo con claridad.
+        """
+        if self.ventana is None:
+            return True  # sin ventana no se filtró nada
+        inicio, fin = self.ventana
+        return inicio <= fin
 
     @property
     def resumen(self) -> dict[str, int]:

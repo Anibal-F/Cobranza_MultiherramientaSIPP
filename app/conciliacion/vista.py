@@ -64,6 +64,14 @@ def _nombre_hoja(nombre: str) -> str:
     return (limpio or "Hoja")[:31]
 
 
+def _texto_rango(rango) -> str:
+    """'21/08/2026' o '21/08/2026 – 27/08/2026'; '(sin fechas)' si no trae."""
+    if not rango:
+        return "(sin fechas)"
+    ini, fin = rango
+    return _fmt_fecha(ini) if ini == fin else f"{_fmt_fecha(ini)} – {_fmt_fecha(fin)}"
+
+
 def _construir_workbook(res: "ResultadoConciliacion", secciones: list[dict], generado: str):
     """Arma el .xlsx: una hoja 'Resumen' + una hoja por sección con sus movimientos.
 
@@ -85,7 +93,13 @@ def _construir_workbook(res: "ResultadoConciliacion", secciones: list[dict], gen
     ws["A1"].font = Font(bold=True, size=16)
     ws["A2"] = f"Generado: {generado}"
     ws["A2"].font = Font(italic=True, size=10, color="FF666666")
-    if res.ventana is not None:
+    if not res.hay_traslape:
+        ws["A3"] = (
+            "Los archivos NO comparten fechas: banco "
+            f"{_texto_rango(res.rango_banco)} vs sistema {_texto_rango(res.rango_sistema)}. "
+            "No hubo nada que conciliar."
+        )
+    elif res.ventana is not None:
         ini, fin = res.ventana
         ws["A3"] = f"Ventana de fechas conciliada: {_fmt_fecha(ini)} – {_fmt_fecha(fin)}"
     else:
@@ -777,6 +791,16 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             estado_text.value = f"Bancos: {', '.join(resumen)} · Sistema ({origen_txt}): {len(mov_sistema)} mov."
             if problemas:
                 _mostrar_lista("Algunos archivos no se procesaron", problemas)
+            elif not resultado.hay_traslape:
+                # Los archivos son de periodos distintos: no hay NADA que conciliar
+                # y todo cae en "fuera de rango". Sin este aviso el usuario solo ve
+                # "0 conciliados" y una ventana de fechas al revés.
+                _mostrar_error(
+                    "Los archivos no comparten fechas, así que no hay nada que "
+                    f"conciliar.\n\nEstado(s) de cuenta: {_texto_rango(resultado.rango_banco)}\n"
+                    f"Sistema ({origen_txt}): {_texto_rango(resultado.rango_sistema)}\n\n"
+                    "Revisa que ambos correspondan al mismo periodo."
+                )
         except FileNotFoundError:
             _avisar("No se encontró alguno de los archivos cargados. Vuelve a cargarlo.")
         except Exception as ex:  # noqa: BLE001 — se reporta al usuario, no debe tumbar la UI

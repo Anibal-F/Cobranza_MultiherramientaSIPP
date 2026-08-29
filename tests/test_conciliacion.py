@@ -192,3 +192,49 @@ def test_un_movimiento_del_sistema_no_se_reparte_entre_dos_del_banco():
     res = conciliar(banco, sistema, leyendas=[])
     assert len(res.conciliados) == 1
     assert len(res.solo_banco) == 1
+
+
+# ──────────────────────────────────────────────────────────
+# Archivos de periodos distintos
+# ──────────────────────────────────────────────────────────
+
+RSM_27 = os.path.join(EJEMPLOS, "BBVA", "RSM_20260827134415282_00318140_COBRANZA.xls")
+
+
+@pytest.mark.skipif(not os.path.exists(RSM_27), reason="No está el RSM del 27/08")
+def test_avisa_cuando_los_archivos_no_comparten_fechas():
+    """Subir el estado de cuenta de un día y el reporte de otro es un error común.
+
+    No hay nada que conciliar, pero el usuario debe entender POR QUÉ: sin esto solo
+    ve '0 conciliados' y una ventana de fechas al revés (27/08 – 21/08).
+    """
+    _, banco, _ = normalizar_banco(RSM_27)
+    sistema = [
+        m for m in cargar_ingresos_diversos(REPORTE)
+        if CUENTA in ((m.raw or {}).get("CUENTA_BANCARIA") or "")
+    ]
+    res = conciliar(banco, sistema)
+
+    assert not res.hay_traslape, "debería detectarse que los periodos no se cruzan"
+    assert not res.conciliados
+    # Los rangos se calculan ANTES de filtrar, así se puede explicar el desfase.
+    assert res.rango_banco is not None and res.rango_sistema is not None
+    assert res.rango_banco[0].day == 27
+    assert res.rango_sistema[0].day == 21
+    # Nada se pierde: todo queda apartado como fuera de rango.
+    assert len(res.fuera_de_rango) == len(banco) + len(sistema)
+
+
+def test_hay_traslape_es_verdadero_en_una_conciliacion_normal(resultado):
+    assert resultado.hay_traslape
+
+
+def test_sin_fechas_no_se_filtra_y_se_considera_traslape():
+    """Si algún lado no trae fechas no se puede acotar: no se filtra nada."""
+    banco = [_mov("REF123456789", "PAGO", 100.0, "banco")]
+    banco[0].fecha = None
+    sistema = [_mov("REF123456789", "", 100.0, "sistema")]
+    res = conciliar(banco, sistema, leyendas=[])
+    assert res.ventana is None
+    assert res.hay_traslape
+    assert len(res.conciliados) == 1
