@@ -7,6 +7,7 @@ import asyncio
 import math
 import os
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import flet as ft
 import flet_charts as fc
@@ -36,6 +37,8 @@ def _repo() -> RdcRepository:
 # Columnas de fecha en el detalle crudo (SELECT * de la tabla): se formatean
 # como fecha en el Excel en vez de dejarlas como el datetime completo de BigQuery.
 _COLUMNAS_FECHA_DETALLE = {"fh_Documento", "fh_Venta", "fh_Vencimiento"}
+
+ZONA_MX = ZoneInfo("America/Mazatlan")
 
 _COLOR_SLOT_VIGENTE = 0
 _COLOR_SLOT_VENCIDO = 5
@@ -243,6 +246,7 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
     )
 
     estado_text = ft.Text("", size=12, color=ft.Colors.RED_600)
+    actualizacion_text = ft.Text("", size=11, color=ft.Colors.ON_SURFACE_VARIANT)
     progress = ft.ProgressRing(width=16, height=16, visible=False, stroke_width=2)
 
     hero_contenedor = ft.ResponsiveRow(spacing=16, run_spacing=16)
@@ -331,12 +335,20 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
         page.update()
 
         fecha_inicio, fecha_fin = rango_sel[0]
-        try:
-            resultado = await asyncio.to_thread(_repo().antiguedad_saldos, fecha_inicio, fecha_fin)
-        except Exception as error:  # noqa: BLE001 - se muestra en la sección, igual que el dashboard de ingresos
-            resultado = error
+        resultado, actualizacion = await asyncio.gather(
+            asyncio.to_thread(_repo().antiguedad_saldos, fecha_inicio, fecha_fin),
+            asyncio.to_thread(_repo().ultima_actualizacion),
+            return_exceptions=True,
+        )
 
         _refrescar(resultado)
+
+        if isinstance(actualizacion, Exception) or actualizacion is None:
+            actualizacion_text.value = ""
+        else:
+            actualizacion_text.value = (
+                f"Datos actualizados: {actualizacion.astimezone(ZONA_MX).strftime('%d/%m/%Y %H:%M')}"
+            )
 
         progress.visible = False
         boton_rango.disabled = False
@@ -484,7 +496,8 @@ def construir_tab_rdc(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
 
     barra_herramientas = ft.Container(
         content=ft.Row(
-            [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info],
+            [boton_rango, progress, estado_text, ft.Container(expand=True), actualizacion_text,
+             boton_exportar, boton_info],
             spacing=12,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),

@@ -29,6 +29,8 @@ TIPO_NEGOCIO_EFECTIVO = """CASE
         WHEN de_CuentaBancaria IN ('ABASTECEDORA SF /AENE', 'PETROPLAZAS SF') THEN 'SF'
         WHEN de_RazonSocial = 'CLIENTES PUBLICO EN GENERAL' AND nb_Empresa = 'Petro Smart' THEN 'GasPetroil'
         WHEN id_Cliente = 4359 THEN 'Distribuidora'
+        WHEN id_Cliente = 7875 AND nb_sucursal = 'Tijuana' THEN 'Distribuidora'
+        WHEN id_Cliente = 7875 AND LOWER(nb_sucursal) LIKE '%gas%' THEN 'GasPetroil'
         ELSE nb_TipoDeNegocio
     END"""
 

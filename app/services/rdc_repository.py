@@ -9,7 +9,7 @@ tabla ya trae `nb_TipoDeNegocio` por fila, así que la segmentación se resuelve
 en la propia consulta sin necesitar ese archivo.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from google.cloud import bigquery
 
@@ -51,8 +51,18 @@ SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
 # así aparecía tanto en el reporte de Distribuidora como en el de Asociados en
 # la macro original. El resto de las filas se agrupa por nb_TipoDeNegocio.
 # GasPetroil (y tipo nulo) quedan fuera: la macro nunca los tocaba.
+#
+# Cliente especial (pedido directo del usuario, 2026-08-12, mismo id que en
+# Cobranza Semanal y Dashboard Ingresos — ver cobranza_semanal_repository.py):
+# id_Cliente 7875 se reclasifica por sucursal: en Tijuana es Distribuidora, en
+# cualquier sucursal de gas sigue siendo Gas (GasPetroil, que esta tabla no
+# trackea — el THEN NULL blinda la exclusión sin importar nb_TipoDeNegocio).
+# Hoy este cliente no tiene filas en esta tabla (verificado en BigQuery), así
+# que es un no-op — se deja listo por si empieza a generar antigüedad de saldos.
 _SEGMENTO_POR_FILA = """CASE
         WHEN UPPER(TRIM(nb_Cliente)) = 'PETROPLAZAS' THEN 'Petroplazas'
+        WHEN id_Cliente = 7875 AND nb_Sucursal = 'Tijuana' THEN 'Distribuidora'
+        WHEN id_Cliente = 7875 AND LOWER(nb_Sucursal) LIKE '%gas%' THEN NULL
         WHEN nb_TipoDeNegocio = 'Distribuidora' THEN 'Distribuidora'
         WHEN nb_TipoDeNegocio = 'Asociados' THEN 'Asociados'
     END"""
@@ -69,6 +79,12 @@ class RdcRepository:
     def __init__(self, tabla: str = TABLA) -> None:
         self._cliente = cliente_bigquery()  # comparte el singleton del módulo cliente
         self._tabla = tabla
+
+    def ultima_actualizacion(self) -> datetime | None:
+        """Fecha/hora (UTC) de la última carga del extractor a la tabla de
+        antigüedad de saldos, vía el metadato `last_modified_time` de BigQuery.
+        Mismo enfoque que CobranzaSemanalRepository.ultima_actualizacion."""
+        return self._cliente.get_table(self._tabla).modified
 
     def antiguedad_saldos(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Saldo vigente y vencido a 30 días por segmento (Distribuidora, Asociados,
