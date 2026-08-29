@@ -76,6 +76,7 @@ def test_cada_movimiento_del_banco_cae_en_un_solo_grupo(lados, resultado):
     suma = (
         len(resultado.conciliados)
         + len(resultado.solo_banco)
+        + len(resultado.posibles_por_importe)
         + len(resultado.devoluciones_cheque)
         + len([m for m in resultado.fuera_de_rango if m.origen == "banco"])
     )
@@ -274,6 +275,7 @@ def test_concilia_el_rsm_del_27_con_su_reporte(lados_27):
     )
     # Cuadre: nada se pierde ni se duplica.
     assert (len(res.conciliados) + len(res.solo_banco)
+            + len(res.posibles_por_importe)
             + len(res.devoluciones_cheque)) == len(banco)
     usados = [id(s) for _, s in res.conciliados]
     assert len(usados) == len(set(usados))
@@ -289,3 +291,77 @@ def test_los_traspasos_entre_cuentas_propias_no_se_concilian(lados_27):
         if "TRASPASO" in (b.descripcion or "").upper()
     ]
     assert not traspasos, f"{len(traspasos)} traspaso(s) se conciliaron por error"
+
+
+# ──────────────────────────────────────────────────────────
+# Sugerencias por importe (depósitos en efectivo)
+# ──────────────────────────────────────────────────────────
+
+
+def test_sugiere_los_depositos_en_efectivo_con_un_solo_candidato(lados_27):
+    """El banco solo dice 'DEPOSITO EN EFECTIVO', sin referencia ni nombre, así que
+    no hay texto que cruzar. Cuando en el sistema hay UN solo movimiento con ese
+    importe ese día, se sugiere el par para que el usuario lo confirme."""
+    res = conciliar(*lados_27)
+    assert res.posibles_por_importe, "no se sugirió ningún par"
+    for b, s in res.posibles_por_importe:
+        assert not b.referencia.strip(), "solo se sugieren los del banco SIN referencia"
+        assert round(b.importe, 2) == round(s.importe, 2)
+    # Y no se cuentan como conciliados.
+    conciliados_banco = {id(b) for b, _ in res.conciliados}
+    assert not any(id(b) in conciliados_banco for b, _ in res.posibles_por_importe)
+
+
+def test_no_sugiere_cuando_hay_dos_candidatos_del_mismo_importe():
+    """Con dos posibles clientes no se puede saber cuál es: se deja suelto."""
+    banco = [_mov("", "DEPOSITO EN EFECTIVO", 5000.0, "banco")]
+    sistema = [
+        _mov("111111", "CLIENTE UNO", 5000.0, "sistema"),
+        _mov("222222", "CLIENTE DOS", 5000.0, "sistema"),
+    ]
+    res = conciliar(banco, sistema, leyendas=[])
+    assert not res.posibles_por_importe
+    assert len(res.solo_banco) == 1
+
+
+def test_no_sugiere_cuando_el_banco_si_trae_referencia():
+    """Si el banco tiene referencia y no cruzó, es que NO corresponde: una
+    referencia distinta es otro movimiento, no vale sugerirlo por el importe."""
+    banco = [_mov("0058202049", "PAGO CUENTA DE TERCERO", 543000.0, "banco")]
+    sistema = [_mov("0058202037", "GRUPO COSTAMARQ", 543000.0, "sistema")]
+    res = conciliar(banco, sistema, leyendas=[])
+    assert not res.posibles_por_importe
+    assert len(res.solo_banco) == 1
+
+
+def test_la_sugerencia_saca_el_movimiento_de_los_dos_lados():
+    """El par sugerido sale de 'solo banco' y de 'solo sistema': si no, el usuario
+    lo vería tres veces."""
+    banco = [_mov("", "DEPOSITO EN EFECTIVO", 7000.0, "banco")]
+    sistema = [_mov("318999", "CLIENTE UNICO", 7000.0, "sistema")]
+    res = conciliar(banco, sistema, leyendas=[])
+    assert len(res.posibles_por_importe) == 1
+    assert not res.solo_banco
+    assert not res.solo_sistema
+
+
+# ──────────────────────────────────────────────────────────
+# Lectura del reporte: razón social, no código de cliente
+# ──────────────────────────────────────────────────────────
+
+
+def test_la_descripcion_del_sistema_es_la_razon_social(lados):
+    """El reporte trae RAZON_SOCIAL ('GTB AUTOBUSES') y CLIENTE ('3368'). Debe
+    usarse el nombre: es lo que ve el usuario y lo que puede aparecer en el
+    concepto del banco para cruzar."""
+    _, sistema = lados
+    codigos = [
+        m for m in sistema
+        if m.descripcion and m.descripcion.strip().isdigit()
+        and (m.raw or {}).get("RAZON_SOCIAL")
+    ]
+    assert not codigos, (
+        f"{len(codigos)} movimiento(s) usan el código de cliente en vez de la "
+        f"razón social (p. ej. {codigos[0].descripcion!r} en vez de "
+        f"{codigos[0].raw['RAZON_SOCIAL']!r})"
+    )

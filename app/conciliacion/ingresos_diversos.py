@@ -19,11 +19,18 @@ from ..parsers.excel_columnas import a_fecha, normalizar_encabezado
 
 _NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
-# Campo canónico -> encabezados aceptados (ya normalizados con normalizar_encabezado).
-_COL_REFERENCIA = {"REFERENCIA"}
-_COL_MOVIMIENTO = {"MOVIMIENTO"}
-_COL_FECHA = {"FECHA_ENVIO"}
-_COL_DESCRIPCION = {"RAZON_SOCIAL", "CLIENTE"}
+# Campo canónico -> encabezados aceptados (ya normalizados con normalizar_encabezado),
+# EN ORDEN DE PREFERENCIA: se toma el primero que exista en el archivo.
+#
+# El orden importa en la descripción: el reporte trae "RAZON_SOCIAL" (GTB AUTOBUSES)
+# y "CLIENTE" (3368, el código). Queremos el nombre, porque es lo que ve el usuario
+# y lo que puede aparecer en el concepto del banco para cruzar. Antes esto era un
+# `set` y Python lo recorría en orden arbitrario, así que a veces se quedaba con el
+# código.
+_COL_REFERENCIA = ("REFERENCIA",)
+_COL_MOVIMIENTO = ("MOVIMIENTO",)
+_COL_FECHA = ("FECHA_ENVIO",)
+_COL_DESCRIPCION = ("RAZON_SOCIAL", "CLIENTE")
 
 
 def _letra_columna(ref_celda: str) -> str:
@@ -79,7 +86,7 @@ def cargar_ingresos_diversos(path: str) -> list[MovimientoConciliacion]:
     for i, celdas in enumerate(filas):
         norm = {L: normalizar_encabezado(v) for L, v in celdas.items() if v}
         vals = set(norm.values())
-        if _COL_REFERENCIA & vals and _COL_MOVIMIENTO & vals:
+        if vals.intersection(_COL_REFERENCIA) and vals.intersection(_COL_MOVIMIENTO):
             header_idx = i
             for L, h in norm.items():
                 mapa.setdefault(h, L)
@@ -90,7 +97,9 @@ def cargar_ingresos_diversos(path: str) -> list[MovimientoConciliacion]:
             "en el archivo de Ingresos Diversos."
         )
 
-    def _letra(cols: set[str]) -> str | None:
+    def _letra(cols: tuple[str, ...]) -> str | None:
+        """Letra de la primera columna de `cols` presente en el archivo (el orden
+        de `cols` es el de preferencia)."""
         for h in cols:
             if h in mapa:
                 return mapa[h]

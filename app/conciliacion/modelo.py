@@ -62,6 +62,11 @@ class ResultadoConciliacion:
     # Movimientos del sistema que se repiten entre sí (misma referencia, descripción
     # e importe): posibles duplicados capturados en el sistema.
     posibles_repetidos_sistema: list[MovimientoConciliacion] = field(default_factory=list)
+    # Pares (banco, sistema) que NO se conciliaron pero coinciden en importe y son
+    # la única opción posible entre sí ese día. Pasa con los depósitos en efectivo:
+    # el banco no trae ninguna referencia, así que no hay texto que cruzar. NO se
+    # dan por conciliados; se muestran aparte para que el usuario los confirme.
+    posibles_por_importe: list[tuple[MovimientoConciliacion, MovimientoConciliacion]] = field(default_factory=list)
     # Movimientos (banco y/o sistema) cuya fecha cae FUERA de la ventana común de
     # fechas de ambos archivos: se apartan ANTES de comparar y no se concilian ni
     # cuentan como duplicados. Se distinguen por su `origen` ("BANCO:*" / "SISTEMA").
@@ -96,6 +101,7 @@ class ResultadoConciliacion:
             "conciliados": len(self.conciliados),
             "solo_banco": len(self.solo_banco),
             "solo_sistema": len(self.solo_sistema),
+            "posibles_por_importe": len(self.posibles_por_importe),
             "devoluciones_cheque": len(self.devoluciones_cheque),
             "posibles_repetidos_sistema": len(self.posibles_repetidos_sistema),
             "fuera_de_rango": len(self.fuera_de_rango),

@@ -35,6 +35,9 @@ _COLOR_SOLO_SISTEMA = "#2a78d6"
 _COLOR_CHEQUES = "#e34948"
 _COLOR_REPETIDOS = "#7e57c2"
 _COLOR_FUERA_RANGO = "#607d8b"
+# Sugerencias por importe: turquesa, ni "conciliado" (verde) ni "pendiente"
+# (ámbar) — es un grupo que el usuario tiene que revisar y confirmar.
+_COLOR_POSIBLES = "#00897b"
 
 
 _MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -637,6 +640,11 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
                           ("Descripción", L), ("Referencia", 150.0), ("Importe", 120.0)]
         cols_fuera = [("Origen", 170.0), ("Fecha", 90.0), ("Descripción", L),
                       ("Referencia", 150.0), ("Importe", 120.0)]
+        # Sugerencias por importe: se muestran los DOS lados para que el usuario
+        # confirme de un vistazo si el depósito corresponde a ese cliente.
+        cols_posibles = [("Banco", 100.0), ("Fecha", 90.0), ("Concepto (banco)", L),
+                         ("Cliente (sistema)", L), ("Referencia (sistema)", 150.0),
+                         ("Importe", 120.0)]
 
         filas_conc = [
             [_banco(b), _fmt_fecha(b.fecha), b.descripcion, b.referencia, _fmt_importe(b.importe), _fmt_importe(s.importe)]
@@ -654,6 +662,12 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             for m in res.posibles_repetidos_sistema
         ]
         filas_fuera = [[_origen_fuera(m), _fmt_fecha(m.fecha), m.descripcion, m.referencia, _fmt_importe(m.importe)] for m in res.fuera_de_rango]
+        filas_posibles = [
+            [_banco(b), _fmt_fecha(b.fecha), b.descripcion,
+             s_.descripcion or str((s_.raw or {}).get("RAZON_SOCIAL") or ""),
+             s_.referencia, _fmt_importe(b.importe)]
+            for b, s_ in res.posibles_por_importe
+        ]
 
         # Nota: "En sistema, no en banco" se calcula pero ya no se muestra; en su
         # lugar va "Posibles repetidos en sistema" (mismos ref+descripción+importe).
@@ -664,6 +678,10 @@ def construir_tab_conciliaciones(page: ft.Page) -> tuple[ft.Tab, ft.Control]:
             {"titulo": "En banco, no en sistema", "hoja": "En banco no en sistema", "color": _COLOR_SOLO_BANCO,
              "icono": ft.Icons.ACCOUNT_BALANCE_OUTLINED, "columnas": cols_mov, "filas": filas_banco,
              "total": sum(m.importe for m in res.solo_banco)},
+            {"titulo": "Posibles coincidencias por importe (revisar)",
+             "hoja": "Posibles por importe", "color": _COLOR_POSIBLES,
+             "icono": ft.Icons.HELP_OUTLINE, "columnas": cols_posibles, "filas": filas_posibles,
+             "total": sum(b.importe for b, _ in res.posibles_por_importe)},
             {"titulo": "Posibles repetidos en sistema", "hoja": "Posibles duplicados", "color": _COLOR_REPETIDOS,
              "icono": ft.Icons.CONTENT_COPY, "columnas": cols_repetidos, "filas": filas_repetidos,
              "total": sum(m.importe for m in res.posibles_repetidos_sistema)},

@@ -4,7 +4,7 @@ Cheat-sheet. Detalle completo en [../../docs/Manual_Tecnico_Conciliacion.md](../
 
 ## Qué hace
 Compara movimientos de estados de cuenta bancarios (uno o varios archivos) contra los
-del sistema (reporte "Ingresos Diversos" o BigQuery) y los clasifica en 4 grupos que se
+del sistema (reporte "Ingresos Diversos" o BigQuery) y los clasifica en 5 grupos que se
 muestran + 1 interno.
 
 ## Archivos
@@ -25,6 +25,7 @@ sistema → `ingresos_diversos.cargar_ingresos_diversos` o `services/bigquery_re
 - **Match**: importe igual **Y** coincidencia de texto, en DOS pasadas (la 2ª solo si la 1ª no encontró nada, para no cambiar lo que ya emparejaba):
   1. alguna aguja del sistema (su `referencia` **o** su `descripcion`/concepto, normalizadas) aparece dentro del `descripcion` (concepto) **o** de la `referencia` del banco;
   2. **al revés**: la `referencia` o `descripcion` del BANCO aparece dentro de la referencia/concepto del sistema. Hace falta porque SIPP guarda la referencia concatenada con más datos y entonces no cabe en el texto del banco (banco `0034131073` vs sistema `PAGO CUENTA DE TERCERO / 0034131073 BNET 0476697690`). Se exige que la aguja del banco tenga al menos `LONGITUD_MINIMA_AGUJA_BANCO` (6) caracteres, para que un número corto no cruce movimientos ajenos por casualidad. Validado con Corte_2 (21/08/2026) vs el reporte: 151 → 155 conciliados, los 4 nuevos correctos y ninguno dudoso. Excel: agujas = referencia + razón social (ambas). **Nube: aguja = SOLO `de_Referencia`** (decisión 2026-07-17; `de_Concepto` viene vacío 73% y difiere de la referencia cuando existe → no se cruza, `descripcion` se emite vacía). Se agrupa por importe; cada sistema se consume 1 vez.
+- **Posibles coincidencias por importe** (`posibles_por_importe`, sección "…(revisar)"): pares (banco, sistema) que NO se conciliaron pero coinciden en importe y son la única opción entre sí. Solo entran los del banco **sin referencia** (depósitos en efectivo: el estado de cuenta solo dice "DEPOSITO EN EFECTIVO", no hay texto que cruzar) y solo si la correspondencia es 1-1 (un movimiento de cada lado con ese importe). **No** se dan por conciliados: salen de `solo_banco`/`solo_sistema` y se muestran aparte para que el usuario confirme. Si el banco SÍ trae referencia y no cruzó, no se sugiere: una referencia distinta es otro movimiento.
 - **Posibles repetidos en sistema**: mismos referencia + descripción + importe + **fecha** (2+). El grid muestra columna **Banco** (de `raw["BANCO"]`, ver abajo) para que el usuario NO confunda un duplicado de otro banco con el archivo que subió.
 - **Devolución de cheque**: leyendas CONFIGURABLES desde la UI (botón ícono en la barra) y persistidas en `leyendas_cheque.json` (raíz, gitignored). Un movimiento del banco se aparta antes de comparar si su `texto` CONTIENE (substring normalizado) alguna leyenda. `conciliar(..., leyendas=None)` las carga del JSON si no se pasan. Ver `leyendas_cheque.py`. Semilla por defecto: `["CHEQUE"]`.
 - `normalizar()` (app/textutils) quita mayúsc/acentos/símbolos → el apóstrofo (`'003…`) y guion bajo (`_SPEI`) no estorban.
@@ -45,6 +46,7 @@ sistema → `ingresos_diversos.cargar_ingresos_diversos` o `services/bigquery_re
 
 ## Notas
 - Reader de tablas: `app/parsers/lectura.py` detecta formato por **bytes** (no extensión); archivos de portal declaran mal la "dimensión" → usa modo normal antes que read_only.
+- `_COL_*` en `ingresos_diversos.py` son **tuplas ordenadas** (preferencia), no sets: la descripción debe salir de `RAZON_SOCIAL` ("GTB AUTOBUSES") y solo caer a `CLIENTE` ("3368", el código) si no existe. Con un `set` el orden era arbitrario y a veces se quedaba con el código, que ni le sirve al usuario ni cruza con el concepto del banco.
 - El reporte de Ingresos Diversos **sí** trae columna **Banco** y **Cuenta Bancaria** (encabezado en fila 8; el lector lo localiza por contenido y guarda TODAS las columnas en `raw`). Se leen como `raw["BANCO"]` / `raw["CUENTA_BANCARIA"]`; la "Conciliación" (folio) sale de `raw["CONCILIACION"]`.
 - `_secciones_datos(res)` (en vista.py) es la fuente única de columnas+filas+totales por grupo; la consumen tanto `_render` (UI) como `exportar_excel` (Excel). Al agregar/cambiar una sección, tocar solo ahí.
 

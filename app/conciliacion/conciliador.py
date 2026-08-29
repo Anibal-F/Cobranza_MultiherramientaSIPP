@@ -145,16 +145,71 @@ def conciliar(
     # 3. Lo que quedó sin consumir en el sistema -> solo sistema.
     solo_sistema = [s for s in mov_sistema if id(s) not in consumidos]
 
+    # 4. Sugerencias por importe para lo que quedó suelto de ambos lados.
+    posibles, solo_banco, solo_sistema = _sugerir_por_importe(solo_banco, solo_sistema)
+
     return ResultadoConciliacion(
         conciliados=conciliados,
         solo_banco=solo_banco,
         solo_sistema=solo_sistema,
         devoluciones_cheque=devoluciones,
         posibles_repetidos_sistema=_posibles_repetidos(mov_sistema),
+        posibles_por_importe=posibles,
         fuera_de_rango=fuera_de_rango,
         ventana=ventana,
         rango_banco=rango_banco,
         rango_sistema=rango_sistema,
+    )
+
+
+def _sugerir_por_importe(
+    solo_banco: list[MovimientoConciliacion],
+    solo_sistema: list[MovimientoConciliacion],
+) -> tuple[list[tuple[MovimientoConciliacion, MovimientoConciliacion]],
+           list[MovimientoConciliacion], list[MovimientoConciliacion]]:
+    """Empareja lo que quedó suelto cuando el banco no trae NINGUNA referencia.
+
+    Es el caso de los depósitos en efectivo: el estado de cuenta solo dice
+    "DEPOSITO EN EFECTIVO", sin referencia ni nombre, así que no hay texto que
+    cruzar aunque el sistema sí sepa de quién es el depósito.
+
+    Solo se sugiere cuando la correspondencia es **inequívoca**: exactamente un
+    movimiento del banco y uno del sistema con ese importe. Si hay dos candidatos
+    de cualquier lado, se deja todo suelto en vez de adivinar.
+
+    Estos pares NO se dan por conciliados: se muestran aparte para que el usuario
+    los confirme. Devuelve (pares, solo_banco restante, solo_sistema restante).
+    """
+    # Solo entran los del banco SIN referencia; si el banco trae referencia y no
+    # cruzó, es que no corresponde (una referencia distinta es otro movimiento).
+    sin_ref = [b for b in solo_banco if not normalizar(b.referencia)]
+    if not sin_ref:
+        return [], solo_banco, solo_sistema
+
+    banco_por_importe: dict[float, list] = defaultdict(list)
+    for b in sin_ref:
+        banco_por_importe[round(b.importe, 2)].append(b)
+    sistema_por_importe: dict[float, list] = defaultdict(list)
+    for s in solo_sistema:
+        sistema_por_importe[round(s.importe, 2)].append(s)
+
+    pares = []
+    emparejados: set[int] = set()
+    for importe, candidatos_banco in banco_por_importe.items():
+        candidatos_sistema = sistema_por_importe.get(importe, [])
+        # 1 a 1: cualquier otra combinación es ambigua.
+        if len(candidatos_banco) == 1 and len(candidatos_sistema) == 1:
+            b, s = candidatos_banco[0], candidatos_sistema[0]
+            pares.append((b, s))
+            emparejados.add(id(b))
+            emparejados.add(id(s))
+
+    if not pares:
+        return [], solo_banco, solo_sistema
+    return (
+        pares,
+        [b for b in solo_banco if id(b) not in emparejados],
+        [s for s in solo_sistema if id(s) not in emparejados],
     )
 
 
