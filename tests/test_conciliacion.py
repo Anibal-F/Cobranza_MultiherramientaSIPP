@@ -199,6 +199,7 @@ def test_un_movimiento_del_sistema_no_se_reparte_entre_dos_del_banco():
 # ──────────────────────────────────────────────────────────
 
 RSM_27 = os.path.join(EJEMPLOS, "BBVA", "RSM_20260827134415282_00318140_COBRANZA.xls")
+REPORTE_27 = os.path.join(EJEMPLOS, "ReporteIngresosDiversos29_8_2026 .xlsx")
 
 
 @pytest.mark.skipif(not os.path.exists(RSM_27), reason="No está el RSM del 27/08")
@@ -238,3 +239,53 @@ def test_sin_fechas_no_se_filtra_y_se_considera_traslape():
     assert res.ventana is None
     assert res.hay_traslape
     assert len(res.conciliados) == 1
+
+
+# ──────────────────────────────────────────────────────────
+# Segundo juego de archivos: RSM del 27/08 contra su reporte
+# ──────────────────────────────────────────────────────────
+
+
+@pytest.fixture(scope="module")
+def lados_27():
+    if not (os.path.exists(RSM_27) and os.path.exists(REPORTE_27)):
+        pytest.skip("Faltan los archivos del 27/08")
+    _, banco, msg = normalizar_banco(RSM_27)
+    assert msg == "ok"
+    sistema = [
+        m for m in cargar_ingresos_diversos(REPORTE_27)
+        if CUENTA in ((m.raw or {}).get("CUENTA_BANCARIA") or "")
+    ]
+    return banco, sistema
+
+
+def test_concilia_el_rsm_del_27_con_su_reporte(lados_27):
+    """Juego de archivos del MISMO día: aquí sí hay traslape y debe conciliar."""
+    banco, sistema = lados_27
+    assert len(banco) == 102 and len(sistema) == 228
+
+    res = conciliar(banco, sistema)
+    assert res.hay_traslape
+    assert not res.fuera_de_rango
+
+    porcentaje = len(res.conciliados) / len(banco)
+    assert porcentaje >= 0.85, (
+        f"solo se concilió el {porcentaje:.0%} ({len(res.conciliados)}/{len(banco)})"
+    )
+    # Cuadre: nada se pierde ni se duplica.
+    assert (len(res.conciliados) + len(res.solo_banco)
+            + len(res.devoluciones_cheque)) == len(banco)
+    usados = [id(s) for _, s in res.conciliados]
+    assert len(usados) == len(set(usados))
+
+
+def test_los_traspasos_entre_cuentas_propias_no_se_concilian(lados_27):
+    """Los traspasos ('TRASPASO A BBVA') no son cobranza y no están en Ingresos
+    Diversos: deben quedar en 'solo banco', no cruzarse con nada."""
+    banco, sistema = lados_27
+    res = conciliar(banco, sistema)
+    traspasos = [
+        b for b, _ in res.conciliados
+        if "TRASPASO" in (b.descripcion or "").upper()
+    ]
+    assert not traspasos, f"{len(traspasos)} traspaso(s) se conciliaron por error"
