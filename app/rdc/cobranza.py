@@ -29,6 +29,13 @@ from ..services.cobranza_semanal_repository import SEGMENTOS, CobranzaSemanalRep
 
 ZONA_MX = ZoneInfo("America/Mazatlan")
 
+# 'S/I' (Sin Identificar) solo aplica a 'Detalle por segmento' y 'Cobro diario'
+# (pedido directo del usuario, 2026-08-06) — un ingreso sin tipo de negocio
+# identificado (no cae en Distribuidora/Asociados/Petroplazas). NO se agrega a
+# SEGMENTOS porque esa constante también maneja el filtro de "Ingresos
+# Significativos" y sus tablas por día, que deben seguir sin S/I.
+SEGMENTOS_CON_SI = SEGMENTOS + ["S/I"]
+
 # El repositorio se crea perezosamente (necesita credenciales de BigQuery); así
 # no falla al importar este módulo si aún no hay credenciales configuradas.
 _repo_holder: list[CobranzaSemanalRepository | None] = [None]
@@ -68,9 +75,10 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
 
     hero_contenedor = ft.ResponsiveRow(spacing=10, run_spacing=10)
     seccion_detalle = ft.Container()
+    seccion_diario = ft.Container()
     seccion_significativos = ft.Container()
     cuerpo = ft.Column(
-        [hero_contenedor, seccion_detalle, seccion_significativos],
+        [hero_contenedor, seccion_detalle, seccion_diario, seccion_significativos],
         spacing=16,
         opacity=1.0,
         animate_opacity=200,
@@ -81,11 +89,11 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
     file_picker = ft.FilePicker()
 
     # Datos de la última consulta exitosa, para exportar sin recalcular. Se
-    # habilita el botón de descarga solo si las 3 consultas (concentrado,
-    # significativos, por día) tuvieron éxito a la vez.
-    ultimo_datos: dict = {"items": None, "significativos": None, "por_dia": None}
+    # habilita el botón de descarga solo si las 4 consultas (concentrado,
+    # significativos, por día, cobro diario) tuvieron éxito a la vez.
+    ultimo_datos: dict = {"items": None, "significativos": None, "por_dia": None, "cobro_diario": None}
 
-    def _refrescar(resultado, significativos, por_dia) -> None:
+    def _refrescar(resultado, significativos, por_dia, cobro_diario) -> None:
         dark = _dark()
         if isinstance(resultado, Exception):
             ultimo_datos["items"] = None
@@ -105,7 +113,7 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
                     (por_segmento.get(segmento, {}).get("total_usd_convertido") or 0),
                     (por_segmento.get(segmento, {}).get("total_usd_sin_tc") or 0),
                 )
-                for segmento in SEGMENTOS
+                for segmento in SEGMENTOS_CON_SI
             ]
             ultimo_datos["items"] = items
             total_mxn = sum(v for _s, v, _u, _c, _st in items)
@@ -165,8 +173,69 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
                 content=ft.Column(
                     [
                         encabezado_seccion(ft.Icons.TABLE_CHART_OUTLINED, color_slot(3, dark),
-                                           "Detalle por segmento", "MXN, USD y su conversión por segmento"),
+                                           "Detalle por segmento",
+                                           "MXN, USD y su conversión por segmento · incluye S/I (sin tipo "
+                                           "de negocio identificado)"),
                         ft.Row([tabla], scroll=ft.ScrollMode.AUTO),
+                    ],
+                    spacing=10,
+                ),
+                padding=16,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
+                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                border_radius=12,
+                shadow=sombra_tarjeta(),
+            )
+
+        if isinstance(cobro_diario, Exception):
+            ultimo_datos["cobro_diario"] = None
+            seccion_diario.content = ft.Container(
+                content=ft.Text(f"No se pudo consultar Cobro diario: {cobro_diario}",
+                                size=12, color=ft.Colors.RED_600),
+                height=120,
+                alignment=ft.Alignment.CENTER,
+            )
+        else:
+            ultimo_datos["cobro_diario"] = cobro_diario
+            por_fecha: dict = {}
+            for fila in cobro_diario:
+                por_fecha.setdefault(fila["fecha"], {})[fila["segmento"]] = fila.get("total_final") or 0
+            fechas_ordenadas = sorted(por_fecha.keys())
+
+            filas_diario = []
+            totales_col = {segmento: 0.0 for segmento in SEGMENTOS_CON_SI}
+            for fecha in fechas_ordenadas:
+                valores = por_fecha[fecha]
+                celdas = [ft.DataCell(ft.Text(fecha.strftime("%d/%m/%Y"), size=11))]
+                for segmento in SEGMENTOS_CON_SI:
+                    valor = valores.get(segmento, 0) or 0
+                    totales_col[segmento] += valor
+                    celdas.append(ft.DataCell(ft.Text(f"${valor:,.2f}" if valor else "—", size=11)))
+                filas_diario.append(ft.DataRow(cells=celdas))
+            celdas_total = [ft.DataCell(ft.Text("Total", size=11, weight=ft.FontWeight.W_700))]
+            for segmento in SEGMENTOS_CON_SI:
+                celdas_total.append(ft.DataCell(ft.Text(f"${totales_col[segmento]:,.2f}", size=11,
+                                                         weight=ft.FontWeight.W_700)))
+            filas_diario.append(ft.DataRow(cells=celdas_total))
+
+            tabla_diario = ft.DataTable(
+                columns=[ft.DataColumn(ft.Text("Fecha", size=11))] + [
+                    ft.DataColumn(ft.Text(segmento, size=11), numeric=True) for segmento in SEGMENTOS_CON_SI
+                ],
+                rows=filas_diario,
+                data_row_max_height=34,
+                heading_row_height=34,
+                column_spacing=20,
+            )
+            seccion_diario.content = ft.Container(
+                content=ft.Column(
+                    [
+                        encabezado_seccion(
+                            ft.Icons.CALENDAR_VIEW_DAY_OUTLINED, color_slot(5, dark), "Cobro diario",
+                            "Total final por día · Distribuidora, Asociados, Petroplazas y S/I (sin tipo de "
+                            "negocio identificado) · todo el periodo, sin filtro de tipo de negocio",
+                        ),
+                        ft.Row([tabla_diario], scroll=ft.ScrollMode.AUTO),
                     ],
                     spacing=10,
                 ),
@@ -338,15 +407,16 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
         page.update()
 
         fecha_inicio, fecha_fin = rango_sel[0]
-        resultado, significativos, por_dia, actualizacion = await asyncio.gather(
+        resultado, significativos, por_dia, cobro_diario, actualizacion = await asyncio.gather(
             asyncio.to_thread(_repo().cobranza_por_segmento, fecha_inicio, fecha_fin),
             asyncio.to_thread(_repo().ingresos_significativos, fecha_inicio, fecha_fin, segmentos_significativos[0]),
             asyncio.to_thread(_repo().ingresos_por_dia, fecha_inicio, fecha_fin, segmentos_significativos[0]),
+            asyncio.to_thread(_repo().ingresos_por_dia_general, fecha_inicio, fecha_fin),
             asyncio.to_thread(_repo().ultima_actualizacion),
             return_exceptions=True,
         )
 
-        _refrescar(resultado, significativos, por_dia)
+        _refrescar(resultado, significativos, por_dia, cobro_diario)
 
         if isinstance(actualizacion, Exception) or actualizacion is None:
             actualizacion_text.value = ""
@@ -358,7 +428,7 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
         progress.visible = False
         boton_rango.disabled = False
         cuerpo.opacity = 1.0
-        if any(isinstance(valor, Exception) for valor in (resultado, significativos, por_dia)):
+        if any(isinstance(valor, Exception) for valor in (resultado, significativos, por_dia, cobro_diario)):
             estado_text.value = "No se pudo consultar BigQuery (ver detalle abajo)."
         page.update()
 
@@ -497,6 +567,17 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
             "cada fecha del periodo por tipo de negocio (una fila por día y tipo de negocio, no un total "
             "combinado por día), respeta el mismo filtro de tipo de negocio y el mismo tratamiento de "
             "MXN, USD, conversión y USD sin tipo de cambio.",
+            "Cobro diario: una sola tabla con una fila por fecha y una columna por segmento "
+            "(Distribuidora, Asociados, Petroplazas, S/I), mostrando solo el Total final (MXN + USD "
+            "convertido) de cada uno — sin desglose de MXN/USD/USD sin TC. Siempre muestra los 4 "
+            "segmentos completos, sin importar el filtro de tipo de negocio de Ingresos Significativos.",
+            "S/I (Sin Identificar): un ingreso que NO tiene cliente asignado (de_RazonSocial vacío — "
+            "mismo criterio que 'Sin identificar' en Dashboard Ingresos). Un movimiento CON cliente pero "
+            "con tipo de negocio fuera de Distribuidora/Asociados/Petroplazas (ej. GasPetroil) sigue "
+            "descartándose del concentrado, NO cuenta como S/I. Solo aparece en 'Detalle por segmento' y "
+            "'Cobro diario' (y por lo tanto en 'Total cobrado', que suma los 4). Ingresos Significativos "
+            "e Ingresos por día NO incluyen S/I — ahí esas filas ya se excluían de por sí (no tiene "
+            "sentido rankear por razón social algo sin razón social).",
             "La fecha usada para filtrar es fh_Envio; por defecto se muestra la semana anterior a hoy "
             "(espejo de la semana a futuro que muestra el panel de Proyección, a la izquierda).",
         ]
@@ -522,13 +603,15 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
     )
 
     async def exportar_excel(_e) -> None:
-        """Descarga un Excel con las 3 vistas del panel (mismos datos que ya
+        """Descarga un Excel con las 4 vistas del panel (mismos datos que ya
         están en pantalla, sin volver a consultar BigQuery): concentrado por
-        segmento, Top 20 de Ingresos Significativos e Ingresos por día."""
+        segmento, Cobro diario, Top 20 de Ingresos Significativos e Ingresos
+        por día."""
         items = ultimo_datos["items"]
         significativos = ultimo_datos["significativos"]
         por_dia = ultimo_datos["por_dia"]
-        if items is None or significativos is None or por_dia is None:
+        cobro_diario = ultimo_datos["cobro_diario"]
+        if items is None or significativos is None or por_dia is None or cobro_diario is None:
             return
         boton_exportar.disabled = True
         estado_text.value = "Generando Excel…"
@@ -560,6 +643,35 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
             filas_concentrado,
         )
         for fila_celdas in ws_concentrado.iter_rows(min_row=2, min_col=2, max_col=6):
+            for celda in fila_celdas:
+                celda.number_format = "#,##0.00"
+
+        ws_cobro_diario = wb.create_sheet(nombre_hoja_valido("Cobro diario", nombres_usados))
+        por_fecha_excel: dict = {}
+        for fila in cobro_diario:
+            por_fecha_excel.setdefault(fila["fecha"], {})[fila["segmento"]] = fila.get("total_final") or 0
+        fechas_ordenadas_excel = sorted(por_fecha_excel.keys())
+        totales_col_excel = {segmento: 0.0 for segmento in SEGMENTOS_CON_SI}
+        filas_cobro_diario = []
+        for fecha in fechas_ordenadas_excel:
+            valores = por_fecha_excel[fecha]
+            fila_valores = [fecha]
+            for segmento in SEGMENTOS_CON_SI:
+                valor = round(valores.get(segmento, 0) or 0, 2)
+                totales_col_excel[segmento] += valor
+                fila_valores.append(valor)
+            filas_cobro_diario.append(fila_valores)
+        filas_cobro_diario.append(["Total"] + [round(totales_col_excel[s], 2) for s in SEGMENTOS_CON_SI])
+        escribir_hoja_excel(
+            ws_cobro_diario,
+            ["Fecha"] + SEGMENTOS_CON_SI,
+            filas_cobro_diario,
+        )
+        for fila_celdas in ws_cobro_diario.iter_rows(min_row=2, max_row=1 + len(fechas_ordenadas_excel),
+                                                      min_col=1, max_col=1):
+            for celda in fila_celdas:
+                celda.number_format = "dd/mm/yyyy"
+        for fila_celdas in ws_cobro_diario.iter_rows(min_row=2, min_col=2, max_col=1 + len(SEGMENTOS_CON_SI)):
             for celda in fila_celdas:
                 celda.number_format = "#,##0.00"
 
@@ -647,7 +759,7 @@ def construir_panel_cobranza(page: ft.Page) -> ft.Control:
     boton_exportar = ft.IconButton(
         icon=ft.Icons.DOWNLOAD,
         icon_size=18,
-        tooltip="Descargar Excel (concentrado + ingresos significativos + por día)",
+        tooltip="Descargar Excel (concentrado + cobro diario + ingresos significativos + por día)",
         disabled=True,
         on_click=lambda e: page.run_task(exportar_excel, e),
     )

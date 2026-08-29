@@ -57,8 +57,37 @@ MONEDA_USD = "dolar (usd)"
 
 SEGMENTOS = ["Distribuidora", "Asociados", "Petroplazas"]
 
-_SEGMENTO_POR_FILA = """CASE
-        WHEN UPPER(TRIM(de_RazonSocial)) = 'PETROPLAZAS' THEN 'Petroplazas'
+# Cliente especial (pedido directo del usuario, 2026-08-12): el id_Cliente
+# 7875 (JOSE MUNGUIA AVILES) trae nb_TipoDeNegocio = 'GasPetroil' de origen,
+# pero debe reclasificarse SEGÚN LA SUCURSAL en la que factura: en Tijuana es
+# Distribuidora; en cualquier sucursal de gas, sigue siendo Gas (GasPetroil,
+# que este panel no trackea — se excluye igual que cualquier otro GasPetroil,
+# el WHEN con THEN NULL es explícito para blindar esto contra lo que diga
+# nb_TipoDeNegocio). Va ANTES de los WHEN de nb_TipoDeNegocio para que la
+# excepción gane sobre el valor crudo.
+_CLIENTE_ESPECIAL_7875 = """
+        WHEN id_Cliente = 7875 AND nb_sucursal = 'Tijuana' THEN 'Distribuidora'
+        WHEN id_Cliente = 7875 AND LOWER(nb_sucursal) LIKE '%gas%' THEN NULL"""
+
+_SEGMENTO_POR_FILA = f"""CASE
+        WHEN UPPER(TRIM(de_RazonSocial)) = 'PETROPLAZAS' THEN 'Petroplazas'{_CLIENTE_ESPECIAL_7875}
+        WHEN nb_TipoDeNegocio = 'Distribuidora' THEN 'Distribuidora'
+        WHEN nb_TipoDeNegocio = 'Asociados' THEN 'Asociados'
+    END"""
+
+# Igual que _SEGMENTO_POR_FILA, pero además clasifica como 'S/I' (Sin
+# Identificar) las filas que NO TIENEN CLIENTE (de_RazonSocial vacío/NULL —
+# mismo criterio que sn_Identificada = 'NO' en Dashboard Ingresos, confirmado
+# 1 a 1 contra la tabla). Corrección del usuario (2026-08-12): S/I es "sin
+# cliente", NO "tipo de negocio sin identificar" — un GasPetroil con cliente
+# real sigue sin contar (igual que en _SEGMENTO_POR_FILA), no es S/I. Solo
+# para 'Detalle por segmento' y 'Cobro diario'; Ingresos Significativos (Top
+# 20) e Ingresos por día siguen usando _SEGMENTO_POR_FILA sin cambios — ahí
+# las filas sin cliente ya se excluían de por sí (no tiene sentido rankear
+# por razón social algo sin razón social).
+_SEGMENTO_POR_FILA_CON_SI = f"""CASE
+        WHEN de_RazonSocial IS NULL OR TRIM(de_RazonSocial) = '' THEN 'S/I'
+        WHEN UPPER(TRIM(de_RazonSocial)) = 'PETROPLAZAS' THEN 'Petroplazas'{_CLIENTE_ESPECIAL_7875}
         WHEN nb_TipoDeNegocio = 'Distribuidora' THEN 'Distribuidora'
         WHEN nb_TipoDeNegocio = 'Asociados' THEN 'Asociados'
     END"""
@@ -134,18 +163,22 @@ class CobranzaSemanalRepository:
 
     def cobranza_por_segmento(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
         """Total cobrado (im_Movimiento) por segmento en [fecha_inicio, fecha_fin]
-        (sobre fh_Envio), separando USD, su conversión y el total final en MXN."""
+        (sobre fh_Envio), separando USD, su conversión y el total final en MXN.
+        Incluye 'S/I' (Sin Identificar): movimientos sin cliente asignado — ver
+        _SEGMENTO_POR_FILA_CON_SI. Movimientos CON cliente pero tipo de negocio
+        fuera de Distribuidora/Asociados/Petroplazas (ej. GasPetroil) se
+        descartan del concentrado, igual que siempre."""
         query = f"""
             WITH {_CTE_FX_DIARIO},
             filas AS (
                 SELECT
-                    {_SEGMENTO_POR_FILA} AS segmento,
+                    {_SEGMENTO_POR_FILA_CON_SI} AS segmento,
                     DATE(fh_Envio) AS fecha,
                     im_Movimiento,
                     nb_Moneda
                 FROM `{self._tabla}`
                 WHERE nb_Empresa IN UNNEST(@empresas)
-                  AND UPPER(TRIM(de_RazonSocial)) NOT IN UNNEST(@razon_social_excluida)
+                  AND IFNULL(UPPER(TRIM(de_RazonSocial)), '') NOT IN UNNEST(@razon_social_excluida)
                   AND {self._condiciones_sucursal()}
                   AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
             ),
@@ -270,6 +303,55 @@ class CobranzaSemanalRepository:
             query,
             job_config=bigquery.QueryJobConfig(query_parameters=parametros),
         ).result()
+        return [
+            {
+                **dict(fila.items()),
+                "total_final": (fila["total_mxn"] or 0) + (fila["total_usd_convertido"] or 0),
+            }
+            for fila in filas
+        ]
+
+    def ingresos_por_dia_general(self, fecha_inicio: date, fecha_fin: date) -> list[dict]:
+        """Igual que `ingresos_por_dia` pero SIEMPRE los 4 segmentos (Distribuidora,
+        Asociados, Petroplazas, S/I = sin cliente asignado), sin parámetro de
+        filtro — usado solo por la tabla 'Cobro diario', que no tiene selector de
+        tipo de negocio."""
+        query = f"""
+            WITH {_CTE_FX_DIARIO},
+            filas AS (
+                SELECT
+                    {_SEGMENTO_POR_FILA_CON_SI} AS segmento,
+                    DATE(fh_Envio) AS fecha,
+                    im_Movimiento,
+                    nb_Moneda
+                FROM `{self._tabla}`
+                WHERE nb_Empresa IN UNNEST(@empresas)
+                  AND IFNULL(UPPER(TRIM(de_RazonSocial)), '') NOT IN UNNEST(@razon_social_excluida)
+                  AND {self._condiciones_sucursal()}
+                  AND DATE(fh_Envio) BETWEEN @fecha_inicio AND @fecha_fin
+            ),
+            {_CTE_FX_CERCANO}
+            SELECT
+                filas.fecha,
+                filas.segmento,
+                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) != @moneda_usd
+                         THEN im_Movimiento ELSE 0 END) AS total_mxn,
+                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
+                         THEN im_Movimiento ELSE 0 END) AS total_usd,
+                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
+                              AND fxc.tipo_cambio IS NOT NULL
+                         THEN im_Movimiento * fxc.tipo_cambio ELSE 0 END) AS total_usd_convertido,
+                SUM(CASE WHEN LOWER(IFNULL(nb_Moneda, '')) = @moneda_usd
+                              AND fxc.tipo_cambio IS NULL
+                         THEN im_Movimiento ELSE 0 END) AS total_usd_sin_tc
+            FROM filas
+            LEFT JOIN fx_cercano fxc ON fxc.fecha = filas.fecha AND fxc.rn = 1
+            WHERE segmento IS NOT NULL
+            GROUP BY filas.fecha, filas.segmento
+            ORDER BY filas.fecha, filas.segmento
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=self._parametros(fecha_inicio, fecha_fin))
+        filas = self._cliente.query(query, job_config=job_config).result()
         return [
             {
                 **dict(fila.items()),
