@@ -23,6 +23,7 @@ from .componentes import (
     mostrar_dialogo,
     nombre_hoja_valido,
     sombra_tarjeta,
+    texto_actualizacion,
 )
 from ..services.dashboard_repository import DashboardRepository
 
@@ -423,6 +424,7 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
     )
 
     estado_text = ft.Text("", size=12, color=ft.Colors.RED_600)
+    actualizacion_text = ft.Text("", size=11, color=ft.Colors.ON_SURFACE_VARIANT)
     progress = ft.ProgressRing(width=16, height=16, visible=False, stroke_width=2)
 
     # En Flet 0.85 el FilePicker es un servicio: se crea y se usa directamente
@@ -499,15 +501,17 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
         page.update()
 
         fecha_inicio, fecha_fin = rango_sel[0]
-        resultados = await asyncio.gather(
+        *resultados, actualizacion = await asyncio.gather(
             *(consulta(fecha_inicio, fecha_fin) for _titulo, _subtitulo, consulta, _vista, _icono in _SECCIONES),
             _consultar_no_identificado(fecha_inicio, fecha_fin),
             _consultar_otras_empresas(fecha_inicio, fecha_fin),
             _consultar_top_razon_social(fecha_inicio, fecha_fin),
+            asyncio.to_thread(_repo().ultima_actualizacion),
             return_exceptions=True,
         )
         resultados_actuales[0] = resultados
         _refrescar_todo()
+        actualizacion_text.value = texto_actualizacion(actualizacion)
 
         progress.visible = False
         boton_rango.disabled = False
@@ -760,7 +764,7 @@ def construir_subtab_segmentado(page: ft.Page) -> ft.Control:
 
     barra_herramientas = ft.Container(
         content=ft.Row(
-            [boton_rango, progress, estado_text, ft.Container(expand=True), boton_exportar, boton_info, boton_vista],
+            [boton_rango, progress, estado_text, ft.Container(expand=True), actualizacion_text, boton_exportar, boton_info, boton_vista],
             spacing=12,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),

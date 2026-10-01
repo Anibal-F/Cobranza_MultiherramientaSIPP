@@ -5,7 +5,8 @@ helpers de tema/diálogo. Sin ninguna dependencia de BigQuery."""
 import dataclasses
 import os
 import re
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import flet as ft
 import flet_charts as fc
@@ -176,6 +177,16 @@ def chip_total_usd(total_usd: float) -> ft.Control:
         bgcolor=ft.Colors.with_opacity(0.14, "#eda100"),
         border_radius=20,
     )
+
+
+ZONA_MX = ZoneInfo("America/Mazatlan")
+
+
+def texto_actualizacion(actualizacion: datetime | Exception | None) -> str:
+    """'Datos actualizados: dd/mm/aaaa HH:MM' (hora de México) o '' si no hay dato."""
+    if actualizacion is None or isinstance(actualizacion, Exception):
+        return ""
+    return f"Datos actualizados: {actualizacion.astimezone(ZONA_MX).strftime('%d/%m/%Y %H:%M')}"
 
 
 def sombra_tarjeta() -> ft.BoxShadow:

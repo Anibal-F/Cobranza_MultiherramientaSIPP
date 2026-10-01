@@ -32,6 +32,7 @@ from .componentes import (
     mostrar_dialogo,
     placeholder_carga,
     sombra_tarjeta,
+    texto_actualizacion,
 )
 from ..services.dashboard_repository import LIMITE_FILAS_DETALLE, MONEDA_USD, DashboardRepository
 
@@ -121,6 +122,7 @@ class Explorador:
         self.cargado = False
         self.cargando = False
         self.error = ""
+        self.actualizacion = ""
         # --- UI ---
         self.activa = "timeline"
         self.raiz: ft.Column | None = None  # el contenedor actualmente montado (se crea en construir())
@@ -161,9 +163,11 @@ class Explorador:
         ]
         faltantes = [c for c, v in self.catalogo.items() if v is None]
         tareas += [_consultar_catalogo(c) for c in faltantes]
+        tareas.append(asyncio.to_thread(_repo().ultima_actualizacion))
         resultados = await asyncio.gather(*tareas, return_exceptions=True)
 
-        r_serie, r_detalle, *r_catalogos = resultados
+        r_serie, r_detalle, *r_catalogos, r_actualizacion = resultados
+        self.actualizacion = texto_actualizacion(r_actualizacion)
         if not isinstance(r_serie, Exception):
             self.serie = [(fila["periodo"], fila["total"] or 0) for fila in r_serie]
             self.serie_usd = [(fila["periodo"], fila["total_usd"] or 0) for fila in r_serie]
@@ -210,6 +214,8 @@ class Explorador:
         )
         progreso = ft.ProgressRing(width=16, height=16, stroke_width=2, visible=self.cargando)
         error_text = ft.Text(self.error, size=12, color=ft.Colors.RED_600, visible=bool(self.error))
+        actualizacion_text = ft.Text(self.actualizacion, size=11, color=ft.Colors.ON_SURFACE_VARIANT,
+                                     visible=bool(self.actualizacion))
 
         # IMPORTANTE: nada de expand=True dentro de este Row — tiene wrap=True
         # (ver nota en el docstring del módulo). El botón ⓘ va como un chip más.
@@ -223,6 +229,7 @@ class Explorador:
                 boton_info,
                 progreso,
                 error_text,
+                actualizacion_text,
             ],
             spacing=10, wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )

@@ -3,7 +3,7 @@ principal) y el explorador abierto (Timeline/Detalle) sobre
 `Tableros.IgresosClientes`.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from google.cloud import bigquery
 
@@ -154,6 +154,11 @@ class DashboardRepository:
     def __init__(self, tabla: str = TABLA) -> None:
         self._cliente = cliente_bigquery()  # comparte el singleton del módulo cliente
         self._tabla = tabla
+
+    def ultima_actualizacion(self) -> datetime | None:
+        """Fecha/hora (UTC) de la última carga del extractor a la tabla, vía el
+        metadato `modified` de BigQuery (mismo criterio que el panel Cobranza)."""
+        return self._cliente.get_table(self._tabla).modified
 
     # --- Segmento principal (sub-pestaña Segmentado) -------------------------
 
